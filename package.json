@@ -1,0 +1,23 @@
+{
+  "name": "@lesfleursdelanuitdev/data-viewer",
+  "version": "0.0.0",
+  "description": "A list of rows as a table or cards: <lfdln-data-viewer>.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.3",
+    "lit": "3.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.0"
+  }
+}
