@@ -25,6 +25,7 @@ export type Words = {
   loadFailed: string;
   tryAgain: string;
   cancel: string;
+  ok: string;
   menuFor: (title: string) => string;
   showing: (from: string, to: string, total: string) => string;
   pageOf: (page: string, pages: string) => string;
@@ -43,6 +44,7 @@ export const defaultWords: Words = {
   loadFailed: "Couldn't load this list.",
   tryAgain: 'Try again',
   cancel: 'Cancel',
+  ok: 'OK',
   menuFor: (title) => `What you can do with ${title}`,
   showing: (from, to, total) => `Showing ${from}–${to} of ${total}`,
   pageOf: (page, pages) => `Page ${page} of ${pages}`,
@@ -386,15 +388,19 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
-  // The first cell is the row's way in, like a card's title: its link, or a button that fires open.
-  // A cell that draws its own content (render, or a link column) is left alone, so nothing nests.
+  // The first cell is the row's header: the card's picture (if any) beside the way in, which is
+  // the card's link or a button that fires open. A cell that draws its own content (render, or a
+  // link column) keeps it as is, so nothing nests.
   private _firstCell(col: Column<T>, row: T, p: CardParts): Content | typeof nothing {
     const content = this._cell(col, row);
-    if (col.render || col.type === 'link') return content;
     const href = safeUrl(p.href);
-    return href
-      ? html`<a class="dv-open" href=${href}>${content}</a>`
-      : html`<button type="button" class="dv-open" @click=${() => this._open(row)}>${content}</button>`;
+    const way = col.render || col.type === 'link'
+      ? content
+      : href
+        ? html`<a class="dv-open" href=${href}>${content}</a>`
+        : html`<button type="button" class="dv-open" @click=${() => this._open(row)}>${content}</button>`;
+    if (p.picture === undefined) return way;
+    return html`<span class="dv-row-head"><span class="dv-row-picture" aria-hidden="true">${p.picture}</span>${way}</span>`;
   }
 
   private _right(col: Column<T>): boolean {
@@ -472,7 +478,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         <p id=${`${this._uid}-ask`}>${item?.confirm ?? ''}</p>
         <div class="dv-confirm-buttons">
           <button value="cancel" autofocus>${w.cancel}</button>
-          <button value="ok" class=${item?.danger ? 'dv-danger' : ''}>${item?.label ?? ''}</button>
+          <button value="ok" class=${item?.danger ? 'dv-danger' : ''}>${item?.label || w.ok}</button>
         </div>
       </form>
     </dialog>`;

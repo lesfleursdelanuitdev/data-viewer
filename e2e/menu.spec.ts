@@ -265,3 +265,31 @@ test.describe('phone', () => {
     expect(mb.x + mb.width).toBeLessThanOrEqual(390);
   });
 });
+
+test('table: a row with a picture shows it in the first cell, beside the way in', async ({ page }) => {
+  await open(page);
+  const head = page.locator('#things-table tbody tr').nth(1).locator('th[scope=row]');
+  const img = head.locator('.dv-row-picture img');
+  await expect(img).toHaveCount(1);
+  await expect(img).toHaveAttribute('alt', '');
+  const pic = (await head.locator('.dv-row-picture').boundingBox())!;
+  expect(Math.abs(pic.width - pic.height)).toBeLessThan(1); // a square
+  expect(pic.width).toBeLessThanOrEqual(48);
+  const way = (await head.getByRole('button').boundingBox())!;
+  expect(way.x).toBeGreaterThanOrEqual(pic.x + pic.width); // beside it, title after the picture
+  // Rows without a picture get none (#local has no cardOf picture).
+  await expect(page.locator('#local tbody th[scope=row] .dv-row-picture')).toHaveCount(0);
+});
+
+test('confirm button falls back to "OK" when the item has no label', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const el = document.querySelector('#things-table') as HTMLElement & Record<string, unknown>;
+    el.cardOf = (r: { name: string }) => ({ title: r.name, menu: [{ id: 'x', label: '', confirm: 'Sure?' }] });
+  });
+  const cell = page.locator('#things-table tbody tr').first().locator('td.dv-row-menu');
+  await cell.getByRole('button').click();
+  await cell.getByRole('menuitem').click();
+  const dialog = page.locator('#things-table dialog.dv-confirm');
+  await expect(dialog.getByRole('button', { name: 'OK', exact: true })).toBeVisible();
+});

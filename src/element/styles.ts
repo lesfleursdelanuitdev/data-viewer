@@ -116,6 +116,15 @@ export const css = `
 :where(a.dv-open) { color: var(--dv-accent); text-decoration: underline; }
 :where(.dv-open:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
 :where(.dv-table) :where(.dv-row-menu) { width: 1%; text-align: right; }
+/* The row's picture: one small square for every row, like the cards' one shape. */
+:where(.dv-row-head) { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; }
+:where(.dv-row-picture) {
+  flex: none; width: 2.5rem; height: 2.5rem; overflow: hidden; border-radius: calc(var(--dv-radius) / 2);
+  background: var(--dv-surface);
+}
+:where(.dv-row-picture) > :where(img, video, svg, picture) {
+  display: block; width: 100%; height: 100%; max-height: none; object-fit: cover; border-radius: 0;
+}
 
 :where(.dv-root) :where(.dv-menu-button) {
   display: inline-grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: 0 0.4rem;
