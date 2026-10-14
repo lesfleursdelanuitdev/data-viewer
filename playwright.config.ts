@@ -1,0 +1,21 @@
+import { defineConfig, devices } from '@playwright/test';
+import { homedir } from 'node:os';
+
+// No full Chromium is downloaded on this server, so use the cached headless shell.
+const shell = `${homedir()}/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell`;
+
+export default defineConfig({
+  testDir: 'e2e',
+  fullyParallel: true,
+  reporter: 'list',
+  use: {
+    baseURL: 'http://localhost:4179',
+    launchOptions: { executablePath: shell },
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: { executablePath: shell } } }],
+  webServer: {
+    command: 'npx vite --port 4179 --strictPort',
+    url: 'http://localhost:4179',
+    reuseExistingServer: false,
+  },
+});

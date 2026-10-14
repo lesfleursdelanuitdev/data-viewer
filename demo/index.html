@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>data-viewer demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer demo</h1>
+  <h2>In the browser</h2>
+  <lfdln-data-viewer id="local" url-state="r"></lfdln-data-viewer>
+  <h2>From a server</h2>
+  <lfdln-data-viewer id="remote"></lfdln-data-viewer>
+  <script type="module" src="./demo.ts"></script>
+</body>
+</html>

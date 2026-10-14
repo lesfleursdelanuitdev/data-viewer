@@ -7,7 +7,7 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build",
+    "build": "vite build && vite build --mode standalone",
     "e2e": "playwright test"
   },
   "peerDependencies": {
