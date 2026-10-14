@@ -1,6 +1,6 @@
 {
   "name": "@lesfleursdelanuitdev/data-viewer",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A list of rows as a table or cards: <lfdln-data-viewer>.",
   "license": "MIT",
   "type": "module",
@@ -11,7 +11,7 @@
     "e2e": "playwright test"
   },
   "peerDependencies": {
-    "lit": "3.3.3"
+    "lit": "^3.3.3"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
