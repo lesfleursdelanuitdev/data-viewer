@@ -61,7 +61,7 @@
 - [ ] **Step 3: Run** `npm test`. Expected: FAIL, module not found.
 - [ ] **Step 4: Implement** `types.ts` and `list.ts` with the signatures above. Sorting must be stable: equal keys keep their input order.
 - [ ] **Step 5: Run** `npm test && npm run typecheck`. Expected: all pass, no type errors.
-- [ ] **Step 6: Show the diff to momolig, say it's ready to commit**, and commit when she says so: `feat: list logic (search, sort, views, pages)`.
+- [ ] **Step 6: Commit** (momolig OK'd per-task local commits 2026-10-14): `feat: list logic (search, sort, views, pages)`.
 
 ### Task 2: Formatting and address state
 
@@ -83,7 +83,7 @@
 - [ ] **Step 2: Run** `npm test`. Expected: the new tests FAIL.
 - [ ] **Step 3: Implement** with `Intl.NumberFormat` / `Intl.DateTimeFormat`, using the column's `format`.
 - [ ] **Step 4: Run** `npm test && npm run typecheck`. Expected: PASS.
-- [ ] **Step 5: Ready to commit**: `feat: cell formatting and address state`.
+- [ ] **Step 5: Commit**: `feat: cell formatting and address state`.
 
 ### Task 3: The element: table, cards, search, views, pages
 
@@ -108,7 +108,7 @@
 - [ ] **Step 2: Run** `npx playwright test`. Expected: FAIL.
 - [ ] **Step 3: Implement** the element. Light DOM, styles as in Global Constraints, and the table's first column as the row header. In compact mode it hides the bar and pages. The search box is an `<input type="search">` with `aria-label` from `words.search`. It reads the page from `url-state` on connect and writes with `history.replaceState` while typing and `pushState` for everything else, and listens to `popstate`.
 - [ ] **Step 4: Run** `npm test && npm run typecheck && npx playwright test`. Expected: PASS.
-- [ ] **Step 5: Ready to commit**: `feat: the element (table, cards, search, views, pages)`.
+- [ ] **Step 5: Commit**: `feat: the element (table, cards, search, views, pages)`.
 
 ### Task 4: Cards, the ⋯ menu, open/action, built-in confirm
 
@@ -132,7 +132,7 @@
 - [ ] **Step 2: Run** `npx playwright test e2e/menu.spec.ts`. Expected: FAIL.
 - [ ] **Step 3: Implement.** The menu uses the `popover="auto"` attribute on its list, positioned under its button, right-aligned. Items are `role="menuitem"` inside `role="menu"`.
 - [ ] **Step 4: Run** all tests. Expected: PASS.
-- [ ] **Step 5: Ready to commit**: `feat: cards, ⋯ menu, events, confirm`.
+- [ ] **Step 5: Commit**: `feat: cards, ⋯ menu, events, confirm`.
 
 ### Task 5: HTML only: `<lfdln-dv-column>` and `card-*` attributes
 
@@ -152,7 +152,7 @@
 - [ ] **Step 2: Run.** Expected: FAIL.
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run** all tests. Expected: PASS.
-- [ ] **Step 5: Ready to commit**: `feat: HTML-only columns and card attributes`.
+- [ ] **Step 5: Commit**: `feat: HTML-only columns and card attributes`.
 
 ### Task 6: Adapters (`json`, `pammy`), loading, failure, cancelling
 
@@ -176,7 +176,7 @@
 - [ ] **Step 3: Run.** Expected: FAIL.
 - [ ] **Step 4: Implement.** An `AbortController` per load. The element ignores an answer whose query isn't the latest, even if it wasn't aborted.
 - [ ] **Step 5: Run** all tests. Expected: PASS.
-- [ ] **Step 6: Ready to commit**: `feat: json and pammy adapters, failure, cancelling`.
+- [ ] **Step 6: Commit**: `feat: json and pammy adapters, failure, cancelling`.
 
 ### Task 7: Builds, size check, README, then repo and npm (with OK)
 
