@@ -47,3 +47,11 @@ test('tags join with a comma, other types give plain text', () => {
 test('value() overrides row[key]', () => {
   assert.equal(formatCell(col({ value: () => 'x' }), { v: 'y' }), 'x');
 });
+
+test('odd values draw as empty text, never NaN or [object Object]', () => {
+  assert.equal(formatCell(col({ type: 'text' }), { v: NaN }), '');
+  assert.equal(formatCell(col({}), { v: NaN }), '');
+  assert.equal(formatCell(col({}), { v: Infinity }), '');
+  assert.equal(formatCell(col({ type: 'tags' }), { v: [1, NaN] }), '1');
+  assert.equal(formatCell(col({ type: 'text' }), { v: { a: 1 } }), '');
+});

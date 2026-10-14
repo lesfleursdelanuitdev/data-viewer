@@ -24,8 +24,16 @@ export function formatCell<T>(col: Column<T>, row: T, locale?: string): string {
     case 'bool':
       return raw ? 'Yes' : 'No';
     case 'tags':
-      return Array.isArray(raw) ? raw.join(', ') : String(raw);
+      return (Array.isArray(raw) ? raw : [raw]).map(plainText).filter(Boolean).join(', ');
     default:
-      return String(raw);
+      return plainText(raw);
   }
+}
+
+// Plain text for one value; NaN, Infinity and objects would print as junk, so they are empty.
+function plainText(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '';
+  if (typeof v === 'object') return v instanceof Date && !Number.isNaN(v.getTime()) ? v.toString() : '';
+  return String(v);
 }
