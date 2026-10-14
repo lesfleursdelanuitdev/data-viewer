@@ -5,12 +5,14 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": [
-    "./dist/*.standalone.js"
+    "./dist/*.standalone.js",
+    "./dist/data-viewer-*.js",
+    "./dist/adapters/*.js"
   ],
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy",
     "e2e": "playwright test"
   },
   "peerDependencies": {

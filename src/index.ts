@@ -5,6 +5,8 @@ export { LfdlnDataViewer, defaultWords } from './element/data-viewer.ts';
 export { LfdlnDvColumn } from './element/column.ts';
 export type { Layout, Words } from './element/data-viewer.ts';
 export type { CardParts, Column, Content, MenuItem, Query, View } from './core/types.ts';
+export { registerAdapter } from './adapters/register.ts';
+export type { Adapter } from './adapters/types.ts';
 
 // The browser lets one class be defined only once, so later names get a subclass.
 let classUsed = false;

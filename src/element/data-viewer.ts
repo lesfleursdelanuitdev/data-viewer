@@ -9,6 +9,7 @@ import { safeUrl } from './safe-url.ts';
 import { dvCard } from './card.ts';
 import { dvMenu } from './menu.ts';
 import { columnsIn } from './column.ts';
+import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 
 export type Layout = 'table' | 'cards';
 
@@ -59,10 +60,15 @@ let lists = 0; // gives each list its own prefix for menu ids
 // What the built-in confirm dialog is asking about.
 type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
 
+// With an adapter: not known until the first answer, then browser (all rows came) or server.
+type LoadMode = 'unknown' | 'browser' | 'server';
+
 /**
  * <lfdln-data-viewer>: one list of rows, drawn as a table or as cards.
  * Browser mode (no `total`): it searches, sorts, filters and pages `rows` itself.
  * Server mode (`total` set): it shows `rows` as given and fires `query` for the host to answer.
+ * With `adapter` and `src` it loads its own rows through that adapter (HTML only, no page code):
+ * an answer without a total is browser mode, with one it is server mode and every query reloads.
  */
 export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   static override properties = {
@@ -87,7 +93,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardMeta: { type: String, attribute: 'card-meta' },
     cardValue: { type: String, attribute: 'card-value' },
     cardHref: { type: String, attribute: 'card-href' },
+    adapter: { type: String },
+    src: { type: String },
     _q: { state: true },
+    _failed: { state: true },
     _searchText: { state: true },
     _ask: { state: true },
   };
@@ -112,11 +121,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare cardMeta: string | undefined;
   declare cardValue: string | undefined;
   declare cardHref: string | undefined;
+  /** A registered adapter's name (json, pammy, …) and the address it loads from. */
+  declare adapter: string | undefined;
+  declare src: string | undefined;
   /** The child tag read as columns in HTML; define() sets it per registered name. */
   static columnTag = 'lfdln-dv-column';
   declare _q: Query;
   declare _searchText: string;
   declare _ask: Ask<T> | undefined;
+  declare _failed: boolean;
   private _uid = `dv${++lists}`;
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
@@ -125,6 +138,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _answered = false;
   private _rows: T[] = [];
   private _total: number | undefined;
+
+  // Loading through an adapter. Each load gets a number; only the latest one's answer is used,
+  // even when an adapter ignores the abort signal (an older answer must not replace newer rows).
+  private _seq = 0;
+  private _ctrl: AbortController | undefined;
+  private _loadQueued = false;
+  private _unwait: (() => void) | undefined;
+  private _mode: LoadMode = 'unknown';
+  private _stale = false; // a load was cut off by leaving the page
 
   get rows(): T[] {
     return this._rows;
@@ -157,6 +179,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.busy = false;
     this._q = { ...blank };
     this._searchText = '';
+    this._failed = false;
   }
 
   // Light DOM, so page CSS reaches in.
@@ -172,23 +195,46 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       window.addEventListener('popstate', this._onPop);
       this._readAddress(false);
     }
+    // Back on the page after a load was cut off: ask again.
+    if (this.hasUpdated && this._stale) this._requestLoad();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPop);
     clearTimeout(this._timer);
+    // A load still running or waiting for its adapter is dropped, and redone on return.
+    if (this._ctrl || this._unwait || this._loadQueued) this._stale = true;
+    this._ctrl?.abort();
+    this._ctrl = undefined;
+    this._unwait?.();
+    this._unwait = undefined;
+    this._seq++;
+  }
+
+  // HTML only: what the markup says, read before the first drawing clears the children. The
+  // columns are children; adapter and src are attributes (Lit has usually read them already).
+  private _readMarkup(): void {
+    if (!this.columns?.length) {
+      const cols = columnsIn<T>(this, (this.constructor as typeof LfdlnDataViewer).columnTag);
+      if (cols.length) this.columns = cols;
+    }
+    this.adapter ??= this.getAttribute('adapter') ?? undefined;
+    this.src ??= this.getAttribute('src') ?? undefined;
   }
 
   protected override willUpdate(changed: PropertyValues<this>): void {
     // HTML only: before the first drawing, columns written as children are read (when no
     // columns were given), then the children go, since the viewer draws into its own light DOM.
     if (!this.hasUpdated) {
-      if (!this.columns?.length) {
-        const cols = columnsIn<T>(this, (this.constructor as typeof LfdlnDataViewer).columnTag);
-        if (cols.length) this.columns = cols;
-      }
+      this._readMarkup();
       this.replaceChildren();
+    }
+    // A new adapter or address: start again from the first answer.
+    if ((changed.has('adapter') || changed.has('src')) && this._adapted) {
+      this._mode = 'unknown';
+      this._failed = false;
+      this._requestLoad();
     }
     if (changed.has('state') && this.state) {
       this._q = { ...this._q, ...this.state };
@@ -218,6 +264,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   private get _server(): boolean {
     return this.total !== undefined && this.total !== null;
+  }
+
+  private get _adapted(): boolean {
+    return Boolean(this.adapter?.trim() && this.src?.trim());
   }
 
   private get _prefix(): string {
@@ -257,6 +307,58 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._answered = false;
     if (this._server) this.busy = true;
     this.dispatchEvent(new CustomEvent<Query>('query', { detail: { ...this._q }, bubbles: true, composed: true }));
+    // With an adapter the element answers itself, unless it already has every row.
+    if (this._adapted && this._mode !== 'browser') this._requestLoad();
+  }
+
+  // Several changes in one task (address, attributes, a page clamp) make one load.
+  private _requestLoad(): void {
+    if (this._loadQueued) return;
+    this._loadQueued = true;
+    queueMicrotask(() => {
+      this._loadQueued = false;
+      void this._load();
+    });
+  }
+
+  private async _load(): Promise<void> {
+    if (!this._adapted || !this.isConnected) return;
+    this._stale = false;
+    this._ctrl?.abort(); // a newer query cancels the one still running
+    this._ctrl = undefined;
+    this._unwait?.();
+    this._unwait = undefined;
+    const seq = ++this._seq;
+    this.busy = true;
+    const name = this.adapter!.trim();
+    const adapter = adapterNamed(name);
+    if (!adapter) {
+      // Its script hasn't run yet: wait for it to register, no polling.
+      this._unwait = whenRegistered(name, () => {
+        this._unwait = undefined;
+        this._requestLoad();
+      });
+      return;
+    }
+    const ctrl = new AbortController();
+    this._ctrl = ctrl;
+    try {
+      const out = await adapter.load({ ...this._q }, { signal: ctrl.signal, src: this.src!.trim(), pageSize: this.pageSize });
+      if (seq !== this._seq) return; // a newer load was asked for meanwhile
+      this._mode = out.total === undefined || out.total === null ? 'browser' : 'server';
+      this._failed = false;
+      this.total = this._mode === 'server' ? out.total : undefined;
+      this.rows = (out.rows ?? []) as T[];
+      this.busy = false;
+    } catch (err) {
+      if (seq !== this._seq) return; // cancelled, or overtaken: not this query's failure
+      // The last rows stay; the error box offers Try again. The reason is for developers.
+      this._failed = true;
+      this.busy = false;
+      console.warn(err);
+    } finally {
+      if (this._ctrl === ctrl) this._ctrl = undefined;
+    }
   }
 
   // One change to what is shown: store it, put it in the address, tell the host.
@@ -351,15 +453,25 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ({ rows, total, page } = out);
     }
     const range = pageRange(page, this.pageSize, total, rows.length);
+    // Before an adapter's first answer there is nothing to say yet ("Nothing to show." would be wrong).
+    const first = this._adapted && this._mode === 'unknown' && !this._failed && rows.length === 0;
 
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
       ${this.compact ? nothing : this._bar(w)}
-      ${rows.length === 0
-        ? html`<p class="dv-empty">${w.empty}</p>`
-        : this.layout === 'cards'
-          ? this._cards(rows)
-          : this._table(rows, w)}
-      ${this.compact ? nothing : this._pages(w, page, total, range)}
+      ${this._failed
+        ? html`<div class="dv-error" role="alert">
+            <p>${w.loadFailed}</p>
+            <button type="button" @click=${() => this._requestLoad()}>${w.tryAgain}</button>
+          </div>`
+        : nothing}
+      ${first
+        ? nothing
+        : rows.length === 0
+          ? html`<p class="dv-empty">${w.empty}</p>`
+          : this.layout === 'cards'
+            ? this._cards(rows)
+            : this._table(rows, w)}
+      ${this.compact || first ? nothing : this._pages(w, page, total, range)}
       ${this._confirm(w)}
     </div>`;
   }

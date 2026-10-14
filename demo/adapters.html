@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>data-viewer, adapters</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <!-- The built standalone scripts, as a plain page would load them. -->
+  <script type="module" src="/data-viewer.standalone.js"></script>
+  <script type="module" src="/data-viewer-json.js"></script>
+</head>
+<body>
+  <h1>data-viewer, adapters</h1>
+  <h2>From a server (answers with a total)</h2>
+  <lfdln-data-viewer id="srv" label="Recipes" adapter="json" src="/api/recipes?slow=rose" layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="cuisine" label="Cuisine"></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>An adapter that ignores cancelling</h2>
+  <lfdln-data-viewer id="stubborn" label="Recipes" adapter="stubborn" src="/api/recipes?slow=rose" layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>All at once (a plain array)</h2>
+  <lfdln-data-viewer id="all" label="Recipes" adapter="json" src="/api/recipes?all=1" layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Fails while the dv-fail cookie is set</h2>
+  <lfdln-data-viewer id="flaky" label="Recipes" adapter="json" src="/api/recipes" layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>The pammy data API (its script loads late)</h2>
+  <lfdln-data-viewer id="pammy" label="Recipes" adapter="pammy" src="/_pammy/api/data/postgres/demo/recipes" page-size="10" layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="module">
+    // Built files are loaded by address at run time (Vite won't bundle files from its public folder).
+    const built = (name) => import(/* @vite-ignore */ `/${name}`);
+    const { registerAdapter } = await built('data-viewer.standalone.js');
+    // A test adapter that never cancels its request, so only the element's own check keeps
+    // an old answer from replacing newer rows.
+    registerAdapter('stubborn', {
+      async load(q, { src }) {
+        const url = new URL(src, location.href);
+        if (q.search) url.searchParams.set('search', q.search);
+        if (q.page > 1) url.searchParams.set('page', String(q.page));
+        return (await fetch(url)).json();
+      },
+    });
+    window.heard = [];
+    document.querySelector('#srv').addEventListener('query', (e) => window.heard.push(e.detail.page));
+    // The pammy script arrives after the viewers are drawn: they wait for it.
+    setTimeout(() => built('data-viewer-pammy.js'), 300);
+  </script>
+</body>
+</html>
