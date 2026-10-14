@@ -1,6 +1,6 @@
 // The built-in look. Every rule sits inside :where() so any page rule wins, and the style
 // element goes first in <head> so page CSS loaded later wins ties too.
-export const css = `
+export const css: string = `
 :where(:root) {
   --dv-bg: #ffffff;
   --dv-surface: #f6f6f7;
@@ -164,7 +164,7 @@ export const css = `
 :where(.dv-pages) { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; margin-top: 0.75rem; }
 :where(.dv-pages) :where([role="status"]) { color: var(--dv-muted); font-size: 0.9em; }
 :where(.dv-empty, .dv-error) { padding: 1.5rem; text-align: center; color: var(--dv-muted); border: 1px dashed var(--dv-border); border-radius: var(--dv-radius); }
-:where(.dv-error) { color: var(--dv-danger); }
+:where(.dv-error) { color: var(--dv-danger); margin-bottom: 0.75rem; }
 
 @media (max-width: 640px) {
   :where(.dv-root) :where(button, input, .dv-views a, a.dv-card-action) { min-height: 44px; }
