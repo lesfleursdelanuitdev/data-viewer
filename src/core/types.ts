@@ -20,7 +20,8 @@ export type MenuItem = {
   href?: string;
   danger?: boolean;
   disabled?: boolean;
-  why?: string;
+  why?: string; // shown under a disabled item's label
+  confirm?: string; // asked in a built-in dialog before action fires
 };
 
 export type CardParts = {

@@ -1,10 +1,13 @@
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { live } from 'lit/directives/live.js';
-import type { CardParts, Column, Content, Query, View } from '../core/types.ts';
+import type { CardParts, Column, Content, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery, pageRange } from '../core/list.ts';
 import { formatCell } from '../core/format.ts';
 import { readQuery, writeQuery } from '../core/address.ts';
 import { addStyles } from './styles.ts';
+import { safeUrl } from './safe-url.ts';
+import { dvCard } from './card.ts';
+import { dvMenu } from './menu.ts';
 
 export type Layout = 'table' | 'cards';
 
@@ -21,6 +24,8 @@ export type Words = {
   empty: string;
   loadFailed: string;
   tryAgain: string;
+  cancel: string;
+  menuFor: (title: string) => string;
   showing: (from: string, to: string, total: string) => string;
   pageOf: (page: string, pages: string) => string;
 };
@@ -37,6 +42,8 @@ export const defaultWords: Words = {
   empty: 'Nothing to show.',
   loadFailed: "Couldn't load this list.",
   tryAgain: 'Try again',
+  cancel: 'Cancel',
+  menuFor: (title) => `What you can do with ${title}`,
   showing: (from, to, total) => `Showing ${from}–${to} of ${total}`,
   pageOf: (page, pages) => `Page ${page} of ${pages}`,
 };
@@ -44,21 +51,10 @@ export const defaultWords: Words = {
 const blank: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
 const PHONE = '(max-width: 640px)';
 const DEBOUNCE_MS = 300;
+let lists = 0; // gives each list its own prefix for menu ids
 
-const SAFE_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
-
-// Only web, mail and phone links. The string is parsed the way the browser will parse it
-// (it strips tabs, newlines and leading control characters), so "java\tscript:" can't slip by.
-// Relative links resolve to the page's own scheme and still pass.
-function safeUrl(v: unknown): string | undefined {
-  if (typeof v !== 'string' || !v.trim()) return undefined;
-  try {
-    const url = new URL(v, document.baseURI);
-    return SAFE_SCHEMES.has(url.protocol) ? url.href : undefined;
-  } catch {
-    return undefined;
-  }
-}
+// What the built-in confirm dialog is asking about.
+type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
 
 /**
  * <lfdln-data-viewer>: one list of rows, drawn as a table or as cards.
@@ -84,6 +80,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     urlState: { type: String, attribute: 'url-state' },
     _q: { state: true },
     _searchText: { state: true },
+    _ask: { state: true },
   };
 
   declare label: string;
@@ -101,6 +98,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare urlState: string | undefined;
   declare _q: Query;
   declare _searchText: string;
+  declare _ask: Ask<T> | undefined;
+  private _uid = `dv${++lists}`;
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
   // Set when the host hands over rows or a total, so busy clears even if the host
@@ -240,6 +239,35 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._announce();
   }
 
+  private _open(row: T): void {
+    this.dispatchEvent(new CustomEvent('open', { detail: { row }, bubbles: true, composed: true }));
+  }
+
+  private _action(id: string, row: T): void {
+    this.dispatchEvent(new CustomEvent('action', { detail: { id, row }, bubbles: true, composed: true }));
+  }
+
+  // A menu choice. Only an item with confirm text is asked about here; the host asks for the rest.
+  private _pick(item: MenuItem, row: T, button: HTMLElement): void {
+    if (!item.confirm) return this._action(item.id, row);
+    this._ask = { item, row, button };
+    void this.updateComplete.then(() => {
+      const d = this.querySelector<HTMLDialogElement>(':scope > .dv-root > dialog.dv-confirm');
+      if (!d || d.open) return;
+      d.returnValue = '';
+      d.showModal();
+    });
+  }
+
+  // Closing by Cancel, Escape or OK all land here; only OK sets returnValue to "ok".
+  private _onConfirmClose(e: Event): void {
+    const ask = this._ask;
+    this._ask = undefined;
+    if (!ask) return;
+    ask.button.focus();
+    if ((e.currentTarget as HTMLDialogElement).returnValue === 'ok') this._action(ask.item.id, ask.row);
+  }
+
   private _onSearchInput(e: Event): void {
     this._searchText = (e.target as HTMLInputElement).value;
     clearTimeout(this._timer);
@@ -305,6 +333,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           ? this._cards(rows)
           : this._table(rows, w)}
       ${this.compact ? nothing : this._pages(w, page, total, range)}
+      ${this._confirm(w)}
     </div>`;
   }
 
@@ -357,6 +386,17 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
+  // The first cell is the row's way in, like a card's title: its link, or a button that fires open.
+  // A cell that draws its own content (render, or a link column) is left alone, so nothing nests.
+  private _firstCell(col: Column<T>, row: T, p: CardParts): Content | typeof nothing {
+    const content = this._cell(col, row);
+    if (col.render || col.type === 'link') return content;
+    const href = safeUrl(p.href);
+    return href
+      ? html`<a class="dv-open" href=${href}>${content}</a>`
+      : html`<button type="button" class="dv-open" @click=${() => this._open(row)}>${content}</button>`;
+  }
+
   private _right(col: Column<T>): boolean {
     return col.align ? col.align === 'right' : col.type === 'number' || col.type === 'money';
   }
@@ -381,17 +421,19 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           </tr>
         </thead>
         <tbody>
-          ${rows.map(
-            (row) => html`<tr>
+          ${rows.map((row, r) => {
+            const p = this._parts(row);
+            return html`<tr>
               ${cols.map((c, i) => {
                 const cls = this._right(c) ? 'dv-right' : '';
                 return i === 0
-                  ? html`<th scope="row" class=${cls}>${this._cell(c, row)}</th>`
+                  ? html`<th scope="row" class=${cls}>${this._firstCell(c, row, p)}</th>`
                   : html`<td class=${cls}>${this._cell(c, row)}</td>`;
               })}
-              <td class="dv-row-menu"><!-- Task 4: the ⋯ menu goes here --></td>
-            </tr>`,
-          )}
+              <td class="dv-row-menu">${dvMenu(p.menu, `${this._uid}-t${r}`, w.menuFor(p.title),
+                (item, button) => this._pick(item, row, button))}</td>
+            </tr>`;
+          })}
         </tbody>
       </table>
     </div>`;
@@ -407,28 +449,33 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     };
   }
 
-  // A minimal card; Task 4 owns the full anatomy (badge, menu, action, opening).
   private _cards(rows: T[]): TemplateResult {
+    const w = this.text;
     return html`<ul class="dv-cards" aria-label=${this.label || nothing}>
-      ${rows.map((row) => {
+      ${rows.map((row, r) => {
         const p = this._parts(row);
-        const href = safeUrl(p.href);
-        return html`<li class="dv-card">
-          <div class="dv-card-head">
-            <span class="dv-card-title" title=${p.title}>${href ? html`<a href=${href}>${p.title}</a>` : p.title}</span>
-          </div>
-          <div class="dv-card-body">
-            ${p.picture ?? nothing}
-            ${(p.facts ?? []).slice(0, 2).map((f) => html`<div class="dv-fact">${f}</div>`)}
-          </div>
-          ${p.meta !== undefined || p.value !== undefined
-            ? html`<div class="dv-card-foot">
-                <span>${p.meta ?? nothing}</span><span>${p.value ?? nothing}</span>
-              </div>`
-            : nothing}
-        </li>`;
+        return dvCard(p, {
+          menuId: `${this._uid}-c${r}`,
+          menuLabel: w.menuFor(p.title),
+          onOpen: () => this._open(row),
+          onAction: (id) => this._action(id, row),
+          onPick: (item, button) => this._pick(item, row, button),
+        });
       })}
     </ul>`;
+  }
+
+  private _confirm(w: Words): TemplateResult {
+    const item = this._ask?.item;
+    return html`<dialog class="dv-confirm" aria-labelledby=${`${this._uid}-ask`} @close=${this._onConfirmClose}>
+      <form method="dialog">
+        <p id=${`${this._uid}-ask`}>${item?.confirm ?? ''}</p>
+        <div class="dv-confirm-buttons">
+          <button value="cancel" autofocus>${w.cancel}</button>
+          <button value="ok" class=${item?.danger ? 'dv-danger' : ''}>${item?.label ?? ''}</button>
+        </div>
+      </form>
+    </dialog>`;
   }
 
   private _pages(w: Words, page: number, total: number, r: { from: number; to: number; pages: number }): TemplateResult {

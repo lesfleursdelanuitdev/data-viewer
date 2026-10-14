@@ -72,17 +72,85 @@ export const css = `
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
 }
 :where(.dv-card) {
-  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; min-width: 0;
+  position: relative; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; min-width: 0;
   background: var(--dv-surface); border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
 }
-:where(.dv-card-head) { display: flex; gap: 0.5rem; align-items: flex-start; justify-content: space-between; }
-:where(.dv-card-title) {
-  font-weight: 600; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
+:where(.dv-card:hover) { border-color: var(--dv-muted); }
+:where(.dv-card:has(.dv-card-link:focus-visible)) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
+:where(.dv-card-head) { display: flex; gap: 0.5rem; align-items: flex-start; }
+/* The title's ::after covers the card, so a click anywhere opens it. */
+:where(.dv-card-link) {
+  all: unset; flex: 1 1 auto; min-width: 0; cursor: pointer; color: var(--dv-text); text-decoration: none;
 }
+:where(.dv-card-link)::after { content: ""; position: absolute; inset: 0; border-radius: var(--dv-radius); }
+:where(.dv-card-link:focus-visible) { outline: none; }
+:where(.dv-card-title) {
+  font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 2.6em; /* two lines kept free, so pictures line up across a row of cards */
+}
+/* The menu and the footer button sit above the card's open layer. */
+:where(.dv-menu-wrap, .dv-card-action) { position: relative; z-index: 1; }
 :where(.dv-card-body) { display: flex; flex-direction: column; gap: 0.25rem; color: var(--dv-muted); }
-:where(.dv-card-body) :where(img) { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: calc(var(--dv-radius) / 2); }
-:where(.dv-card-foot) { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85em; color: var(--dv-muted); margin-top: auto; }
+:where(.dv-card-picture) {
+  aspect-ratio: 4 / 3; overflow: hidden; border-radius: calc(var(--dv-radius) / 2); background: var(--dv-bg);
+  margin-bottom: 0.25rem;
+}
+:where(.dv-card-picture) > :where(img, video, svg, picture) { display: block; width: 100%; height: 100%; object-fit: cover; }
+:where(.dv-card-foot) {
+  display: flex; align-items: center; gap: 0.5rem; font-size: 0.85em; color: var(--dv-muted); margin-top: auto;
+}
+:where(.dv-card-meta) { margin-right: auto; min-width: 0; }
+:where(.dv-card-value) { color: var(--dv-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+:where(.dv-card-action) { white-space: nowrap; }
+:where(a.dv-card-action) {
+  display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; border: 1px solid var(--dv-border);
+  border-radius: var(--dv-radius); background: var(--dv-bg); text-decoration: none;
+}
+:where(.dv-badge) {
+  display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8em; white-space: nowrap;
+  border: 1px solid var(--dv-border); color: var(--dv-muted); background: var(--dv-bg);
+}
+
+:where(.dv-open) { all: unset; cursor: pointer; overflow-wrap: anywhere; }
+:where(a.dv-open) { color: var(--dv-accent); text-decoration: underline; }
+:where(.dv-open:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
+:where(.dv-table) :where(.dv-row-menu) { width: 1%; text-align: right; }
+
+:where(.dv-root) :where(.dv-menu-button) {
+  display: inline-grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: 0 0.4rem;
+  line-height: 1; font-size: 1.1em;
+}
+/* The list is a popover in the top layer; menu.ts sets top and right under its button. */
+:where(.dv-menu) {
+  position: fixed; inset: auto; margin: 0; padding: 0.25rem; min-width: 12rem; max-width: calc(100vw - 16px);
+  font-family: var(--dv-font); color: var(--dv-text); background: var(--dv-bg);
+  border: 1px solid var(--dv-muted); border-radius: var(--dv-radius);
+}
+:where(.dv-menu-item) {
+  all: unset; box-sizing: border-box; display: flex; flex-direction: column; width: 100%;
+  padding: 0.45rem 0.65rem; border-radius: calc(var(--dv-radius) / 2); cursor: pointer; color: var(--dv-text);
+}
+:where(.dv-menu-item:hover, .dv-menu-item:focus) { background: var(--dv-surface); }
+:where(.dv-menu-item:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: -2px; }
+:where(.dv-menu-item[aria-disabled="true"]) { color: var(--dv-muted); cursor: default; }
+:where(.dv-menu-why) { font-size: 0.85em; color: var(--dv-muted); }
+:where(.dv-menu) :where([role="separator"]) { border-top: 1px solid var(--dv-border); margin: 0.25rem 0; }
+:where(.dv-danger) { color: var(--dv-danger); }
+
+:where(.dv-confirm) {
+  font-family: var(--dv-font); color: var(--dv-text); background: var(--dv-bg); max-width: min(28rem, calc(100vw - 32px));
+  border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 1rem 1.25rem;
+}
+:where(.dv-confirm)::backdrop { background: color-mix(in srgb, var(--dv-bg) 70%, transparent); }
+:where(.dv-confirm) :where(p) { margin: 0 0 1rem; }
+:where(.dv-confirm-buttons) { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+:where(.dv-confirm) :where(button) {
+  font: inherit; color: inherit; background: var(--dv-surface); border: 1px solid var(--dv-border);
+  border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
+}
+:where(.dv-confirm) :where(button.dv-danger) { color: var(--dv-danger); border-color: currentColor; }
+:where(.dv-confirm) :where(button:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
 
 :where(.dv-pages) { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; margin-top: 0.75rem; }
 :where(.dv-pages) :where([role="status"]) { color: var(--dv-muted); font-size: 0.9em; }
@@ -90,7 +158,10 @@ export const css = `
 :where(.dv-error) { color: var(--dv-danger); }
 
 @media (max-width: 640px) {
-  :where(.dv-root) :where(button, input, .dv-views a) { min-height: 44px; }
+  :where(.dv-root) :where(button, input, .dv-views a, a.dv-card-action) { min-height: 44px; }
+  :where(.dv-root) :where(.dv-menu-button) { min-width: 44px; }
+  :where(.dv-menu-item) { min-height: 44px; justify-content: center; }
+  :where(.dv-confirm) :where(button) { min-height: 44px; }
 }
 `;
 

@@ -141,8 +141,9 @@ test('links that hide javascript: never become links', async ({ page }) => {
   await expect(links.locator('tbody tr')).toHaveCount(7);
   const schemes = async () =>
     links.evaluate((el) => [...el.querySelectorAll('a[href]')].map((a) => new URL((a as HTMLAnchorElement).href).protocol));
-  // Only the web link and the relative link are links in the table.
-  expect(await schemes()).toEqual(['https:', 'http:']);
+  // Only the web and relative rows have links in the table: the first cell (the row's way in,
+  // from cardOf's href) and the link column.
+  expect(await schemes()).toEqual(['https:', 'https:', 'http:', 'http:']);
   await expect(links.locator('tbody tr', { hasText: 'Tab' }).locator('a')).toHaveCount(0);
   // The same in cards, where the href comes from cardOf.
   await links.evaluate((el) => { (el as unknown as { layout: string }).layout = 'cards'; });

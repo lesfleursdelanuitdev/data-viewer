@@ -1,3 +1,4 @@
+import { html } from 'lit';
 import { LfdlnDataViewer, define } from '../src/index.ts';
 import { applyQuery } from '../src/core/list.ts';
 import type { Column, Query } from '../src/core/types.ts';
@@ -97,3 +98,46 @@ const answerSync = (q: Query) => {
 };
 answerSync({ page: 1, search: '', sort: '', dir: 'asc', view: '' });
 sync.addEventListener('query', (e) => answerSync((e as CustomEvent<Query>).detail));
+
+// Cards with every part, and the same rows as a table, for the menu and event tests.
+type Thing = { id: number; name: string; kind: string };
+const things = document.querySelector('#things') as LfdlnDataViewer<Thing>;
+const thingsTable = document.querySelector('#things-table') as LfdlnDataViewer<Thing>;
+const events: { type: string; id?: string; row?: number }[] = [];
+(window as unknown as { events: typeof events }).events = events;
+const pic = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"><rect width="4" height="3" fill="#c9a"/></svg>');
+const thingRows: Thing[] = [
+  { id: 1, name: 'A thing with a page', kind: 'New' },
+  { id: 2, name: 'A thing with a very long name that goes on and on past two lines of a card', kind: 'Old' },
+  { id: 3, name: 'A third thing', kind: 'Old' },
+];
+for (const el of [things, thingsTable]) {
+  el.label = 'Things';
+  el.columns = [{ key: 'name', label: 'Name' }, { key: 'kind', label: 'Kind', type: 'badge' }];
+  el.cardOf = (r) => ({
+    title: r.name,
+    href: r.id === 1 ? '#thing-1' : undefined,
+    badge: r.kind,
+    picture: html`<img src=${pic} alt="" />`,
+    facts: ['Fact one', 'Fact two', 'Fact three'],
+    meta: '2 days ago',
+    value: '€12.00',
+    action: { id: 'again', label: 'Order again' },
+    // Given out of order on purpose: danger items must still come last.
+    menu: [
+      { id: 'delete', label: 'Delete', danger: true, confirm: 'Delete this thing?' },
+      { id: 'edit', label: 'Edit' },
+      { id: 'remove', label: 'Remove from list', danger: true },
+      { id: 'archive', label: 'Archive', disabled: true, why: 'Only the owner can archive it.' },
+      { id: 'view', label: 'See its page', href: '#view' },
+    ],
+  });
+  el.rows = thingRows;
+  for (const type of ['open', 'action', 'layout']) {
+    el.addEventListener(type, (e) => {
+      const d = (e as CustomEvent<{ id?: string; row?: Thing }>).detail;
+      events.push({ type, id: d.id, row: d.row?.id });
+    });
+  }
+}
