@@ -134,3 +134,56 @@ test('url-state keeps the list in the address, and Back works', async ({ page })
   await expect(status).toContainText('Showing 1–20 of 60');
   await expect(page.locator('#local input[type=search]')).toHaveValue('');
 });
+
+test('links that hide javascript: never become links', async ({ page }) => {
+  await open(page);
+  const links = page.locator('#links');
+  await expect(links.locator('tbody tr')).toHaveCount(7);
+  const schemes = async () =>
+    links.evaluate((el) => [...el.querySelectorAll('a[href]')].map((a) => new URL((a as HTMLAnchorElement).href).protocol));
+  // Only the web link and the relative link are links in the table.
+  expect(await schemes()).toEqual(['https:', 'http:']);
+  await expect(links.locator('tbody tr', { hasText: 'Tab' }).locator('a')).toHaveCount(0);
+  // The same in cards, where the href comes from cardOf.
+  await links.evaluate((el) => { (el as unknown as { layout: string }).layout = 'cards'; });
+  await expect(links.locator('.dv-card')).toHaveCount(7);
+  expect(await schemes()).toEqual(['https:', 'http:']);
+});
+
+test('server mode moves a page past the end to the last page', async ({ page }) => {
+  await page.goto('/?s.page=99');
+  const status = page.locator('#remote .dv-pages [role=status]');
+  await expect(status).toContainText('Showing 41–45 of 45');
+  await expect(status).toContainText('Page 3 of 3');
+  await expect(page).toHaveURL(/[?&]s\.page=3/);
+  await expect(page.locator('#remote .dv-root')).toHaveAttribute('aria-busy', 'false');
+  const pages = await page.evaluate(() => (window as unknown as { queries: { page: number }[] }).queries.map((q) => q.page));
+  expect(pages).toEqual([3]);
+});
+
+test('a host that answers inside its query listener leaves it not busy', async ({ page }) => {
+  await open(page);
+  const root = page.locator('#sync .dv-root');
+  await page.locator('#sync .dv-pages').getByRole('button', { name: 'Next' }).click();
+  await expect(page.locator('#sync .dv-pages [role=status]')).toContainText('Showing 21–40 of 45');
+  await expect(root).toHaveAttribute('aria-busy', 'false');
+});
+
+test('define() under another name makes a working element', async ({ page }) => {
+  await open(page);
+  const text = await page.evaluate(async () => {
+    const { define } = (window as unknown as { dv: { define: (n?: string) => void } }).dv;
+    define(); // already defined: does nothing
+    // Older browsers have no customElements.getName; define() must not rely on it.
+    delete (CustomElementRegistry.prototype as { getName?: unknown }).getName;
+    define('other-viewer');
+    define('other-viewer'); // taken: does nothing
+    const el = document.createElement('other-viewer') as HTMLElement & Record<string, unknown>;
+    el.columns = [{ key: 'n', label: 'N' }];
+    el.rows = [{ n: 'one' }, { n: 'two' }];
+    document.body.append(el);
+    await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+    return el.querySelector('.dv-pages [role=status]')?.textContent ?? '';
+  });
+  expect(text).toContain('Showing 1–2 of 2');
+});

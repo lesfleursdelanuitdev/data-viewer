@@ -1,6 +1,10 @@
-import { LfdlnDataViewer } from '../src/index.ts';
+import { LfdlnDataViewer, define } from '../src/index.ts';
 import { applyQuery } from '../src/core/list.ts';
 import type { Column, Query } from '../src/core/types.ts';
+
+// The ES module registers nothing on import; a page (or the standalone script) calls define().
+define();
+(window as unknown as { dv: { define: typeof define } }).dv = { define };
 
 type Recipe = { id: number; name: string; cuisine: string; minutes: number; veg: boolean; price: number; updated: string };
 
@@ -62,3 +66,34 @@ remote.addEventListener('query', (e) => {
   const n = ++latest;
   setTimeout(() => { if (n === latest) answer(q); }, 600);
 });
+
+// Links that try to sneak in a script: none may become a javascript: link.
+type Link = { name: string; url: string };
+const links = document.querySelector('#links') as LfdlnDataViewer<Link>;
+links.label = 'Links';
+links.columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'url', label: 'Link', type: 'link' },
+];
+links.cardOf = (r) => ({ title: r.name, href: r.url });
+links.rows = [
+  { name: 'Tab', url: 'java\tscript:alert(1)' },
+  { name: 'Newline', url: 'java\nscript:alert(1)' },
+  { name: 'Control', url: '\x01javascript:alert(1)' },
+  { name: 'Plain', url: 'javascript:alert(1)' },
+  { name: 'Data', url: 'data:text/html,<script>alert(1)</script>' },
+  { name: 'Web', url: 'https://example.com/' },
+  { name: 'Relative', url: '/recipes/1' },
+];
+
+// A host that answers inside its query listener, with no wait at all.
+const sync = document.querySelector('#sync') as LfdlnDataViewer<Recipe>;
+sync.label = 'Answered at once';
+sync.columns = columns;
+const answerSync = (q: Query) => {
+  const out = applyQuery(server, columns, q, { pageSize: sync.pageSize });
+  sync.rows = out.rows;
+  sync.total = out.total;
+};
+answerSync({ page: 1, search: '', sort: '', dir: 'asc', view: '' });
+sync.addEventListener('query', (e) => answerSync((e as CustomEvent<Query>).detail));

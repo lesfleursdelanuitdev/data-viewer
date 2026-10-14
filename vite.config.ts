@@ -29,7 +29,7 @@ export default defineConfig(({ command, mode }) => {
       emptyOutDir: !standalone,
       minify: standalone,
       lib: {
-        entry: 'src/index.ts',
+        entry: standalone ? 'src/standalone.ts' : 'src/index.ts',
         formats: ['es'],
         fileName: () => (standalone ? 'data-viewer.standalone.js' : 'data-viewer.js'),
       },

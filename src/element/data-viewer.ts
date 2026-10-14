@@ -45,12 +45,19 @@ const blank: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
 const PHONE = '(max-width: 640px)';
 const DEBOUNCE_MS = 300;
 
-// Only plain web addresses and relative links; "javascript:" and the like are dropped.
+const SAFE_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+// Only web, mail and phone links. The string is parsed the way the browser will parse it
+// (it strips tabs, newlines and leading control characters), so "java\tscript:" can't slip by.
+// Relative links resolve to the page's own scheme and still pass.
 function safeUrl(v: unknown): string | undefined {
   if (typeof v !== 'string' || !v.trim()) return undefined;
-  const s = v.trim();
-  if (/^(https?:|mailto:|tel:)/i.test(s) || !/^[a-z][a-z0-9+.-]*:/i.test(s)) return s;
-  return undefined;
+  try {
+    const url = new URL(v, document.baseURI);
+    return SAFE_SCHEMES.has(url.protocol) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -61,8 +68,8 @@ function safeUrl(v: unknown): string | undefined {
 export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   static override properties = {
     label: { type: String },
-    rows: { attribute: false },
-    total: { type: Number },
+    rows: { attribute: false, noAccessor: true },
+    total: { type: Number, noAccessor: true },
     columns: { attribute: false },
     cardOf: { attribute: false },
     views: { attribute: false },
@@ -80,8 +87,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   };
 
   declare label: string;
-  declare rows: T[];
-  declare total: number | undefined;
   declare columns: Column<T>[];
   declare cardOf: ((row: T) => CardParts) | undefined;
   declare views: View<T>[] | undefined;
@@ -98,13 +103,35 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare _searchText: string;
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
+  // Set when the host hands over rows or a total, so busy clears even if the host
+  // answered inside its query listener (same update as the busy flag).
+  private _answered = false;
+  private _rows: T[] = [];
+  private _total: number | undefined;
+
+  get rows(): T[] {
+    return this._rows;
+  }
+  set rows(v: T[]) {
+    const old = this._rows;
+    this._rows = v;
+    this._answered = true;
+    this.requestUpdate('rows', old);
+  }
+  get total(): number | undefined {
+    return this._total;
+  }
+  set total(v: number | undefined) {
+    const old = this._total;
+    this._total = v;
+    this._answered = true;
+    this.requestUpdate('total', old);
+  }
   private _onPop = () => this._readAddress(true);
 
   constructor() {
     super();
     this.label = '';
-    this.rows = [];
-    this.total = undefined;
     this.columns = [];
     this.pageSize = 20;
     this.layout = undefined;
@@ -146,8 +173,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       const remembered = this._remembered();
       if (remembered) this.layout = remembered;
     }
-    // New rows from the host answer the last query in server mode.
-    if (changed.has('rows') && this._server && !changed.has('busy')) this.busy = false;
+    // A server page past the end (an old bookmark, or rows deleted) moves to the last page.
+    // This runs first, so a host that answers the new query at once still clears busy below.
+    if (this._server) {
+      const pages = Math.max(1, Math.ceil((Number(this.total) || 0) / this.pageSize));
+      const page = Math.min(Math.max(1, this._q.page), pages);
+      if (page !== this._q.page) this._change({ page }, true);
+    }
+    // New rows or a new total from the host answer the last query in server mode.
+    if (this._answered && this._server) this.busy = false;
+    this._answered = false;
   }
 
   /** The words in use: the defaults with the page's own on top. */
@@ -193,6 +228,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   private _announce(): void {
+    this._answered = false;
     if (this._server) this.busy = true;
     this.dispatchEvent(new CustomEvent<Query>('query', { detail: { ...this._q }, bubbles: true, composed: true }));
   }

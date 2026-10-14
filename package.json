@@ -4,6 +4,9 @@
   "description": "A list of rows as a table or cards: <lfdln-data-viewer>.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
