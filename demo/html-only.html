@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>data-viewer, HTML only</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <!-- Only the built standalone script: no page code of its own. -->
+  <script type="module" src="/data-viewer.standalone.js"></script>
+</head>
+<body>
+  <h1>data-viewer, HTML only</h1>
+  <h2>Recipes as a table</h2>
+  <lfdln-data-viewer id="a" label="Recipes" url-state="a" layout="table"
+    card-title="name" card-picture="photo" card-facts="cuisine,minutes,price" card-meta="updated_at" card-value="price" card-href="link">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" align="left"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Recipes as cards</h2>
+  <lfdln-data-viewer id="b" label="Recipes" url-state="b" layout="cards"
+    card-title="name" card-picture="photo" card-facts="cuisine,minutes,price" card-meta="updated_at" card-value="price" card-href="link">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="application/json" id="recipes">
+    [
+      {"name": "Rose jam", "cuisine": "French", "minutes": 45, "price": 6.5, "updated_at": "2 days ago", "photo": "pictures/rose.jpg", "link": "#rose-jam"},
+      {"name": "Lemon tart", "cuisine": "French", "minutes": 90, "price": 12, "updated_at": "today", "photo": "pictures/tart.jpg", "link": "#lemon-tart"},
+      {"name": "Mint tea <b>hot</b>", "cuisine": "Moroccan", "minutes": 10, "price": 2, "updated_at": "last week", "photo": "javascript:alert(1)", "link": "javascript:alert(1)"},
+      {"name": "Fig salad", "cuisine": "Greek", "minutes": 15, "price": 8, "updated_at": "yesterday", "photo": "https://example.com/fig.jpg", "link": "#fig-salad"}
+    ]
+  </script>
+  <!-- The one line of script on this page, until the adapters (src= / adapter=) load rows themselves. -->
+  <script type="module">for (const v of document.querySelectorAll('lfdln-data-viewer')) v.rows = JSON.parse(document.getElementById('recipes').textContent);</script>
+</body>
+</html>

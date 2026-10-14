@@ -14,7 +14,9 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: { executablePath: shell } } }],
   webServer: {
-    command: 'npx vite --port 4179 --strictPort',
+    // Build first: demo/html-only.html loads dist/data-viewer.standalone.js.
+    command: 'npm run build && npx vite --port 4179 --strictPort',
+    timeout: 120_000,
     url: 'http://localhost:4179',
     reuseExistingServer: false,
   },

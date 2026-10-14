@@ -21,7 +21,9 @@ function sizeCheck(): Plugin {
 // `vite` serves the demo; `vite build` makes dist/data-viewer.js (Lit left out) and
 // `vite build --mode standalone` makes dist/data-viewer.standalone.js (Lit inside).
 export default defineConfig(({ command, mode }) => {
-  if (command === 'serve') return { root: 'demo' };
+  // The demo also serves dist/ at its root, so demo/html-only.html can load the built
+  // standalone script exactly as a plain page would.
+  if (command === 'serve') return { root: 'demo', publicDir: '../dist' };
   const standalone = mode === 'standalone';
   return {
     plugins: standalone ? [sizeCheck()] : [],

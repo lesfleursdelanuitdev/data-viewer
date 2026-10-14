@@ -8,6 +8,7 @@ import { addStyles } from './styles.ts';
 import { safeUrl } from './safe-url.ts';
 import { dvCard } from './card.ts';
 import { dvMenu } from './menu.ts';
+import { columnsIn } from './column.ts';
 
 export type Layout = 'table' | 'cards';
 
@@ -80,6 +81,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     searchKeys: { attribute: false },
     busy: { type: Boolean, reflect: true },
     urlState: { type: String, attribute: 'url-state' },
+    cardTitle: { type: String, attribute: 'card-title' },
+    cardPicture: { type: String, attribute: 'card-picture' },
+    cardFacts: { type: String, attribute: 'card-facts' },
+    cardMeta: { type: String, attribute: 'card-meta' },
+    cardValue: { type: String, attribute: 'card-value' },
+    cardHref: { type: String, attribute: 'card-href' },
     _q: { state: true },
     _searchText: { state: true },
     _ask: { state: true },
@@ -98,6 +105,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare searchKeys: string[] | undefined;
   declare busy: boolean;
   declare urlState: string | undefined;
+  // HTML-only cards: each names the row key for one card part (card-facts is a comma list).
+  declare cardTitle: string | undefined;
+  declare cardPicture: string | undefined;
+  declare cardFacts: string | undefined;
+  declare cardMeta: string | undefined;
+  declare cardValue: string | undefined;
+  declare cardHref: string | undefined;
+  /** The child tag read as columns in HTML; define() sets it per registered name. */
+  static columnTag = 'lfdln-dv-column';
   declare _q: Query;
   declare _searchText: string;
   declare _ask: Ask<T> | undefined;
@@ -165,6 +181,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   protected override willUpdate(changed: PropertyValues<this>): void {
+    // HTML only: before the first drawing, columns written as children are read (when no
+    // columns were given), then the children go, since the viewer draws into its own light DOM.
+    if (!this.hasUpdated) {
+      if (!this.columns?.length) {
+        const cols = columnsIn<T>(this, (this.constructor as typeof LfdlnDataViewer).columnTag);
+        if (cols.length) this.columns = cols;
+      }
+      this.replaceChildren();
+    }
     if (changed.has('state') && this.state) {
       this._q = { ...this._q, ...this.state };
       this._searchText = this._q.search;
@@ -445,14 +470,47 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     </div>`;
   }
 
-  // Without cardOf, a card is the first column as title and the next two as facts.
+  // Without cardOf, the card-* attributes make the card; without those either, the first column
+  // is the title and the next two are facts.
   private _parts(row: T): CardParts {
     if (this.cardOf) return this.cardOf(row);
+    if (this._fromAttributes) return this._attrParts(row);
     const [first, ...rest] = this.columns;
     return {
       title: first ? formatCell(first, row, this.lang || undefined) : '',
       facts: rest.slice(0, 2).map((c) => this._cell(c, row)).filter((x): x is Content => x !== nothing && x !== ''),
     };
+  }
+
+  private get _fromAttributes(): boolean {
+    return [this.cardTitle, this.cardPicture, this.cardFacts, this.cardMeta, this.cardValue, this.cardHref]
+      .some((a) => a !== undefined && a !== null);
+  }
+
+  // The text for one row key: its column's format when it is a column, else the plain value.
+  private _textOf(key: string, row: T): string {
+    const col = this.columns.find((c) => c.key === key) ?? { key, label: key };
+    return formatCell(col, row, this.lang || undefined);
+  }
+
+  private _attrParts(row: T): CardParts {
+    const raw = (key: string | undefined) => (key ? (row as Record<string, unknown>)[key] : undefined);
+    const text = (key: string | undefined) => (key?.trim() ? this._textOf(key.trim(), row) : '');
+    const titleKey = this.cardTitle?.trim() || this.columns[0]?.key;
+    const p: CardParts = { title: titleKey ? this._textOf(titleKey, row) : '' };
+    // A picture only from a web or relative address; anything else shows no picture.
+    const src = safeUrl(raw(this.cardPicture?.trim()));
+    if (src && /^https?:/.test(src)) p.picture = html`<img src=${src} alt="" loading="lazy" />`;
+    const facts = (this.cardFacts ?? '').split(',').map((k) => k.trim()).filter(Boolean).slice(0, 2)
+      .map((k) => this._textOf(k, row)).filter(Boolean);
+    if (facts.length) p.facts = facts;
+    const meta = text(this.cardMeta);
+    if (meta) p.meta = meta;
+    const value = text(this.cardValue);
+    if (value) p.value = value;
+    const href = safeUrl(raw(this.cardHref?.trim()));
+    if (href) p.href = href;
+    return p;
   }
 
   private _cards(rows: T[]): TemplateResult {
