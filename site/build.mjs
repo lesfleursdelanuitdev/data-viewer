@@ -107,9 +107,38 @@ async function docsPage(id) {
   });
 }
 
-// The panel: Demo (when the page has one) and the code tabs; filled in by docs.js.
-function panelBlock() {
-  return '';
+// The panel: Demo (when the page has one) and the code tabs. docs.js switches the tabs, mounts
+// the demo and fills the events strip.
+const DEFAULT_CONTROL = { delay: '900', scheme: 'dark' };
+function panelBlock(id, P) {
+  const tabs = [...(P.mount ? [{ label: 'Demo' }] : []), ...P.tabs];
+  const tabButtons = tabs.map((t, i) =>
+    `<button type="button" class="tab" role="tab" id="tab-${i}" aria-controls="tp-${i}" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''}>${esc(t.label)}</button>`).join('');
+  const lines = [
+    `<section class="panel" aria-label="Demo and code">`,
+    `  <div class="panel-bar"><div class="panel-tabs" role="tablist" aria-label="Demo and code">${tabButtons}</div><div class="grow"></div><button type="button" class="btn btn-ghost copy-code" data-copy-code${P.mount ? ' hidden' : ''}>Copy</button></div>`,
+  ];
+  if (P.mount) {
+    if (P.controls?.length || P.toggles?.length) {
+      const controls = (P.controls || []).map((c) => {
+        const on = DEFAULT_CONTROL[c.key] ?? c.options[0][0];
+        return `<div class="control"><span class="control-label" id="ctl-${c.key}">${esc(c.label)}</span><div class="seg" role="radiogroup" aria-labelledby="ctl-${c.key}">${c.options.map(([v, label]) =>
+          `<label class="seg-opt"><input type="radio" name="${id}-${c.key}" value="${esc(v)}" data-control="${c.key}"${v === on ? ' checked' : ''}>${esc(label)}</label>`).join('')}</div></div>`;
+      });
+      const toggles = (P.toggles || []).map((t) => `<label class="toggle"><input type="checkbox" data-toggle="${t.key}">${esc(t.label)}</label>`);
+      lines.push(`  <div class="controls" data-demo-only>${[...controls, ...toggles].join('')}<span class="busy" data-busy hidden>Loading…</span></div>`);
+    }
+    lines.push(`  <div class="demo" id="tp-0" role="tabpanel" aria-labelledby="tab-0"><div class="demo-status" data-status>Loading the components…</div><div class="demo-host" data-host></div></div>`);
+  }
+  tabs.forEach((t, i) => {
+    if (!t.code) return;
+    lines.push(`  <pre class="code-view" id="tp-${i}" role="tabpanel" aria-labelledby="tab-${i}" tabindex="0"${i ? ' hidden' : ''}><code>${esc(t.code)}</code></pre>`);
+  });
+  if (P.mount) {
+    lines.push(`  <div class="events" data-events data-demo-only hidden><div class="events-head"><span class="events-dot"></span><span class="events-label">Events</span><span class="grow"></span><button type="button" class="btn btn-ghost events-clear" data-clear hidden>Clear</button></div><div class="events-empty" data-empty>Nothing yet. Interact with the demo above.</div><ol class="events-list" data-list></ol></div>`);
+  }
+  lines.push('</section>');
+  return lines.map((l) => `        ${l}`).join('\n');
 }
 
 // ── checks ──
