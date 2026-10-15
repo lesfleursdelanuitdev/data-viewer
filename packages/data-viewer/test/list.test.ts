@@ -116,3 +116,24 @@ test('page past the end clamps to the last page', () => {
   const none = applyQuery([], [nameCol], q({ page: 3 }), { pageSize: 20 });
   assert.equal(none.page, 1);
 });
+
+test('searchIn searches that one column; an unsearchable or unknown one falls back to all', () => {
+  const rows = [{ name: 'Mint', note: 'rose' }, { name: 'Rose', note: 'x' }];
+  const cols: Column<Row>[] = [nameCol, { key: 'note', label: 'Note' }];
+  assert.deepEqual(names(applyQuery(rows, cols, q({ search: 'rose', searchIn: 'name' }), { pageSize: 20 }).rows), ['Rose']);
+  assert.deepEqual(names(applyQuery(rows, cols, q({ search: 'rose', searchIn: 'note' }), { pageSize: 20 }).rows), ['Mint']);
+  assert.equal(applyQuery(rows, cols, q({ search: 'rose', searchIn: 'nope' }), { pageSize: 20 }).total, 2);
+  const marked: Column<Row>[] = [{ ...nameCol, searchable: true }, { key: 'note', label: 'Note' }];
+  assert.deepEqual(names(applyQuery(rows, marked, q({ search: 'rose' }), { pageSize: 20 }).rows), ['Rose']);
+  assert.equal(applyQuery(rows, marked, q({ search: 'rose', searchIn: 'note' }), { pageSize: 20 }).total, 1); // not searchable
+});
+
+test('filters narrow the rows and the total; the page is the caller\'s to reset', () => {
+  const rows = Array.from({ length: 30 }, (_, i) => ({ name: `Plant ${i + 1}`, kind: i % 3 === 0 ? 'herb' : 'tree' }));
+  const cols: Column<Row>[] = [nameCol, { key: 'kind', label: 'Kind', filterable: true }];
+  const out = applyQuery(rows, cols, q({ filters: { kind: ['herb'] }, page: 2 }), { pageSize: 5 });
+  assert.equal(out.total, 10);
+  assert.equal(out.page, 2);
+  assert.deepEqual(names(out.rows), ['Plant 16', 'Plant 19', 'Plant 22', 'Plant 25', 'Plant 28']);
+  assert.equal(applyQuery(rows, cols, q({ filters: { kind: ['herb'] }, page: 5 }), { pageSize: 5 }).page, 2); // clamped
+});

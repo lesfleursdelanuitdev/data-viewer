@@ -1,12 +1,9 @@
 import type { Column, Query, View } from './types.ts';
+import { narrow, rawValue } from './filters.ts';
 
 type SortValue = string | number | null;
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-
-function rawValue<T>(col: Column<T>, row: T): unknown {
-  return col.value ? col.value(row) : (row as Record<string, unknown>)[col.key];
-}
 
 // What a column sorts by. Anything missing or unreadable is null, which sorts last.
 export function sortValue<T>(col: Column<T>, row: T): SortValue {
@@ -34,33 +31,15 @@ function compare(a: string | number, b: string | number): number {
   return collator.compare(String(a), String(b));
 }
 
-// The text search looks at for one cell.
-function searchText(v: unknown): string {
-  if (v === null || v === undefined) return '';
-  if (Array.isArray(v)) return v.map(searchText).join(' ');
-  if (v instanceof Date) return v.toISOString();
-  return typeof v === 'object' ? '' : String(v);
-}
-
 export function applyQuery<T>(
   rows: T[],
   cols: Column<T>[],
   q: Query,
   opts: { views?: View<T>[]; searchKeys?: string[]; pageSize: number },
 ): { rows: T[]; total: number; page: number } {
-  let out = rows;
-
-  // View first, so counts and paging only see its rows.
-  const where = opts.views?.find((v) => v.key === q.view)?.where;
-  if (where) out = out.filter(where);
-
-  const needle = q.search.trim().toLowerCase();
-  if (needle) {
-    const searched = opts.searchKeys
-      ? opts.searchKeys.map((k) => cols.find((c) => c.key === k) ?? { key: k, label: k })
-      : cols;
-    out = out.filter((row) => searched.some((c) => searchText(rawValue(c, row)).toLowerCase().includes(needle)));
-  }
+  // View first, so counts and paging only see its rows; then the search (the "Search in"
+  // column, or every searchable one) and the filters.
+  let out = narrow(rows, cols, q, opts);
 
   const sortCol = q.sort ? cols.find((c) => c.key === q.sort) : undefined;
   if (sortCol) {

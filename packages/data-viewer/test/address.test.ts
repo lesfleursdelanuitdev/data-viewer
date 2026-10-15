@@ -57,3 +57,36 @@ test('writeQuery keeps the size, and drops it when it is the starting size', () 
   // Without a starting size (no picker) the size never goes in the address.
   assert.equal(writeQuery(new URLSearchParams(), 'dv', { ...base, size: 50 }).toString(), '');
 });
+
+test('search-in and filters round-trip; commas, "&" and non-Latin text survive (Review Focus 2)', () => {
+  const q: Query = {
+    ...base, searchIn: 'name',
+    filters: { owner: ['Smith, Jane', 'Café', 'A & B', 'x..y'], price: { from: '10' }, planted: { to: '1999-06' }, organic: false },
+  };
+  const p = writeQuery(new URLSearchParams('other=1'), 'orders', q);
+  assert.equal(p.get('orders.in'), 'name');
+  assert.equal(p.get('orders.f.owner'), 'Smith%2C%20Jane,Caf%C3%A9,A%20%26%20B,x..y');
+  assert.equal(p.get('orders.f.price'), '10..');
+  assert.equal(p.get('orders.f.planted'), '..1999-06');
+  assert.equal(p.get('orders.f.organic'), 'no');
+  // Through the address bar and back.
+  const again = new URLSearchParams(p.toString());
+  const kinds = { owner: 'choice', price: 'range', planted: 'range', organic: 'bool' } as const;
+  assert.deepEqual(readQuery(again, 'orders', kinds), q);
+  // Without kinds the shape decides: "a..b" a range, yes / no a bool, else a choice.
+  const guessed = readQuery(again, 'orders');
+  assert.deepEqual(guessed.filters!.price, { from: '10' });
+  assert.equal(guessed.filters!.organic, false);
+  assert.deepEqual(guessed.filters!.owner, ['Smith, Jane', 'Café', 'A & B', 'x..y']);
+});
+
+test('filters back to none leave the address clean; prefixes keep to their own f.*', () => {
+  const p = writeQuery(new URLSearchParams(), 'orders', { ...base, searchIn: 'name', filters: { status: ['paid'] } });
+  writeQuery(p, 'plants', { ...base, filters: { status: ['sown'] } });
+  assert.deepEqual(readQuery(p, 'orders').filters, { status: ['paid'] });
+  assert.deepEqual(readQuery(p, 'plants').filters, { status: ['sown'] });
+  assert.equal(readQuery(p, 'plants').searchIn, undefined);
+  writeQuery(p, 'orders', base);
+  assert.equal(p.toString(), 'plants.f.status=sown');
+  assert.deepEqual(readQuery(new URLSearchParams('orders.f.price=..&orders.f.status=&orders.in='), 'orders'), base);
+});

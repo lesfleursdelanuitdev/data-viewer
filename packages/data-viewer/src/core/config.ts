@@ -9,7 +9,7 @@ export const CONFIG_KEYS = [
   'label', 'columns', 'views', 'cardOf', 'searchKeys', 'words',
   'cardTitle', 'cardPicture', 'cardFacts', 'cardMeta', 'cardValue', 'cardHref', 'openEvent',
   'pageSize', 'pageSizes', 'pager', 'layout', 'layoutSwitch', 'tableLabel', 'cardsLabel', 'layoutIcons', 'cardActions', 'cardActionsMax', 'cardMoreLabel',
-  'rememberAs', 'compact', 'urlState', 'state', 'adapter', 'src', 'rows', 'total',
+  'rememberAs', 'compact', 'urlState', 'state', 'adapter', 'src', 'facets', 'rows', 'total',
 ] as const;
 
 export type ConfigKey = (typeof CONFIG_KEYS)[number];

@@ -4,7 +4,9 @@
     "paths": {
       "@lesfleursdelanuitdev/menu": ["../menu/src/index.ts"],
       "@lesfleursdelanuitdev/pagination": ["../pagination/src/index.ts"],
-      "@lesfleursdelanuitdev/card": ["../card/src/index.ts"]
+      "@lesfleursdelanuitdev/card": ["../card/src/index.ts"],
+      "@lesfleursdelanuitdev/search": ["../search/src/index.ts"],
+      "@lesfleursdelanuitdev/filter": ["../filter/src/index.ts"]
     }
   },
   "include": ["src", "test", "e2e", "demo", "vite.config.ts", "playwright.config.ts"]

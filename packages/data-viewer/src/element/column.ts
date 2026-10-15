@@ -1,4 +1,5 @@
 import type { Column } from '../core/types.ts';
+import { parseOptions, parseRanges } from '../core/filters.ts';
 
 /**
  * <lfdln-dv-column>: one column of a viewer, written in HTML. It only holds attributes and
@@ -22,6 +23,12 @@ export function columnFrom<T>(el: Element): Column<T> {
   };
   if (align === 'left' || align === 'right') col.align = align;
   if (currency) col.format = { currency };
+  if (el.hasAttribute('searchable')) col.searchable = true;
+  if (el.hasAttribute('filterable')) col.filterable = true;
+  const options = parseOptions(el.getAttribute('options'));
+  if (options) col.options = options;
+  const ranges = parseRanges(el.getAttribute('ranges'));
+  if (ranges) col.ranges = ranges;
   return col;
 }
 

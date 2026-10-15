@@ -12,6 +12,8 @@ export const siblings: Record<string, string> = {
   '@lesfleursdelanuitdev/menu': source('menu'),
   '@lesfleursdelanuitdev/pagination': source('pagination'),
   '@lesfleursdelanuitdev/card': source('card'),
+  '@lesfleursdelanuitdev/search': source('search'),
+  '@lesfleursdelanuitdev/filter': source('filter'),
 };
 
 /** Fails the build when a script grows past its gzipped limit. */

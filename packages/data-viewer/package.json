@@ -66,6 +66,8 @@
   "dependencies": {
     "@lesfleursdelanuitdev/menu": "0.1.0",
     "@lesfleursdelanuitdev/pagination": "0.1.0",
-    "@lesfleursdelanuitdev/card": "0.1.0"
+    "@lesfleursdelanuitdev/card": "0.1.0",
+    "@lesfleursdelanuitdev/search": "0.1.0",
+    "@lesfleursdelanuitdev/filter": "0.1.0"
   }
 }
