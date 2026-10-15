@@ -58,17 +58,17 @@ test('whole card opens', async ({ page }) => {
   await open(page);
   // No href: a click on the body fires open with the row.
   await mouseAt(page, card(page, 1).locator('.dv-card-body'));
-  expect(await events(page)).toEqual([{ type: 'open', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-open', row: 2 }]);
   // The menu button and the footer button never open the card.
   await buttonOf(page, 1).click();
   await expect(menuOf(page, 1)).toBeVisible();
   await page.keyboard.press('Escape');
   await card(page, 1).locator('.dv-card-foot').getByRole('button').click();
-  expect(await events(page)).toEqual([{ type: 'open', row: 2 }, { type: 'action', id: 'again', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-open', row: 2 }, { type: 'dv-action', id: 'again', row: 2 }]);
   // Enter on a card without href opens it too.
   await card(page, 2).locator('.dv-card-link').focus();
   await page.keyboard.press('Enter');
-  expect((await events(page)).at(-1)).toEqual({ type: 'open', row: 3 });
+  expect((await events(page)).at(-1)).toEqual({ type: 'dv-open', row: 3 });
   // With an href, a click on the body follows it and fires nothing.
   const before = (await events(page)).length;
   await buttonOf(page, 0).click();
@@ -120,7 +120,7 @@ test('menu keyboard', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(menu).toBeHidden();
   await expect(btn).toBeFocused();
-  expect(await events(page)).toEqual([{ type: 'action', id: 'edit', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-action', id: 'edit', row: 2 }]);
 });
 
 test('menu sits under its button, right-aligned', async ({ page }) => {
@@ -161,25 +161,42 @@ test('disabled says why', async ({ page }) => {
   expect(await events(page)).toEqual([]);
 });
 
+test('why shows only on a disabled item', async ({ page }) => {
+  await open(page);
+  await buttonOf(page, 0).click();
+  // The demo gives Edit a why too; Edit is not disabled, so it shows no reason.
+  const edit = menuOf(page, 0).getByRole('menuitem', { name: 'Edit' });
+  await expect(edit).toHaveText('Edit');
+  await expect(edit.locator('.dv-menu-why')).toHaveCount(0);
+});
+
 test('danger without confirm fires at once; the host asks', async ({ page }) => {
   await open(page);
   await buttonOf(page, 2).click();
   await menuOf(page, 2).getByRole('menuitem', { name: 'Remove from list' }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
-  expect(await events(page)).toEqual([{ type: 'action', id: 'remove', row: 3 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-action', id: 'remove', row: 3 }]);
 });
 
 test('built-in confirm', async ({ page }) => {
   await open(page);
   const btn = buttonOf(page, 1);
   const dialog = page.locator('#things dialog.dv-confirm');
+  // The dialog gives focus back when it closes, but its close event (where the viewer fires
+  // dv-action) comes a task later. So wait for that event, not for focus, before reading events.
+  const closing = () => dialog.evaluate((d) => {
+    (d as HTMLDialogElement & { closed?: Promise<void> }).closed = new Promise((r) => d.addEventListener('close', () => r(), { once: true }));
+  });
+  const closed = () => dialog.evaluate((d) => (d as HTMLDialogElement & { closed?: Promise<void> }).closed);
   await btn.click();
   await menuOf(page, 1).getByRole('menuitem', { name: 'Delete' }).click();
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('Delete this thing?');
   expect(await dialog.evaluate((d) => d.matches(':modal'))).toBe(true);
   // Cancel fires nothing and puts focus back on the menu button.
+  await closing();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await closed();
   await expect(dialog).toBeHidden();
   await expect(btn).toBeFocused();
   expect(await events(page)).toEqual([]);
@@ -187,17 +204,22 @@ test('built-in confirm', async ({ page }) => {
   await btn.click();
   await menuOf(page, 1).getByRole('menuitem', { name: 'Delete' }).click();
   await expect(dialog).toBeVisible();
+  await closing();
   await page.keyboard.press('Escape');
+  await closed();
   await expect(dialog).toBeHidden();
   await expect(btn).toBeFocused();
   expect(await events(page)).toEqual([]);
   // OK fires action once.
   await btn.click();
   await menuOf(page, 1).getByRole('menuitem', { name: 'Delete' }).click();
+  await expect(dialog).toBeVisible();
+  await closing();
   await dialog.getByRole('button', { name: 'Delete' }).click();
+  await closed();
   await expect(dialog).toBeHidden();
   await expect(btn).toBeFocused();
-  expect(await events(page)).toEqual([{ type: 'action', id: 'delete', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-action', id: 'delete', row: 2 }]);
 });
 
 test('outside click closes, and only one menu is open at a time', async ({ page }) => {
@@ -226,23 +248,23 @@ test('table: first cell opens the row, last column holds the menu', async ({ pag
   // Row 1 has an href: its first cell is a link. Row 2 has none: its first cell fires open.
   await expect(rows.nth(0).locator('th[scope=row] a')).toHaveAttribute('href', /#thing-1$/);
   await rows.nth(1).locator('th[scope=row]').getByRole('button').click();
-  expect(await events(page)).toEqual([{ type: 'open', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-open', row: 2 }]);
   const cell = rows.nth(1).locator('td').last();
   const btn = cell.getByRole('button', { name: /^What you can do with A thing with a very long name/ });
   await expect(btn).toHaveAttribute('aria-haspopup', 'menu');
   await btn.click();
   await cell.getByRole('menuitem', { name: 'Edit' }).click();
-  expect(await events(page)).toEqual([{ type: 'open', row: 2 }, { type: 'action', id: 'edit', row: 2 }]);
+  expect(await events(page)).toEqual([{ type: 'dv-open', row: 2 }, { type: 'dv-action', id: 'edit', row: 2 }]);
   // Rows without menu items get no menu button (the #local table has no cardOf menu).
   await expect(page.locator('#local tbody tr').first().locator('td.dv-row-menu button')).toHaveCount(0);
 });
 
-test('layout fires layout', async ({ page }) => {
+test('the layout switch fires dv-layout', async ({ page }) => {
   await open(page);
   await page.locator('#local').getByRole('button', { name: 'Show cards' }).click();
   const got = await page.evaluate(() => new Promise((resolve) => {
     const el = document.querySelector('#local')!;
-    el.addEventListener('layout', (e) => resolve({ detail: (e as CustomEvent).detail, bubbles: e.bubbles, composed: e.composed }), { once: true });
+    el.addEventListener('dv-layout', (e) => resolve({ detail: (e as CustomEvent).detail, bubbles: e.bubbles, composed: e.composed }), { once: true });
     (el.querySelector('.dv-layout button') as HTMLButtonElement).click();
   }));
   expect(got).toEqual({ detail: { layout: 'table' }, bubbles: true, composed: true });

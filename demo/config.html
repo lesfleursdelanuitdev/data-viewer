@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, config modules</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, config modules</h1>
+  <h2>An object</h2>
+  <lfdln-data-viewer id="obj" config="./config/list-object.js" layout="table"></lfdln-data-viewer>
+  <h2>A function, with load()</h2>
+  <lfdln-data-viewer id="fn" config="./config/list-function.js" layout="table"></lfdln-data-viewer>
+  <h2>A file that isn't there</h2>
+  <lfdln-data-viewer id="bad" config="./config/missing.js" layout="table"></lfdln-data-viewer>
+  <h2>load() that fails</h2>
+  <lfdln-data-viewer id="fails" config="./config/load-fails.js" layout="table"></lfdln-data-viewer>
+  <h2>Switched from one config to another by the test</h2>
+  <lfdln-data-viewer id="sw" config="./config/list-object.js" layout="table"></lfdln-data-viewer>
+  <h2>configure() from script</h2>
+  <lfdln-data-viewer id="js" layout="table"></lfdln-data-viewer>
+  <script type="module" src="./config-page.ts"></script>
+</body>
+</html>

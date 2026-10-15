@@ -6,7 +6,7 @@ import { pammyAdapter } from '../src/adapters/pammy.ts';
 import { adapterNamed, registerAdapter, whenRegistered } from '../src/adapters/register.ts';
 import type { Adapter } from '../src/adapters/types.ts';
 
-const base: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
+const base: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 };
 const q = (over: Partial<Query> = {}): Query => ({ ...base, ...over });
 const opts = (src: string) => ({ signal: new AbortController().signal, src });
 
@@ -64,7 +64,7 @@ test('json: an answer that is no list throws', async () => {
 
 test('pammy: maps Query to its parameters', async () => {
   answer({ resource: 'recipes', rich: [], page: 2, per: 10, total: 23, items: [{ id: 11, name: 'Rose jam' }] });
-  const out = await pammyAdapter.load(q({ page: 2, search: 'rose', sort: 'name', dir: 'desc', view: 'ignored' }),
+  const out = await pammyAdapter.load(q({ page: 2, search: 'rose', sort: 'name', dir: 'desc', view: 'ignored', size: 10 }),
     { signal: new AbortController().signal, src: 'https://pammy.test/_pammy/api/data/postgres/recipes/recipes', pageSize: 10 });
   assert.deepEqual(out, { rows: [{ id: 11, name: 'Rose jam' }], total: 23 });
   // The data API has no views, so view is not sent.
@@ -108,4 +108,43 @@ test('a waiting element hears when its adapter arrives', () => {
 test('the registry lives on globalThis, shared by separate bundles', () => {
   const g = (globalThis as unknown as { __lfdlnDataViewerAdapters: { adapters: Map<string, Adapter> } }).__lfdlnDataViewerAdapters;
   assert.equal(g.adapters.get('json'), jsonAdapter);
+});
+
+test('json: a total sent as a string (PHP/PDO counts) is still server mode', async () => {
+  answer({ rows: [{ name: 'Rose jam' }], total: '45' });
+  const out = await jsonAdapter.load(q(), opts('https://x.test/api/recipes'));
+  assert.equal(out.total, 45);
+});
+
+test('json: a total that is not a number means browser mode', async () => {
+  for (const total of ['', 'many', null, true, [3]]) {
+    answer({ rows: [{ name: 'Rose jam' }], total });
+    const out = await jsonAdapter.load(q(), opts('https://x.test/api/recipes'));
+    assert.equal(out.total, undefined, `total ${JSON.stringify(total)}`);
+  }
+});
+
+test('json and pammy say plainly that they need src', async () => {
+  answer([]);
+  await assert.rejects(jsonAdapter.load(q(), opts('')), /needs src/);
+  await assert.rejects(pammyAdapter.load(q(), opts('  ')), /needs src/);
+  assert.equal(calls.length, 0);
+});
+
+test('json: sends size when it is not the default 20', async () => {
+  answer({ rows: [], total: 0 });
+  await jsonAdapter.load(q({ size: 50 }), opts('https://x.test/api/recipes'));
+  assert.deepEqual(params(calls[0]!.url), { size: '50' });
+  answer({ rows: [], total: 0 });
+  await jsonAdapter.load(q({ size: 20 }), opts('https://x.test/api/recipes'));
+  assert.equal(calls[0]!.url, 'https://x.test/api/recipes');
+});
+
+test('pammy: per follows the query\'s size, and is capped at 100', async () => {
+  answer({ page: 1, per: 50, total: 0, items: [] });
+  await pammyAdapter.load(q({ size: 50 }), { ...opts('https://pammy.test/_pammy/api/data/postgres/r/r'), pageSize: 20 });
+  assert.equal(params(calls[0]!.url).per, '50');
+  answer({ page: 1, per: 100, total: 0, items: [] });
+  await pammyAdapter.load(q({ size: 250 }), opts('https://pammy.test/_pammy/api/data/postgres/r/r'));
+  assert.equal(params(calls[0]!.url).per, '100');
 });

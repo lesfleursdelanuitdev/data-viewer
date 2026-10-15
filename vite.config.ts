@@ -62,7 +62,7 @@ function fakeApi(): Plugin {
           if (p.has('all')) return send(res, 200, recipes);
           const slow = p.get('slow');
           const wait = slow && (p.get('search') ?? '').includes(slow) ? 800 : 50;
-          const out = pageOf(p, 'per');
+          const out = pageOf(p, 'size');
           setTimeout(() => send(res, 200, { rows: out.rows, total: out.total }), wait);
           return;
         }

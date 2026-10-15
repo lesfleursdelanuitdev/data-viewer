@@ -84,8 +84,25 @@ test('pammy adapter: waits for its script, sends per, reads items and total', as
   await expect(page.locator('#pammy tbody th[scope=row]').first()).toHaveText('Lemon cake');
 });
 
-test('query events still fire for listeners', async ({ page }) => {
+test('dv-query events still fire for listeners', async ({ page }) => {
   await open(page);
   await page.locator('#srv .dv-pages').getByRole('button', { name: 'Next' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { heard: number[] }).heard)).toContain(2);
+});
+
+test('an adapter that needs no src works without one', async ({ page }) => {
+  await page.goto('/adapters.html');
+  await expect(page.locator('#all tbody tr').first()).toBeVisible();
+  await page.evaluate(async () => {
+    const built = '/data-viewer.standalone.js';
+    const { registerAdapter } = await import(/* @vite-ignore */ built);
+    registerAdapter('fixed', { load: async (_q: unknown, o: { src: string }) => ({ rows: [{ name: `src=[${o.src}]` }] }) });
+    const el = document.createElement('lfdln-data-viewer');
+    el.id = 'nosrc';
+    el.setAttribute('adapter', 'fixed');
+    el.setAttribute('layout', 'table');
+    el.innerHTML = '<lfdln-dv-column key="name" label="Name"></lfdln-dv-column>';
+    document.body.prepend(el);
+  });
+  await expect(page.locator('#nosrc tbody th[scope=row]')).toHaveText(['src=[]']);
 });

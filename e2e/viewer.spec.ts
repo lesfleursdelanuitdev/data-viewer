@@ -113,7 +113,7 @@ test('server mode fires query and shows aria-busy', async ({ page }) => {
   await page.locator('#remote .dv-pages').getByRole('button', { name: 'Next' }).click();
   await expect(root).toHaveAttribute('aria-busy', 'true');
   const queries = await page.evaluate(() => (window as unknown as { queries: unknown[] }).queries);
-  expect(queries).toEqual([{ page: 2, search: '', sort: '', dir: 'asc', view: '' }]);
+  expect(queries).toEqual([{ page: 2, search: '', sort: '', dir: 'asc', view: '', size: 20 }]);
   await expect(root).toHaveAttribute('aria-busy', 'false');
   await expect(status).toContainText('Showing 21–40 of 45');
 });

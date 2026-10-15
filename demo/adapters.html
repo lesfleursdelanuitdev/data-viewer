@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The demo follows the OS; a page without this stays light (the viewer follows the page). -->
+  <meta name="color-scheme" content="light dark">
   <title>data-viewer, adapters</title>
   <style>
     body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
@@ -55,7 +57,7 @@
       },
     });
     window.heard = [];
-    document.querySelector('#srv').addEventListener('query', (e) => window.heard.push(e.detail.page));
+    document.querySelector('#srv').addEventListener('dv-query', (e) => window.heard.push(e.detail.page));
     // The pammy script arrives after the viewers are drawn: they wait for it.
     setTimeout(() => built('data-viewer-pammy.js'), 300);
   </script>

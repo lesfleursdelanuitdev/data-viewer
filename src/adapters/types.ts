@@ -5,6 +5,8 @@ import type { Query } from '../core/types.ts';
  * viewer then searches, sorts and pages them itself (browser mode). With `total` it is one
  * page of a list the server pages (server mode).
  * `pageSize` is the viewer's page size, for an API that needs to be told it (pammy's `per`).
+ * `src` is the viewer's src attribute, trimmed, or '' when it has none (an adapter that knows
+ * where its rows are needs no src; json and pammy throw without one).
  */
 export type Adapter = {
   load(q: Query, opts: { signal: AbortSignal; src: string; pageSize?: number }): Promise<{ rows: unknown[]; total?: number }>;

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, paging</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, paging</h1>
+  <h2>Numbered pages and a page-size picker, in the browser (120 rows)</h2>
+  <lfdln-data-viewer id="np" label="Rows" pager="numbers" page-sizes="10,20,50" page-size="10"
+    url-state="np" remember-as="np-layout" layout="table"></lfdln-data-viewer>
+  <h2>The same, from a server (it answers after 100 ms)</h2>
+  <lfdln-data-viewer id="sp" label="Rows from a server" pager="numbers" page-sizes="10,20,50" page-size="10"
+    url-state="sp" layout="table"></lfdln-data-viewer>
+  <h2>Through the json adapter</h2>
+  <lfdln-data-viewer id="ad" label="Recipes" adapter="json" src="/api/recipes" pager="numbers"
+    page-sizes="10,20,50" layout="table">
+    <lfdln-dv-column key="name" label="Name"></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>One page: no numbers</h2>
+  <lfdln-data-viewer id="one" label="Few rows" pager="numbers" layout="table"></lfdln-data-viewer>
+  <h2>Previous and Next, with a picker from a messy list (page-size 10 is added)</h2>
+  <lfdln-data-viewer id="simple" label="Rows" page-sizes="15, junk, 5,-3,5" page-size="10" layout="table"></lfdln-data-viewer>
+  <h2>A list with nothing valid: no picker</h2>
+  <lfdln-data-viewer id="bad" label="Rows" page-sizes="junk, 0" page-size="10" layout="table"></lfdln-data-viewer>
+  <h2>The layout switch as icons</h2>
+  <lfdln-data-viewer id="icons" label="Rows" layout-switch="icons" layout="table" page-size="5"></lfdln-data-viewer>
+  <h2>Icons and words of its own</h2>
+  <lfdln-data-viewer id="both" label="Rows" layout-switch="both" table-label="Rows" cards-label="Tiles" layout="table" page-size="5"></lfdln-data-viewer>
+  <h2>Icons from script</h2>
+  <lfdln-data-viewer id="custom" label="Rows" layout-switch="icons" layout="table" page-size="5"></lfdln-data-viewer>
+  <h2>No switch (layout-switch="none"), a saved choice still applies</h2>
+  <lfdln-data-viewer id="none" label="Rows" layout-switch="none" remember-as="none-layout" layout="table" page-size="5"></lfdln-data-viewer>
+  <h2>An unknown layout-switch value: words</h2>
+  <lfdln-data-viewer id="odd" label="Rows" layout-switch="sideways" layout="table" page-size="5"></lfdln-data-viewer>
+  <script type="module" src="./paging.ts"></script>
+</body>
+</html>

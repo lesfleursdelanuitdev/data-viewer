@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCell } from '../src/core/format.ts';
+import { formatCell, formatNumber } from '../src/core/format.ts';
 import type { Column } from '../src/core/types.ts';
 
 type R = { v?: unknown };
@@ -54,4 +54,24 @@ test('odd values draw as empty text, never NaN or [object Object]', () => {
   assert.equal(formatCell(col({}), { v: Infinity }), '');
   assert.equal(formatCell(col({ type: 'tags' }), { v: [1, NaN] }), '1');
   assert.equal(formatCell(col({ type: 'text' }), { v: { a: 1 } }), '');
+});
+
+test('a currency typo shows the plain number instead of throwing', () => {
+  const c = col({ type: 'money', format: { currency: 'EURO' } });
+  assert.equal(formatCell(c, { v: 12 }, 'en-US'), '12.00');
+});
+
+test('a locale typo falls back to the browser locale instead of throwing', () => {
+  const plain = formatCell(col({ type: 'number' }), { v: 1234 });
+  assert.equal(formatCell(col({ type: 'number' }), { v: 1234 }, 'en_US'), plain);
+  assert.equal(formatCell(col({ type: 'money', format: { currency: 'USD' } }), { v: 1 }, 'en_US'),
+    formatCell(col({ type: 'money', format: { currency: 'USD' } }), { v: 1 }));
+  assert.equal(formatCell(col({ type: 'date' }), { v: '2026-03-05T12:00:00Z' }, 'en_US'),
+    formatCell(col({ type: 'date' }), { v: '2026-03-05T12:00:00Z' }));
+  assert.equal(formatNumber(1234, 'en_US'), formatNumber(1234));
+});
+
+test('bad date options fall back to the default date style', () => {
+  const c = col({ type: 'date', format: { date: { dateStyle: 'nope' } as unknown as Intl.DateTimeFormatOptions } });
+  assert.equal(formatCell(c, { v: '2026-03-05T12:00:00Z' }, 'en-US'), 'Mar 5, 2026');
 });

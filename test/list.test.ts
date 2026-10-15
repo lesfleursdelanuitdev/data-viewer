@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyQuery, pageRange, sortValue } from '../src/core/list.ts';
+import { applyQuery, pageRange, pageSizeOf, sortValue } from '../src/core/list.ts';
 import type { Column, Query, View } from '../src/core/types.ts';
 
 type Row = Record<string, unknown>;
 
-const base: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
+const base: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 };
 const q = (over: Partial<Query>): Query => ({ ...base, ...over });
 const names = (rows: Row[]) => rows.map((r) => r.name);
 
@@ -121,4 +121,14 @@ test('pageRange', () => {
   assert.deepEqual(pageRange(2, 20, 25, 5), { from: 21, to: 25, pages: 2 });
   assert.deepEqual(pageRange(1, 20, 0, 0), { from: 0, to: 0, pages: 1 });
   assert.deepEqual(pageRange(1, 20, 25, 20), { from: 1, to: 20, pages: 2 });
+});
+
+test('pageSizeOf: a bad page size becomes a usable one', () => {
+  assert.equal(pageSizeOf(10), 10);
+  assert.equal(pageSizeOf(12.7), 12);
+  assert.equal(pageSizeOf(Number('abc')), 20);
+  assert.equal(pageSizeOf(0), 20);
+  assert.equal(pageSizeOf(-5), 1);
+  assert.equal(pageSizeOf(Infinity), 20);
+  assert.equal(pageSizeOf(undefined), 20);
 });

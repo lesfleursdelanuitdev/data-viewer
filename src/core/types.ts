@@ -16,13 +16,22 @@ export type Column<T> = {
 
 export type MenuItem = {
   id: string;
-  label: string;
+  label: string; // the item's name: always text
   href?: string;
   danger?: boolean;
   disabled?: boolean;
-  why?: string; // shown under a disabled item's label
+  why?: string; // shown under a disabled item's label (in place of the description)
   confirm?: string; // asked in a built-in dialog before action fires
+  icon?: Content; // before the label; a string is text (an emoji works), a Node is copied
+  description?: string; // a quieter second line, always shown
+  content?: Node; // drawn (copied) in place of the label text: <lfdln-dv-menu-item> markup
 };
+
+/** A line between items. */
+export type MenuSeparator = { separator: true };
+/** A label for the items after it (up to the next separator or heading). */
+export type MenuHeading = { heading: string };
+export type MenuEntry = MenuItem | MenuSeparator | MenuHeading;
 
 export type CardParts = {
   title: string;
@@ -33,7 +42,8 @@ export type CardParts = {
   meta?: Content;
   value?: Content;
   action?: { id: string; label: string; href?: string };
-  menu?: MenuItem[];
+  menu?: MenuEntry[];
+  actionsAt?: 'menu' | 'footer'; // this card's own placement of its menu items (cards only)
 };
 
 export type View<T> = {
@@ -49,4 +59,6 @@ export type Query = {
   sort: string;
   dir: 'asc' | 'desc';
   view: string;
+  /** Rows per page: the visitor's pick when there is a page-size picker, else page-size. */
+  size: number;
 };

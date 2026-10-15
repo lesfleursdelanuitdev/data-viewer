@@ -50,13 +50,17 @@ test('cards from attributes', async ({ page }) => {
   await expect(first.locator('.dv-card-meta')).toHaveText('2 days ago');
   await expect(first.locator('.dv-card-value')).toContainText('€');
   await expect(first.locator('a.dv-card-link')).toHaveAttribute('href', /#rose-jam$/);
-  // Unsafe picture and link: no picture, and the title is a button instead of a link.
+  // Unsafe picture and link: no picture, and no link. A page with no script has nobody to hear
+  // dv-open, so the title is plain text and the card can't be pressed at all.
   const mint = cards.nth(2);
   await expect(mint.locator('.dv-card-title')).toHaveText('Mint tea <b>hot</b>');
   await expect(mint.locator('b')).toHaveCount(0);
   await expect(mint.locator('img')).toHaveCount(0);
-  await expect(mint.locator('a.dv-card-link')).toHaveCount(0);
-  await expect(mint.locator('button.dv-card-link')).toHaveCount(1);
+  await expect(mint.locator('a, button')).toHaveCount(0);
+  await expect(mint.locator('.dv-card-link')).toHaveCount(0);
+  // The same row in the table: its first cell is plain text too.
+  await expect(page.locator('#a tbody tr').nth(2).locator('th[scope=row]')).toHaveText('Mint tea <b>hot</b>');
+  await expect(page.locator('#a tbody tr').nth(2).locator('th[scope=row] button, th[scope=row] a')).toHaveCount(0);
   // The table uses the same parts: the picture sits in the row header.
   await expect(page.locator('#a tbody tr').first().locator('.dv-row-picture img')).toHaveAttribute('loading', 'lazy');
 });
@@ -87,4 +91,17 @@ test('a key for one viewer leaves the other alone', async ({ page }) => {
   await expect(page.locator('#b .dv-card')).toHaveCount(1);
   await expect(page.locator('#a tbody tr')).toHaveCount(4);
   await expect(page.locator('#a input[type=search]')).toHaveValue('');
+});
+
+test('open-event: an HTML page with its own script can still ask for dv-open', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    for (const id of ['a', 'b']) document.getElementById(id)!.setAttribute('open-event', '');
+    (window as unknown as { opened: string[] }).opened = [];
+    document.addEventListener('dv-open', (e) =>
+      (window as unknown as { opened: string[] }).opened.push((e as CustomEvent<{ row: { name: string } }>).detail.row.name));
+  });
+  await page.locator('#b .dv-card').nth(2).locator('button.dv-card-link').click();
+  await page.locator('#a tbody tr').nth(2).locator('th[scope=row]').getByRole('button').click();
+  expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual(['Mint tea <b>hot</b>', 'Mint tea <b>hot</b>']);
 });

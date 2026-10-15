@@ -1,17 +1,35 @@
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { live } from 'lit/directives/live.js';
 import type { CardParts, Column, Content, MenuItem, Query, View } from '../core/types.ts';
-import { applyQuery, pageRange } from '../core/list.ts';
-import { formatCell } from '../core/format.ts';
-import { readQuery, writeQuery } from '../core/address.ts';
+import { applyQuery, pageRange, pageSizeOf } from '../core/list.ts';
+import { pageAfterResize, pageNumbers, pageSizeChoices, parsePageSizes } from '../core/paging.ts';
+import { formatCell, formatNumber } from '../core/format.ts';
+import { readQuery, writeQuery, type AddressQuery } from '../core/address.ts';
 import { addStyles } from './styles.ts';
 import { safeUrl } from './safe-url.ts';
 import { dvCard } from './card.ts';
-import { dvMenu } from './menu.ts';
+import { dvConfirm, dvMenu, openConfirm } from './menu.ts';
+import { copyOf } from './content.ts';
 import { columnsIn } from './column.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
+import { newWarnings, splitConfig } from '../core/config.ts';
+import type { ListConfig } from './setup.ts';
+import type { LfdlnDvColumn } from './column.ts';
 
 export type Layout = 'table' | 'cards';
+export type Pager = 'simple' | 'numbers';
+export type LayoutSwitch = 'none' | 'text' | 'icons' | 'both';
+/** Icons for the layout switch. A string is shown as text (never HTML); a Node is copied per drawing. */
+export type LayoutIcons = { table?: Content; cards?: Content };
+
+// The built-in switch icons: a table (rows under a header) and cards (four tiles), in currentColor.
+const tableIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor"
+  stroke-width="1.5" focusable="false"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path
+  d="M1.75 6.25h12.5M1.75 9.75h12.5M6 6.25v7"/></svg>`;
+const cardsIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor"
+  stroke-width="1.5" focusable="false"><rect x="1.75" y="1.75" width="5.25" height="5.25" rx="1.25"/><rect
+  x="9" y="1.75" width="5.25" height="5.25" rx="1.25"/><rect x="1.75" y="9" width="5.25" height="5.25" rx="1.25"/><rect
+  x="9" y="9" width="5.25" height="5.25" rx="1.25"/></svg>`;
 
 // Every piece of text the list shows. Plain English defaults; a page can replace any of them.
 export type Words = {
@@ -29,8 +47,13 @@ export type Words = {
   cancel: string;
   ok: string;
   menuFor: (title: string) => string;
+  moreFor: (title: string) => string;
   showing: (from: string, to: string, total: string) => string;
   pageOf: (page: string, pages: string) => string;
+  pageNumbers: string;
+  pageNumber: (page: string) => string;
+  rowsPerPage: string;
+  configFailed: (file: string) => string;
 };
 
 export const defaultWords: Words = {
@@ -48,14 +71,21 @@ export const defaultWords: Words = {
   cancel: 'Cancel',
   ok: 'OK',
   menuFor: (title) => `What you can do with ${title}`,
+  moreFor: (title) => `More for ${title}`,
   showing: (from, to, total) => `Showing ${from}–${to} of ${total}`,
   pageOf: (page, pages) => `Page ${page} of ${pages}`,
+  pageNumbers: 'Page numbers',
+  pageNumber: (page) => `Page ${page}`,
+  rowsPerPage: 'Rows per page',
+  configFailed: (file) => `Couldn't load this list's setup from ${file}.`,
 };
 
-const blank: Query = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
+// The query as the viewer keeps it: size is the visitor's pick (unchecked), undefined when none.
+const blank: AddressQuery = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
 const PHONE = '(max-width: 640px)';
 const DEBOUNCE_MS = 300;
 let lists = 0; // gives each list its own prefix for menu ids
+const warnedKeys = new Set<string>(); // unknown config keys, warned about once per page
 
 // What the built-in confirm dialog is asking about.
 type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
@@ -66,7 +96,7 @@ type LoadMode = 'unknown' | 'browser' | 'server';
 /**
  * <lfdln-data-viewer>: one list of rows, drawn as a table or as cards.
  * Browser mode (no `total`): it searches, sorts, filters and pages `rows` itself.
- * Server mode (`total` set): it shows `rows` as given and fires `query` for the host to answer.
+ * Server mode (`total` set): it shows `rows` as given and fires `dv-query` for the host to answer.
  * With `adapter` and `src` it loads its own rows through that adapter (HTML only, no page code):
  * an answer without a total is browser mode, with one it is server mode and every query reloads.
  */
@@ -79,6 +109,14 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardOf: { attribute: false },
     views: { attribute: false },
     pageSize: { type: Number, attribute: 'page-size' },
+    pageSizes: { attribute: 'page-sizes', converter: { fromAttribute: (v: string | null) => parsePageSizes(v) } },
+    pager: { type: String },
+    tableLabel: { type: String, attribute: 'table-label' },
+    cardsLabel: { type: String, attribute: 'cards-label' },
+    layoutSwitch: { type: String, attribute: 'layout-switch' },
+    layoutIcons: { attribute: false },
+    cardActions: { type: String, attribute: 'card-actions' },
+    cardActionsMax: { type: Number, attribute: 'card-actions-max' },
     layout: { type: String, reflect: true },
     rememberAs: { type: String, attribute: 'remember-as' },
     compact: { type: Boolean },
@@ -94,8 +132,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardValue: { type: String, attribute: 'card-value' },
     cardHref: { type: String, attribute: 'card-href' },
     adapter: { type: String },
+    openEvent: { type: Boolean, attribute: 'open-event' },
     src: { type: String },
+    config: { type: String },
     _q: { state: true },
+    _configuring: { state: true },
+    _failReason: { state: true },
     _failed: { state: true },
     _searchText: { state: true },
     _ask: { state: true },
@@ -106,6 +148,23 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare cardOf: ((row: T) => CardParts) | undefined;
   declare views: View<T>[] | undefined;
   declare pageSize: number;
+  /** The sizes a visitor may pick from ("Rows per page"); none valid means no picker. */
+  declare pageSizes: number[] | undefined;
+  /** 'simple' (Previous / Next, the default) or 'numbers' (numbered page buttons as well). */
+  declare pager: Pager | undefined;
+  /** What the layout switch's buttons say (else words.showTable / words.showCards). */
+  declare tableLabel: string | undefined;
+  declare cardsLabel: string | undefined;
+  /**
+   * The table-or-cards switch: words ('text', the default; anything unknown is 'text'), icons only
+   * ('icons'), an icon before the words ('both'), or no switch ('none').
+   */
+  declare layoutSwitch: LayoutSwitch | undefined;
+  declare layoutIcons: LayoutIcons | undefined;
+  /** Cards: their menu items in a ⋯ menu ('menu', the default) or as buttons in the footer. */
+  declare cardActions: 'menu' | 'footer' | undefined;
+  /** Footer: how many items are buttons before the rest go into a ⋯ menu (default 3). */
+  declare cardActionsMax: number | undefined;
   declare layout: Layout | undefined;
   declare rememberAs: string | undefined;
   declare compact: boolean;
@@ -124,9 +183,24 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
   declare src: string | undefined;
+  /** A module's address (read against the page): its default export sets the list up. */
+  declare config: string | undefined;
+  declare _configuring: boolean;
+  declare _failReason: string | undefined;
+  // Config: the newest setup wins; its on handlers are kept so they can be taken off again.
+  private _cfgSeq = 0;
+  private _cfgOn: [string, (e: Event) => void][] = [];
+  private _retry: (() => void) | undefined;
+  /**
+   * Rows without href fire dv-open from a button (the first cell, the card's title). That is the
+   * default when columns are set from script; a viewer whose columns are written in HTML has no
+   * script listening, so its rows are plain text unless it says open-event.
+   */
+  declare openEvent: boolean;
+  private _fromMarkup = false;
   /** The child tag read as columns in HTML; define() sets it per registered name. */
   static columnTag = 'lfdln-dv-column';
-  declare _q: Query;
+  declare _q: AddressQuery;
   declare _searchText: string;
   declare _ask: Ask<T> | undefined;
   declare _failed: boolean;
@@ -134,7 +208,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
   // Set when the host hands over rows or a total, so busy clears even if the host
-  // answered inside its query listener (same update as the busy flag).
+  // answered inside its dv-query listener (same update as the busy flag).
   private _answered = false;
   private _rows: T[] = [];
   private _total: number | undefined;
@@ -147,6 +221,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _unwait: (() => void) | undefined;
   private _mode: LoadMode = 'unknown';
   private _stale = false; // a load was cut off by leaving the page
+  // The page size the host was last told about (undefined: none yet), and the page last drawn.
+  private _toldSize: number | undefined;
+  private _page = 1;
 
   get rows(): T[] {
     return this._rows;
@@ -175,11 +252,13 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.pageSize = 20;
     this.layout = undefined;
     this.compact = false;
+    this.openEvent = false;
     this.words = {};
     this.busy = false;
     this._q = { ...blank };
     this._searchText = '';
     this._failed = false;
+    this._configuring = false;
   }
 
   // Light DOM, so page CSS reaches in.
@@ -197,11 +276,14 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
     // Back on the page after a load was cut off: ask again.
     if (this.hasUpdated && this._stale) this._requestLoad();
+    // The config's handlers come back with the element (never twice: same functions).
+    for (const [type, fn] of this._cfgOn) this.addEventListener(type, fn);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPop);
+    for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
     // A load still running or waiting for its adapter is dropped, and redone on return.
     if (this._ctrl || this._unwait || this._loadQueued) this._stale = true;
@@ -217,7 +299,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _readMarkup(): void {
     if (!this.columns?.length) {
       const cols = columnsIn<T>(this, (this.constructor as typeof LfdlnDataViewer).columnTag);
-      if (cols.length) this.columns = cols;
+      if (cols.length) {
+        this.columns = cols;
+        this._fromMarkup = true;
+      }
     }
     this.adapter ??= this.getAttribute('adapter') ?? undefined;
     this.src ??= this.getAttribute('src') ?? undefined;
@@ -230,6 +315,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._readMarkup();
       this.replaceChildren();
     }
+    // A config module: load it (again when the attribute changes).
+    if (changed.has('config') && (this.config ?? '').trim()) void this._fromModule(this.config!.trim());
     // A new adapter or address: start again from the first answer.
     if ((changed.has('adapter') || changed.has('src')) && this._adapted) {
       this._mode = 'unknown';
@@ -245,10 +332,26 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       const remembered = this._remembered();
       if (remembered) this.layout = remembered;
     }
-    // A server page past the end (an old bookmark, or rows deleted) moves to the last page.
-    // This runs first, so a host that answers the new query at once still clears busy below.
-    if (this._server) {
-      const pages = Math.max(1, Math.ceil((Number(this.total) || 0) / this.pageSize));
+    // A remembered page size, when the address names none (the address wins). It goes into the
+    // address too, so Back from a later entry returns to what is on screen now.
+    if ((!this.hasUpdated || changed.has('rememberAs') || changed.has('pageSizes') || changed.has('pageSize'))
+      && !this._choices.includes(this._q.size ?? NaN)) {
+      const stored = this._storedSize();
+      if (stored !== undefined && this._choices.includes(stored)) {
+        this._q = { ...this._q, size: stored };
+        this._writeAddress(true);
+      }
+    }
+    // The size in use changed without a pick (restored from the address or storage before the
+    // list of sizes arrived, or new sizes from the host): ask for rows of that size.
+    if (this._choices.length && this._size !== (this._toldSize ?? pageSizeOf(this.pageSize))) this._announce();
+    this._toldSize ??= this._size;
+    // A server page past the end (an old bookmark, or rows deleted) moves to the last page, but
+    // only once the host has answered the query: a placeholder total (0 before the first answer)
+    // must not move a bookmarked page. This runs first, so a host that answers the new query at
+    // once still clears busy below.
+    if (this._server && this._answered) {
+      const pages = Math.max(1, Math.ceil((Number(this.total) || 0) / this._size));
       const page = Math.min(Math.max(1, this._q.page), pages);
       if (page !== this._q.page) this._change({ page }, true);
     }
@@ -262,12 +365,50 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     return { ...defaultWords, ...this.words };
   }
 
+  // The page size in use: the visitor's pick when it is one of the choices, else page-size.
+  // A bad page-size attribute ("abc", "0") pages by 20, not by NaN.
+  private get _size(): number {
+    const pick = this._q.size;
+    return pick !== undefined && this._choices.includes(pick) ? pick : pageSizeOf(this.pageSize);
+  }
+
+  // The picker's sizes (page-size added in order), or [] for no picker. One size is no choice.
+  private get _choices(): number[] {
+    const sizes = pageSizeChoices(this.pageSizes, pageSizeOf(this.pageSize));
+    return sizes.length > 1 ? sizes : [];
+  }
+
+  // The query as the host and adapters see it: always with the size in use.
+  private get _query(): Query {
+    return { ...this._q, size: this._size };
+  }
+
+  private get _sizeKey(): string | undefined {
+    return this.rememberAs ? `${this.rememberAs}.size` : undefined;
+  }
+
+  private _storedSize(): number | undefined {
+    if (!this._sizeKey) return undefined;
+    try {
+      const n = Number(localStorage.getItem(this._sizeKey));
+      return Number.isInteger(n) && n >= 1 ? n : undefined;
+    } catch {
+      return undefined; // storage blocked: just don't remember
+    }
+  }
+
   private get _server(): boolean {
     return this.total !== undefined && this.total !== null;
   }
 
+  // An adapter is enough: src is passed on ('' when unset), and the adapter decides if it needs it.
   private get _adapted(): boolean {
-    return Boolean(this.adapter?.trim() && this.src?.trim());
+    return Boolean(this.adapter?.trim());
+  }
+
+  // Whether a row without href is drawn as something that fires dv-open (see openEvent).
+  private get _opens(): boolean {
+    return this.openEvent || !this._fromMarkup;
   }
 
   private get _prefix(): string {
@@ -291,11 +432,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._searchText = q.search;
     // A restored or Back-button state that isn't the default needs the host's rows.
     if (announce || JSON.stringify(q) !== JSON.stringify(blank)) this._announce();
+    // (A size from the address that the list of sizes, set later, makes valid is asked for in willUpdate.)
   }
 
   private _writeAddress(replace: boolean): void {
     if (!this._prefix) return;
-    const params = writeQuery(new URLSearchParams(location.search), this._prefix, this._q);
+    const params = writeQuery(new URLSearchParams(location.search), this._prefix, this._query, this._startSize);
     const search = params.toString();
     const url = `${location.pathname}${search ? `?${search}` : ''}${location.hash}`;
     if (url === `${location.pathname}${location.search}${location.hash}`) return;
@@ -303,10 +445,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     else history.pushState(history.state, '', url);
   }
 
+  // The starting size for the address: only a list with a picker puts its size there.
+  private get _startSize(): number | undefined {
+    return this._choices.length ? pageSizeOf(this.pageSize) : undefined;
+  }
+
   private _announce(): void {
     this._answered = false;
     if (this._server) this.busy = true;
-    this.dispatchEvent(new CustomEvent<Query>('query', { detail: { ...this._q }, bubbles: true, composed: true }));
+    this._toldSize = this._size;
+    this.dispatchEvent(new CustomEvent<Query>('dv-query', { detail: this._query, bubbles: true, composed: true }));
     // With an adapter the element answers itself, unless it already has every row.
     if (this._adapted && this._mode !== 'browser') this._requestLoad();
   }
@@ -343,7 +491,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const ctrl = new AbortController();
     this._ctrl = ctrl;
     try {
-      const out = await adapter.load({ ...this._q }, { signal: ctrl.signal, src: this.src!.trim(), pageSize: this.pageSize });
+      const out = await adapter.load(this._query, { signal: ctrl.signal, src: (this.src ?? '').trim(), pageSize: this._size });
       if (seq !== this._seq) return; // a newer load was asked for meanwhile
       this._mode = out.total === undefined || out.total === null ? 'browser' : 'server';
       this._failed = false;
@@ -361,31 +509,100 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
+  /**
+   * Sets the list up from a config: an object of properties (plus `on` handlers and `load`), or a
+   * function that gets the element. Replaces the previous config and its handlers. Properties set
+   * on the element afterwards win. See also the `config` attribute and configure().
+   */
+  configure(config: ListConfig<T>): Promise<void> {
+    return this._use(config, ++this._cfgSeq, 'configure()');
+  }
+
+  private async _fromModule(spec: string): Promise<void> {
+    const seq = ++this._cfgSeq;
+    this._configuring = true;
+    this.busy = true;
+    let mod: { default?: unknown };
+    try {
+      // Read against the page (not this script), and left alone by bundlers.
+      mod = await import(/* @vite-ignore */ new URL(spec, document.baseURI).href);
+    } catch (err) {
+      if (seq !== this._cfgSeq) return;
+      this._fail(this.text.configFailed(spec), () => void this._fromModule(spec), err);
+      return;
+    }
+    if (seq !== this._cfgSeq) return;
+    await this._use(mod.default as ListConfig<T>, seq, spec);
+  }
+
+  private _fail(reason: string | undefined, retry: () => void, err: unknown): void {
+    this._configuring = false;
+    this._failed = true;
+    this._failReason = reason;
+    this._retry = retry;
+    this.busy = false;
+    console.error(err);
+  }
+
+  private async _use(config: ListConfig<T>, seq: number, name: string): Promise<void> {
+    this._configuring = true;
+    this.busy = true;
+    let setup: unknown = config;
+    try {
+      if (typeof config === 'function') setup = await config(this);
+    } catch (err) {
+      if (seq === this._cfgSeq) this._fail(this.text.configFailed(name), () => void this._use(config, ++this._cfgSeq, name), err);
+      return;
+    }
+    if (seq !== this._cfgSeq) return;
+    const split = splitConfig(setup ?? {});
+    for (const k of newWarnings(split.unknown, warnedKeys)) console.warn(`<lfdln-data-viewer> config ${name}: unknown key "${k}" ignored`);
+    for (const p of split.problems) console.warn(`<lfdln-data-viewer> config ${name}: ${p}, ignored`);
+    for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
+    this._cfgOn = split.on;
+    for (const [type, fn] of this._cfgOn) this.addEventListener(type, fn);
+    const self = this as unknown as Record<string, unknown>;
+    for (const [k, v] of split.props) self[k] = v;
+    this._failed = false;
+    this._failReason = undefined;
+    this._retry = undefined;
+    if (split.load) {
+      const load = split.load as unknown as (list: this) => unknown;
+      try {
+        const rows = await load(this);
+        if (seq !== this._cfgSeq) return;
+        this.rows = (Array.isArray(rows) ? rows : []) as T[];
+      } catch (err) {
+        if (seq === this._cfgSeq) this._fail(undefined, () => void this._use(config, ++this._cfgSeq, name), err);
+        return;
+      }
+    }
+    this._configuring = false;
+    // An adapter set by the config says when it is busy itself.
+    if (!this._adapted) this.busy = false;
+  }
+
   // One change to what is shown: store it, put it in the address, tell the host.
-  private _change(over: Partial<Query>, replace = false): void {
+  private _change(over: Partial<AddressQuery>, replace = false): void {
     this._q = { ...this._q, ...over };
     this._writeAddress(replace);
     this._announce();
   }
 
   private _open(row: T): void {
-    this.dispatchEvent(new CustomEvent('open', { detail: { row }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent('dv-open', { detail: { row }, bubbles: true, composed: true }));
   }
 
   private _action(id: string, row: T): void {
-    this.dispatchEvent(new CustomEvent('action', { detail: { id, row }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent('dv-action', { detail: { id, row }, bubbles: true, composed: true }));
   }
 
   // A menu choice. Only an item with confirm text is asked about here; the host asks for the rest.
   private _pick(item: MenuItem, row: T, button: HTMLElement): void {
     if (!item.confirm) return this._action(item.id, row);
     this._ask = { item, row, button };
-    void this.updateComplete.then(() => {
-      const d = this.querySelector<HTMLDialogElement>(':scope > .dv-root > dialog.dv-confirm');
-      if (!d || d.open) return;
-      d.returnValue = '';
-      d.showModal();
-    });
+    void this.updateComplete.then(() =>
+      openConfirm(this.querySelector<HTMLDialogElement>(':scope > .dv-root > dialog.dv-confirm')));
   }
 
   // Closing by Cancel, Escape or OK all land here; only OK sets returnValue to "ok".
@@ -411,6 +628,31 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._change({ sort: key, dir, page: 1 });
   }
 
+  // The visitor picked a page size: keep the first row they were looking at on screen.
+  private _setSize(size: number): void {
+    if (size === this._size || !this._choices.includes(size)) return;
+    const page = pageAfterResize(this._page, this._size, size);
+    if (this._sizeKey) {
+      try {
+        localStorage.setItem(this._sizeKey, String(size));
+      } catch {
+        // storage blocked: the choice lasts until the page closes
+      }
+    }
+    this._change({ size, page });
+  }
+
+  // A page button. Pressing a number turns it into the current page, which is no button, so
+  // focus moves to the current page (focusable from script only) instead of being lost.
+  private _goTo(page: number): void {
+    this._change({ page });
+    void this.updateComplete.then(() => {
+      const pages = this.querySelector(':scope > .dv-root > .dv-pages');
+      if (!pages || pages.contains(document.activeElement)) return;
+      pages.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
+    });
+  }
+
   private _setLayout(layout: Layout): void {
     if (layout === this.layout) return;
     this.layout = layout;
@@ -421,18 +663,18 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         // storage blocked: the choice lasts until the page closes
       }
     }
-    this.dispatchEvent(new CustomEvent('layout', { detail: { layout }, bubbles: true, composed: true }));
+    this.dispatchEvent(new CustomEvent('dv-layout', { detail: { layout }, bubbles: true, composed: true }));
   }
 
   private _viewHref(key: string): string {
     if (!this._prefix) return '#';
-    const params = writeQuery(new URLSearchParams(location.search), this._prefix, { ...this._q, view: key, page: 1 });
+    const params = writeQuery(new URLSearchParams(location.search), this._prefix, { ...this._query, view: key, page: 1 }, this._startSize);
     const s = params.toString();
     return `${location.pathname}${s ? `?${s}` : ''}`;
   }
 
   private _num(n: number): string {
-    return new Intl.NumberFormat(this.lang || undefined).format(n);
+    return formatNumber(n, this.lang || undefined);
   }
 
   protected override render(): TemplateResult {
@@ -445,33 +687,36 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       total = Number(this.total) || 0;
       page = this._q.page;
     } else {
-      const out = applyQuery(this.rows ?? [], this.columns, this._q, {
+      const out = applyQuery(this.rows ?? [], this.columns, this._query, {
         views: this.views,
         searchKeys: this.searchKeys,
-        pageSize: this.pageSize,
+        pageSize: this._size,
       });
       ({ rows, total, page } = out);
     }
-    const range = pageRange(page, this.pageSize, total, rows.length);
+    this._page = page;
+    const range = pageRange(page, this._size, total, rows.length);
     // Before an adapter's first answer there is nothing to say yet ("Nothing to show." would be wrong).
-    const first = this._adapted && this._mode === 'unknown' && !this._failed && rows.length === 0;
+    const first = ((this._adapted && this._mode === 'unknown') || this._configuring) && !this._failed && rows.length === 0;
+    // A load that failed with no rows to keep shows only the error box.
+    const failedEmpty = this._failed && rows.length === 0;
 
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
       ${this.compact ? nothing : this._bar(w)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
-            <p>${w.loadFailed}</p>
-            <button type="button" @click=${() => this._requestLoad()}>${w.tryAgain}</button>
+            <p>${this._failReason ?? w.loadFailed}</p>
+            <button type="button" @click=${() => (this._retry ? this._retry() : this._requestLoad())}>${w.tryAgain}</button>
           </div>`
         : nothing}
-      ${first
+      ${first || failedEmpty
         ? nothing
         : rows.length === 0
-          ? html`<p class="dv-empty">${w.empty}</p>`
+          ? html`<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
           : this.layout === 'cards'
             ? this._cards(rows)
             : this._table(rows, w)}
-      ${this.compact || first ? nothing : this._pages(w, page, total, range)}
+      ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, range)}
       ${this._confirm(w)}
     </div>`;
   }
@@ -492,15 +737,27 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
             })}
           </nav>`
         : nothing}
-      ${this.rememberAs
+      ${this.layoutSwitch !== 'none'
         ? html`<div class="dv-layout" role="group">
-            <button type="button" aria-pressed=${this.layout === 'table' ? 'true' : 'false'}
-              @click=${() => this._setLayout('table')}>${w.showTable}</button>
-            <button type="button" aria-pressed=${this.layout === 'cards' ? 'true' : 'false'}
-              @click=${() => this._setLayout('cards')}>${w.showCards}</button>
+            ${this._switchButton('table', this.tableLabel || w.showTable)}${this._switchButton('cards', this.cardsLabel || w.showCards)}
           </div>`
         : nothing}
     </div>`;
+  }
+
+  // One button of the layout switch. With icons only, the words stay as its name (hidden text)
+  // and its title.
+  private _switchButton(which: Layout, label: string): TemplateResult {
+    const mode = this.layoutSwitch === 'icons' || this.layoutSwitch === 'both' ? this.layoutSwitch : 'text';
+    const mine = this.layoutIcons?.[which];
+    const icon = mine === undefined || mine === null
+      ? (which === 'table' ? tableIcon : cardsIcon)
+      : copyOf(mine);
+    return html`<button type="button" aria-pressed=${this.layout === which ? 'true' : 'false'}
+      title=${mode === 'icons' ? label : nothing} @click=${() => this._setLayout(which)}>${mode === 'text'
+        ? nothing
+        : html`<span class="dv-layout-icon" aria-hidden="true">${icon}</span>`}<span
+      class=${mode === 'icons' ? 'dv-layout-text dv-sr' : 'dv-layout-text'}>${label}</span></button>`;
   }
 
   // One cell's drawing. Row text goes through text bindings, so it is always escaped;
@@ -526,7 +783,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   // The first cell is the row's header: the card's picture (if any) beside the way in, which is
-  // the card's link or a button that fires open. A cell that draws its own content (render, or a
+  // the card's link or a button that fires dv-open. A cell that draws its own content (render, or a
   // link column) keeps it as is, so nothing nests.
   private _firstCell(col: Column<T>, row: T, p: CardParts): Content | typeof nothing {
     const content = this._cell(col, row);
@@ -535,7 +792,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ? content
       : href
         ? html`<a class="dv-open" href=${href}>${content}</a>`
-        : html`<button type="button" class="dv-open" @click=${() => this._open(row)}>${content}</button>`;
+        : this._opens
+          ? html`<button type="button" class="dv-open" @click=${() => this._open(row)}>${content}</button>`
+          : content;
     if (p.picture === undefined) return way;
     return html`<span class="dv-row-head"><span class="dv-row-picture" aria-hidden="true">${p.picture}</span>${way}</span>`;
   }
@@ -590,7 +849,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const [first, ...rest] = this.columns;
     return {
       title: first ? formatCell(first, row, this.lang || undefined) : '',
-      facts: rest.slice(0, 2).map((c) => this._cell(c, row)).filter((x): x is Content => x !== nothing && x !== ''),
+      // A link column is plain text here: nothing in a card's body can be pressed.
+      facts: rest.slice(0, 2)
+        .map((c) => (c.type === 'link' ? formatCell(c, row, this.lang || undefined) : this._cell(c, row)))
+        .filter((x): x is Content => x !== nothing && x !== ''),
     };
   }
 
@@ -633,35 +895,90 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         return dvCard(p, {
           menuId: `${this._uid}-c${r}`,
           menuLabel: w.menuFor(p.title),
-          onOpen: () => this._open(row),
+          onOpen: this._opens ? () => this._open(row) : undefined,
           onAction: (id) => this._action(id, row),
           onPick: (item, button) => this._pick(item, row, button),
+          actions: this.cardActions === 'footer' ? 'footer' : 'menu',
+          max: Number.isFinite(Number(this.cardActionsMax)) && this.cardActionsMax !== undefined && this.cardActionsMax !== null
+            ? Number(this.cardActionsMax) : 3,
+          moreLabel: w.moreFor(p.title),
         });
       })}
     </ul>`;
   }
 
   private _confirm(w: Words): TemplateResult {
-    const item = this._ask?.item;
-    return html`<dialog class="dv-confirm" aria-labelledby=${`${this._uid}-ask`} @close=${this._onConfirmClose}>
-      <form method="dialog">
-        <p id=${`${this._uid}-ask`}>${item?.confirm ?? ''}</p>
-        <div class="dv-confirm-buttons">
-          <button value="cancel" autofocus>${w.cancel}</button>
-          <button value="ok" class=${item?.danger ? 'dv-danger' : ''}>${item?.label || w.ok}</button>
-        </div>
-      </form>
-    </dialog>`;
+    return dvConfirm(this._uid, this._ask?.item, w, this._onConfirmClose);
   }
 
   private _pages(w: Words, page: number, total: number, r: { from: number; to: number; pages: number }): TemplateResult {
+    // With nothing to page through, only the live region stays (so "Nothing to show." is still
+    // announced); the visible words are the empty box's, which screen readers skip.
+    if (total === 0) {
+      return html`<nav class="dv-pages" aria-label=${w.pages}><span role="status" aria-live="polite"
+        class="dv-sr">${w.empty}</span>${this._picker(w)}</nav>`;
+    }
+    const pageOf = w.pageOf(this._num(page), this._num(r.pages));
+    const status = html`<span role="status" aria-live="polite">${w.showing(this._num(r.from), this._num(r.to), this._num(total))}<span
+      class="dv-sep" aria-hidden="true"> · </span><span class="dv-sr">, </span><span
+      class="dv-page">${pageOf}</span></span>`;
+    const picker = this._picker(w);
+    const numbers = this.pager === 'numbers' ? pageNumbers(page, r.pages) : [];
+    const arrow = (a: string) => (numbers.length ? html`<span aria-hidden="true">${a}</span>` : nothing);
+    const prev = html`<button type="button" ?disabled=${page <= 1}
+      @click=${() => this._goTo(page - 1)}>${arrow('‹ ')}${w.previous}</button>`;
+    const next = html`<button type="button" ?disabled=${page >= r.pages}
+      @click=${() => this._goTo(page + 1)}>${w.next}${arrow(' ›')}</button>`;
+    if (!numbers.length) {
+      return html`<nav class="dv-pages" aria-label=${w.pages}>
+        ${prev}${picker === nothing ? status : html`<div class="dv-pages-info">${status}${picker}</div>`}${next}
+      </nav>`;
+    }
+    // Numbers: ‹ Previous 1 … 4 [5] 6 … 12 Next ›. On a phone the numbers give way to
+    // "Page 5 of 12" (.dv-page-now, hidden from screen readers: the status says it already).
     return html`<nav class="dv-pages" aria-label=${w.pages}>
-      <button type="button" ?disabled=${page <= 1} @click=${() => this._change({ page: page - 1 })}>${w.previous}</button>
-      <span role="status" aria-live="polite">${total === 0
-        ? w.empty
-        : html`${w.showing(this._num(r.from), this._num(r.to), this._num(total))}<span class="dv-sr">, </span>
-            <span class="dv-page">${w.pageOf(this._num(page), this._num(r.pages))}</span>`}</span>
-      <button type="button" ?disabled=${page >= r.pages} @click=${() => this._change({ page: page + 1 })}>${w.next}</button>
+      <div class="dv-pages-info">${status}${picker}</div>
+      <div class="dv-pager">
+        ${prev}
+        <span class="dv-numbers" role="group" aria-label=${w.pageNumbers}>${numbers.map((n) =>
+          n === 'gap'
+            ? html`<span class="dv-gap" aria-hidden="true">…</span>`
+            : n === page
+              ? html`<span class="dv-current" aria-current="page" tabindex="-1"><span
+                  class="dv-sr">${w.pageNumber(this._num(n))}</span><span aria-hidden="true">${this._num(n)}</span></span>`
+              : html`<button type="button" aria-label=${w.pageNumber(this._num(n))}
+                  @click=${() => this._goTo(n)}>${this._num(n)}</button>`)}</span>
+        <span class="dv-page-now" aria-hidden="true">${pageOf}</span>
+        ${next}
+      </div>
     </nav>`;
   }
+
+  // "Rows per page", when page-sizes gives a choice.
+  private _picker(w: Words): TemplateResult | typeof nothing {
+    const sizes = this._choices;
+    if (!sizes.length) return nothing;
+    const size = this._size;
+    return html`<label class="dv-size"><span>${w.rowsPerPage}</span><select
+      @change=${(e: Event) => this._setSize(Number((e.target as HTMLSelectElement).value))}>
+      ${sizes.map((n) => html`<option value=${n} .selected=${live(n === size)}>${this._num(n)}</option>`)}
+    </select></label>`;
+  }
+}
+
+/** The events a viewer fires. All bubble and are composed; check `e.target` when lists nest. */
+export type DataViewerEventMap<T = Record<string, unknown>> = {
+  'dv-open': CustomEvent<{ row: T }>;
+  'dv-action': CustomEvent<{ id: string; row: T }>;
+  'dv-query': CustomEvent<Query>;
+  'dv-layout': CustomEvent<{ layout: Layout }>;
+};
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'lfdln-data-viewer': LfdlnDataViewer;
+    'lfdln-dv-column': LfdlnDvColumn;
+  }
+  // So addEventListener('dv-query', e => e.detail.page) is typed on any element they bubble to.
+  interface HTMLElementEventMap extends DataViewerEventMap {}
 }

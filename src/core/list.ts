@@ -81,6 +81,12 @@ export function applyQuery<T>(
   return { rows: out.slice(start, start + opts.pageSize), total, page };
 }
 
+/** A page size that pages: a whole number of at least 1; anything unreadable (NaN, 0, ∞) is 20. */
+export function pageSizeOf(n: unknown): number {
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) && v !== 0 ? Math.max(1, v) : 20;
+}
+
 // "21-25 of 25" numbers, and how many pages there are.
 export function pageRange(
   page: number,

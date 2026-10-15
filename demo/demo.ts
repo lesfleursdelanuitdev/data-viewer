@@ -59,9 +59,9 @@ const answer = (q: Query) => {
   remote.rows = out.rows;
   remote.total = out.total;
 };
-answer({ page: 1, search: '', sort: '', dir: 'asc', view: '' });
+answer({ page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 });
 let latest = 0;
-remote.addEventListener('query', (e) => {
+remote.addEventListener('dv-query', (e) => {
   const q = (e as CustomEvent<Query>).detail;
   queries.push(q);
   const n = ++latest;
@@ -96,8 +96,8 @@ const answerSync = (q: Query) => {
   sync.rows = out.rows;
   sync.total = out.total;
 };
-answerSync({ page: 1, search: '', sort: '', dir: 'asc', view: '' });
-sync.addEventListener('query', (e) => answerSync((e as CustomEvent<Query>).detail));
+answerSync({ page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 });
+sync.addEventListener('dv-query', (e) => answerSync((e as CustomEvent<Query>).detail));
 
 // Cards with every part, and the same rows as a table, for the menu and event tests.
 type Thing = { id: number; name: string; kind: string };
@@ -127,14 +127,14 @@ for (const el of [things, thingsTable]) {
     // Given out of order on purpose: danger items must still come last.
     menu: [
       { id: 'delete', label: 'Delete', danger: true, confirm: 'Delete this thing?' },
-      { id: 'edit', label: 'Edit' },
+      { id: 'edit', label: 'Edit', why: 'Shown only when disabled.' },
       { id: 'remove', label: 'Remove from list', danger: true },
       { id: 'archive', label: 'Archive', disabled: true, why: 'Only the owner can archive it.' },
       { id: 'view', label: 'See its page', href: '#view' },
     ],
   });
   el.rows = thingRows;
-  for (const type of ['open', 'action', 'layout']) {
+  for (const type of ['dv-open', 'dv-action', 'dv-layout']) {
     el.addEventListener(type, (e) => {
       const d = (e as CustomEvent<{ id?: string; row?: Thing }>).detail;
       events.push({ type, id: d.id, row: d.row?.id });

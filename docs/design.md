@@ -61,7 +61,7 @@ type Column<T> = {
   upper right;
 - **body:** picture (one shape for all cards), two facts at most, nothing to press;
 - **footer:** the time on the left, the money on the right, at most one button;
-- the whole card opens the thing (`href` or the `open` event). The menu and the footer's button
+- the whole card opens the thing (`href` or the `dv-open` event). The menu and the footer's button
   stay separate buttons.
 
 ```ts
@@ -79,8 +79,8 @@ the same ⋯ menu.
 
 - **In the browser:** set `rows` (all of them). It searches, sorts, filters by view and pages them
   itself. Search looks at every column's text unless `searchKeys` is set.
-- **From a server:** set `rows` (one page) and `total`. Every change fires a `query` event:
-  `{ page, search, sort, dir, view }`. The host loads that page and sets `rows`/`total` again. Until
+- **From a server:** set `rows` (one page) and `total`. Every change fires a `dv-query` event:
+  `{ page, search, sort, dir, view, size }` (`size` added 2026-10-15). The host loads that page and sets `rows`/`total` again. Until
   then the list shows it is busy (`aria-busy`). Typing in the search box waits 300ms before the
   query goes out, as today.
 
@@ -88,29 +88,103 @@ the same ⋯ menu.
 
 `label` (what the list is called, for screen readers), `views` (`{key, label, count?, where?}`; in
 the browser `where(row)` filters), `pageSize` (default 20), `layout` (`table` | `cards`),
-`rememberAs` (keeps table-or-cards in localStorage under this key; no switch without it),
+`rememberAs` (keeps table-or-cards, and a picked page size under `<key>.size`, in localStorage;
+since 2026-10-15 it no longer decides whether the switch shows), `layoutSwitch`,
+`tableLabel`/`cardsLabel` and `layoutIcons` (see below),
 `compact` (no bar and no pages, for a list inside another card), `words` (every piece of text,
 English defaults), `state` (to hand it page, search, sort, dir and view from outside).
 
+### Pages and page sizes (decided by momolig 2026-10-15)
+
+- **Numbered pages, opt-in:** `pager="simple"` (default, Previous / Next) or `pager="numbers"`:
+  `‹ Previous  1 … 4 [5] 6 … 12  Next ›`, the first, the last, the current page and its
+  neighbours, "…" for gaps (a gap hiding one page shows that page instead). The current page has
+  `aria-current="page"` and is no button; the others are buttons named "Page 4", in a group named
+  "Page numbers". The polite live-region status stays. On phones the numbers collapse to
+  "Page 5 of 12" between Previous and Next. One page or none: no numbers.
+- **Page-size picker:** `page-sizes="10,20,50"` (property `pageSizes: number[]`) shows a "Rows per
+  page" select next to the status. `page-size` is the starting choice and is added to the list
+  in order. The list is parsed in core (`src/core/paging.ts`): junk ignored, deduplicated, sorted,
+  values below 1 dropped. Fewer than two sizes left: no picker, and `page-size` is fixed.
+  A new size keeps the first row on screen: page = floor(firstIndex / newSize) + 1. It fires
+  `dv-query` with `size` in both modes. Address key `<prefix>.size` (left out at the starting
+  size, checked against the list), restored on load and on Back/Forward; with `remember-as` it is
+  kept in localStorage under `<remember-as>.size`, and the address wins. The json adapter sends
+  `size` when it isn't 20; pammy sends it as `per`, capped at 100 by its API (documented).
+
+### The layout switch (decided by momolig 2026-10-15)
+
+- It shows by default, whether or not `remember-as` is set. `layout-switch` is `text` (default;
+  unknown values too), `icons`, `both` or `none`. With `none` there is no switch: `layout` or the
+  phone default decides, and a choice saved under `remember-as` still applies.
+- `table-label` / `cards-label` set the words (defaults "Show a table" / "Show cards"). With icons
+  only, the words are hidden text (the button's name) and its `title`. Built-in icons are inline
+  SVG in currentColor, `aria-hidden`. `layoutIcons` from script replaces them; a string is text,
+  never HTML, and a Node is cloned per drawing. Classes `dv-layout-icon`, `dv-layout-text`.
+  `aria-pressed` and 44 px targets on phones in every form.
+
+### Setup in its own file (decided by momolig 2026-10-15)
+
+- `config="./plants-list.js"`: the element imports the module (`import(/* @vite-ignore */ …)`,
+  read against `document.baseURI`). Its default export is an object
+  `{ columns?, views?, cardOf?, rows?, load?, on?, …any public property }` or a function
+  `(list) => void | object | Promise<…>`.
+- `on` handlers are tracked: removed when the config changes, taken off on disconnect and put back
+  on reconnect, never doubled. `load` gives `rows`, with busy and the error box. A failed module
+  shows "Couldn't load this list's setup from <file>." and logs the cause. Busy while loading.
+- Order: markup attributes, then the config, then what the page sets afterwards (that wins).
+- Bundlers / React: `configure(el, config)` applies the same thing; `defineList<T>(config)` is an
+  identity helper for types (column keys checked against `T` unless `value`/`render`, typed `on`).
+- The pure part (which keys are applied and in what order, unknown keys warned once) is
+  `src/core/config.ts`, unit-tested.
+
+### Menus (decided by momolig 2026-10-15)
+
+- `MenuItem` gains `icon` (string as text, Node copied per drawing, TemplateResult) in a fixed
+  `.dv-menu-icon` slot, and `description` (a muted second line, `.dv-menu-desc`; `why` takes its
+  place on a disabled item). Entries may also be `{ separator: true }` or `{ heading }` (a
+  `role="group"` named by the heading). Danger items still go last under their own line. The name
+  is the label; the description is `aria-describedby`. Layout rules: `src/core/menu.ts`.
+- `<lfdln-dv-menu>` is the same menu code (`src/element/menu.ts`: keyboard, popover, light dismiss
+  with the click-swallow fix, the confirm dialog template, disabled + why, focus return) on its
+  own: `label`, `icon`, `trigger-text`, `items`, or `<lfdln-dv-menu-item>` / `-separator` /
+  `-heading` children (an item's own markup is cloned). Fires `dv-action` `{ id, item }`,
+  `dv-menu-open`, `dv-menu-close`.
+
+### Card actions (decided by momolig 2026-10-15)
+
+- `card-actions="menu"` (default): the ⋯ menu in the card head, as before. `"footer"`: the items
+  become buttons in the footer after the primary `action` (icons kept, danger styled and last,
+  separators and headings dropped, disabled kept with `aria-disabled` and `why` as title and
+  description, `confirm` and `href` as in the menu). `card-actions-max` (default 3): the rest go
+  into a ⋯ menu at the end of the row. A card's `actionsAt` overrides. Tables are unchanged.
+  Same `dv-action`. Classes `dv-card-actions`, `dv-card-actions-more`.
+- No icon-only footer buttons: the labels stay visible (decided; an icon-only option would need
+  a separate decision).
+
 ### Address
 
-Opt-in: `url-state="orders"` keeps the state in the address as `orders.page`, `orders.search`, …, so
+Opt-in: `url-state="orders"` keeps the state in the address as `orders.page`, `orders.search`, …
+(and `orders.size` with a page-size picker), so
 two lists on one page don't clash, and Back, a reload and a bookmark come back to the same list.
 Without it the state is in the element. A React wrapper can drive it from the router through `state`
-and the `query` event instead.
+and the `dv-query` event instead.
 
 ### Events
 
 All of them bubble and are `composed`:
 
-- `query`: what to show changed (both modes);
-- `open`: `{ row }`, a card or first cell pressed when there is no `href`;
-- `action`: `{ id, row }`, a menu item or the footer button;
-- `layout`: `{ layout }`.
+- `dv-query`: what to show changed (both modes), `{ page, search, sort, dir, view, size }`;
+- `dv-open`: `{ row }`, a card or first cell pressed when there is no `href`;
+- `dv-action`: `{ id, row }`, a menu item or the footer button;
+- `dv-layout`: `{ layout }`.
+
+They carry a `dv-` prefix (decided 2026-10-15) so they don't collide with other libraries' or
+the platform's generic names.
 
 **Delete:** the list only offers it. The host asks for confirmation, as pages do today. For
 HTML-only pages, a menu item with `confirm="Delete this recipe?"` gets a built-in `<dialog>`
-confirmation before `action` fires.
+confirmation before `dv-action` fires.
 
 ### HTML only
 
@@ -140,7 +214,8 @@ confirmation before `action` fires.
   they are the styling interface. Built-in rules sit inside `:where()`, so any page rule wins.
 - **Variables:** `--dv-bg`, `--dv-surface`, `--dv-text`, `--dv-muted`, `--dv-border`, `--dv-accent`,
   `--dv-danger`, `--dv-radius`, `--dv-font`. Each has a plain default, so the list looks finished with
-  no CSS at all, light and dark (`prefers-color-scheme`).
+  no CSS at all, light and dark, following the page's `color-scheme` through `light-dark()` (decided
+  2026-10-15): a page with no color-scheme, or `light`, stays light on a dark system.
 - **Table:** a real `<table>`, sorting buttons in the header, and `aria-sort` on the sorted column.
 - **Pages:** "Showing 1–20 of 54" and the page number are in a polite live region.
 - **⋯ menu:** built here, because Radix is React only. It uses the browser's `popover` (the top
@@ -165,7 +240,7 @@ confirmation before `action` fires.
 
 1. **DV-1 The logic:** pure functions and their tests.
 2. **DV-2 The tag:** table, cards, search, views, pages, layout switch, address.
-3. **DV-3 Cards, menu, events:** the card parts, the ⋯ menu, `open`/`action`, and the built-in
+3. **DV-3 Cards, menu, events:** the card parts, the ⋯ menu, `dv-open`/`dv-action`, and the built-in
    confirm.
 4. **DV-4 Adapters and HTML only:** `json`, `pammy`, `<lfdln-dv-column>`, `card-*` attributes, failure and
    cancelling.
