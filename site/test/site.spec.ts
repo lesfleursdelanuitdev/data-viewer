@@ -1,7 +1,8 @@
 // The built site, through test/serve.mjs: every address, the live demos, the panel, the
 // sidebar and phone picker, the Reference sections, phone widths and requests to other sites.
 import { test, expect, type Page } from '@playwright/test';
-import { ADDRESSES } from '../reference-map.mjs';
+import { readFileSync } from 'node:fs';
+import { ADDRESSES, REFERENCE } from '../reference-map.mjs';
 
 const PAGES = Object.entries(ADDRESSES) as [string, string][];
 const ALL = ['/', ...PAGES.map(([, a]) => a)];
@@ -224,5 +225,72 @@ test.describe('navigation', () => {
     await btn.click();
     await expect(btn).toContainText('Copied');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('npm i @lesfleursdelanuitdev/data-viewer');
+  });
+});
+
+// The `##`..`####` headings of a README's `##` sections, read here on their own (not with the
+// build's code), so the test checks the build rather than repeating it.
+function readmeHeadings(pkg: string): { section: string; titles: string[] }[] {
+  const md = readFileSync(new URL(`../../packages/${pkg}/README.md`, import.meta.url), 'utf8');
+  const out: { section: string; titles: string[] }[] = [];
+  let inFence = false;
+  for (const line of md.split('\n')) {
+    if (/^\s*```/.test(line)) { inFence = !inFence; continue; }
+    const h = inFence ? null : /^(#{2,4}) +(.+)$/.exec(line);
+    if (!h) continue;
+    if (h[1] === '##') out.push({ section: h[2]!, titles: [] });
+    out.at(-1)?.titles.push(h[2]!.replace(/`/g, ''));
+  }
+  return out;
+}
+
+test.describe('reference', () => {
+  for (const [page, spec] of Object.entries(REFERENCE) as [string, { pkg: string; sections?: string[]; from?: string; skip?: string[] }][]) {
+    test(`${ADDRESSES[page as keyof typeof ADDRESSES]} has every mapped README heading`, async ({ page: p }) => {
+      const all = readmeHeadings(spec.pkg);
+      const wanted = spec.sections
+        ? spec.sections.map((t) => all.find((s) => s.section === t)!)
+        : all.slice(all.findIndex((s) => s.section === spec.from)).filter((s) => !spec.skip?.includes(s.section));
+      expect(wanted.every(Boolean)).toBe(true);
+      await p.goto(ADDRESSES[page as keyof typeof ADDRESSES]);
+      const shown = await p.locator('.ref :is(h2, h3, h4)').allTextContents();
+      expect(shown).toEqual(wanted.flatMap((s) => s.titles));
+      // "On this page" lists the h2s and each goes to its heading.
+      const toc = p.locator('.toc a');
+      await expect(toc).toHaveCount(wanted.length);
+      for (const href of await toc.evaluateAll((as) => as.map((a) => a.getAttribute('href')!))) {
+        await expect(p.locator(`.ref h2[id="${href.slice(1)}"]`)).toHaveCount(1);
+      }
+    });
+  }
+
+  test('pages with no README sections have no Reference', async ({ page }) => {
+    for (const address of ['/docs/', '/docs/light-dark/']) {
+      await page.goto(address);
+      await expect(page.locator('.reference')).toHaveCount(0);
+    }
+  });
+
+  test('every link in a Reference goes to a heading that exists', async ({ page, request }) => {
+    const pages = new Map<string, string>();
+    for (const address of Object.values(ADDRESSES)) pages.set(address, await (await request.get(address)).text());
+    for (const [address, html] of pages) {
+      for (const m of html.matchAll(/<div class="ref">([\s\S]*?)<\/div>\n\s*<\/section>/g)) {
+        for (const [, href] of m[1]!.matchAll(/href="([^"]+)"/g)) {
+          if (/^https?:/.test(href!)) { expect(href).toMatch(/^https:\/\/(github\.com\/lesfleursdelanuitdev|lit\.dev|lesfleursdelanuit\.com)/); continue; }
+          const [path, id] = href!.split('#') as [string, string | undefined];
+          const target = path ? pages.get(path) : html;
+          expect(target, `${address}: ${href}`).toBeDefined();
+          if (id) expect(target!.includes(`id="${id}"`), `${address}: ${href}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  test('a README section link to another page is rewritten to that page', async ({ page }) => {
+    await page.goto('/docs/styling/');
+    await expect(page.locator('.ref a', { hasText: 'menu package' })).toHaveAttribute('href', '/docs/menu/#class-names');
+    await page.goto('/docs/basics/');
+    await expect(page.locator('.ref a[href="/docs/server-pages/#pages"]').first()).toBeVisible();
   });
 });

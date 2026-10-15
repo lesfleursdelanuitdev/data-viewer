@@ -5,7 +5,8 @@ import { readFile, writeFile, mkdir, rm, copyFile, readdir } from 'node:fs/promi
 import { existsSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ADDRESSES } from './reference-map.mjs';
+import { Marked } from 'marked';
+import { ADDRESSES, PACKAGE_PAGES, REFERENCE, VIEWER_UNCLAIMED } from './reference-map.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -103,7 +104,7 @@ async function docsPage(id) {
     text: textBlock(id, P),
     panel: panelBlock(id, P),
     notes: notesBlock(id, P),
-    reference: '',
+    reference: referenceBlock(id),
   });
 }
 
@@ -139,6 +140,137 @@ function panelBlock(id, P) {
   }
   lines.push('</section>');
   return lines.map((l) => `        ${l}`).join('\n');
+}
+
+// ── Reference: package README sections, per reference-map.mjs ──
+const REPO = 'https://github.com/lesfleursdelanuitdev/data-viewer';
+
+// GitHub's heading ids: lower case, punctuation dropped, spaces to hyphens.
+export const slug = (title) => title.replace(/`/g, '').toLowerCase().trim()
+  .replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
+
+// A README's `##` sections, each with its headings (`##` to `####`); fenced code is skipped.
+function readSections(md) {
+  const out = [];
+  let fence = null;
+  for (const line of md.split('\n')) {
+    const f = /^\s*(```+|~~~+)/.exec(line);
+    if (f) fence = fence === null ? f[1] : (line.trim().startsWith(fence) ? null : fence);
+    const h = fence === null && !f ? /^(#{1,4}) +(.+?)\s*#*\s*$/.exec(line) : null;
+    if (h && h[1].length === 1) continue;
+    if (h && h[1].length === 2) out.push({ title: h[2], lines: [], headings: [] });
+    if (!out.length) continue;
+    const cur = out[out.length - 1];
+    cur.lines.push(line);
+    if (h) cur.headings.push({ depth: h[1].length, title: h[2], id: slug(h[2]) });
+  }
+  return out.map((sec) => ({ ...sec, text: sec.lines.join('\n').trim() + '\n' }));
+}
+
+const readmes = {};
+for (const pkg of Object.keys(PACKAGE_PAGES)) {
+  readmes[pkg] = readSections(await readFile(join(root, 'packages', pkg, 'README.md'), 'utf8'));
+}
+
+// page id -> [{ pkg, section }], in the order the page shows them.
+const pageSections = {};
+for (const [page, spec] of Object.entries(REFERENCE)) {
+  if (!ADDRESSES[page]) fail(`reference-map.mjs names page ${page}, which has no address`);
+  const all = readmes[spec.pkg];
+  if (!all) fail(`reference-map.mjs: no README for package ${spec.pkg}`);
+  const find = (title) => all.find((sec) => sec.title === title)
+    ?? fail(`packages/${spec.pkg}/README.md has no "## ${title}" section (named for ${ADDRESSES[page]} in reference-map.mjs)`);
+  let list;
+  if (spec.sections) list = spec.sections.map(find);
+  else {
+    const start = all.indexOf(find(spec.from));
+    for (const t of spec.skip || []) find(t);
+    list = all.slice(start).filter((sec) => !(spec.skip || []).includes(sec.title));
+  }
+  pageSections[page] = list.map((section) => ({ pkg: spec.pkg, section }));
+}
+
+// Every `##` section of the viewer README is on exactly one page (Licence is left out on purpose).
+{
+  const claims = new Map();
+  for (const [page, list] of Object.entries(pageSections)) {
+    for (const { pkg, section } of list) if (pkg === 'data-viewer') claims.set(section.title, [...(claims.get(section.title) || []), page]);
+  }
+  const unclaimed = readmes['data-viewer'].filter((sec) => !claims.has(sec.title) && !VIEWER_UNCLAIMED.includes(sec.title));
+  if (unclaimed.length) fail(`no page shows these packages/data-viewer/README.md sections; add them to reference-map.mjs: ${unclaimed.map((sec) => `"## ${sec.title}"`).join(', ')}`);
+  const twice = [...claims].filter(([, pages]) => pages.length > 1);
+  if (twice.length) fail(`these viewer README sections are on two pages: ${twice.map(([t, p]) => `"${t}" (${p.join(', ')})`).join('; ')}`);
+}
+
+// Where each README heading ended up: package -> heading id -> page id.
+const anchors = {};
+for (const [page, list] of Object.entries(pageSections)) {
+  for (const { pkg, section } of list) {
+    anchors[pkg] ??= new Map();
+    for (const h of section.headings) anchors[pkg].set(h.id, page);
+  }
+}
+
+// A README link, as it should read on `page`.
+function rewrite(href, pkg, page) {
+  const at = (target, id) => (target === page ? `#${id}` : `${ADDRESSES[target]}#${id}`);
+  if (href.startsWith('#')) {
+    const id = href.slice(1);
+    const target = anchors[pkg]?.get(id);
+    if (!target) fail(`packages/${pkg}/README.md links to ${href}, which no docs page shows`);
+    return at(target, id);
+  }
+  const gh = /^https:\/\/github\.com\/lesfleursdelanuitdev\/data-viewer\/tree\/main\/packages\/([\w-]+)\/?(?:#(.*))?$/.exec(href);
+  if (gh) {
+    const [, other, id] = gh;
+    if (!PACKAGE_PAGES[other]) fail(`packages/${pkg}/README.md links to unknown package ${other}`);
+    if (!id || id === 'readme') return ADDRESSES[PACKAGE_PAGES[other]];
+    const target = anchors[other]?.get(id);
+    if (!target) fail(`packages/${pkg}/README.md links to ${href}, which no docs page shows`);
+    return at(target, id);
+  }
+  if (!/^[a-z]+:|^\/\//i.test(href) && !href.startsWith('/')) return `${REPO}/blob/main/packages/${pkg}/${href}`;
+  return href;
+}
+
+function renderSections(page) {
+  const toc = [];
+  const used = new Map();
+  let html = '';
+  for (const { pkg, section } of pageSections[page]) {
+    const marked = new Marked({ gfm: true });
+    marked.use({
+      walkTokens(t) { if (t.type === 'link') t.href = rewrite(t.href, pkg, page); },
+      renderer: {
+        // Raw HTML in a README is shown as text, as GitHub shows a stray tag like "<title>".
+        html({ text }) { return esc(text); },
+        heading({ tokens, depth, text }) {
+          let id = slug(text);
+          const n = used.get(id) ?? 0;
+          used.set(id, n + 1);
+          if (n) id = `${id}-${n}`;
+          const inner = this.parser.parseInline(tokens);
+          if (depth === 2) toc.push({ id, inner });
+          return `<h${depth} id="${id}">${inner}</h${depth}>\n`;
+        },
+      },
+    });
+    html += marked.parse(section.text);
+  }
+  html = html.replace(/<table>/g, '<div class="ref-scroll"><table class="table">').replace(/<\/table>/g, '</table></div>');
+  return { html, toc };
+}
+
+function referenceBlock(page) {
+  if (!pageSections[page]) return '';
+  const { html, toc } = renderSections(page);
+  return `      <section class="reference" aria-labelledby="reference-title">
+        <div class="rule-fade"></div>
+        <h2 class="kicker" id="reference-title">Reference</h2>
+        <nav class="toc" aria-label="On this page"><div class="toc-label">On this page</div><ul>${toc.map((t) => `<li><a href="#${t.id}">${t.inner}</a></li>`).join('')}</ul></nav>
+        <div class="ref">
+${html}        </div>
+      </section>`;
 }
 
 // ── checks ──
