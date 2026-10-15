@@ -9,6 +9,7 @@ one field, and a submit button for lists where every search costs something. It 
 - It draws into the page itself (no shadow root), so your CSS reaches every part of it.
 - It never searches anything. It tells you what was asked for (`search-change`); your page
   does the searching.
+- In a data viewer you don't write it: mark columns `searchable` and add `search-in` to the list.
 
 ## Install
 

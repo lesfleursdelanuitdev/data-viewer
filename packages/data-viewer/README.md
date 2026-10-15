@@ -1,17 +1,19 @@
 # data-viewer
 
-`<lfdln-data-viewer>` shows a list of rows as a table or as cards. It has search, sorting, views,
-pages, a ⋯ menu per row, and a phone layout. It is a [Lit](https://lit.dev) web component, so it
+`<lfdln-data-viewer>` shows a list of rows as a table or as cards. It has search (with an optional
+"Search in" picker), a filter with chips, sorting, views, pages, a ⋯ menu per row, and a phone layout. It is a [Lit](https://lit.dev) web component, so it
 works on a plain HTML page and in any framework.
 
 - It draws into the page itself (no shadow root), so your CSS reaches every part of it.
 - Its own look is plain and finished, in light and dark (following your page's `color-scheme`), with no CSS from you.
 - It never fetches anything unless you load an adapter (see [Adapters](#adapters)).
 
-Its ⋯ menus, its pages and its cards are three packages of their own, which work on any page
-without the viewer: [`@lesfleursdelanuitdev/menu`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#readme) (`<lfdln-menu>`),
-[`@lesfleursdelanuitdev/pagination`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#readme) (`<lfdln-pagination>`) and
-[`@lesfleursdelanuitdev/card`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#readme) (`<lfdln-card>`). The viewer draws with their
+Its ⋯ menus, its pages, its cards, its search box and its filter are five packages of their own,
+which work on any page without the viewer: [`@lesfleursdelanuitdev/menu`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#readme) (`<lfdln-menu>`),
+[`@lesfleursdelanuitdev/pagination`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#readme) (`<lfdln-pagination>`),
+[`@lesfleursdelanuitdev/card`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#readme) (`<lfdln-card>`),
+[`@lesfleursdelanuitdev/search`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search#readme) (`<lfdln-search>`) and
+[`@lesfleursdelanuitdev/filter`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#readme) (`<lfdln-filter>`, `<lfdln-filter-chips>`). The viewer draws with their
 code, so it installs them with it; nothing about the viewer's own attributes or events changes.
 
 ## Install
@@ -21,14 +23,14 @@ npm install @lesfleursdelanuitdev/data-viewer lit
 ```
 
 Lit is a peer dependency (`lit@^3.3.3`), so your app and the viewer share one copy. The menu,
-pagination and card packages come with it (exact versions, 0.1.0).
+pagination, card, search and filter packages come with it (exact versions, 0.1.0).
 
 ## Two ways to load it
 
 | File | For | Registers the tags |
 |---|---|---|
 | `@lesfleursdelanuitdev/data-viewer` (`dist/data-viewer.js`) | apps with a bundler; Lit is left out | No: you call `define()` |
-| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager and the card are inside (about 27 KB gzipped) | Yes, on load: all five tags |
+| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 40 KB gzipped) | Yes, on load: all eight tags |
 
 ### In an app
 
@@ -149,11 +151,12 @@ the same thing as a method.
 ## Rows: two modes
 
 **In the browser.** Set `rows` to all the rows and leave `total` unset. The viewer searches,
-sorts, filters by view and pages them itself.
+filters, sorts, filters by view and pages them itself.
 
 **From a server.** Set `rows` to one page and `total` to the number of rows on the server. Every
-change (page, search, sort, view, rows per page) fires a `dv-query` event with
-`{ page, search, sort, dir, view, size }`.
+change (page, search, "Search in", filters, sort, view, rows per page) fires a `dv-query` event with
+`{ page, search, sort, dir, view, size }`, plus `searchIn` and `filters` when they are set (see
+[Search and filter](#search-and-filter)).
 Load that page, then set `rows` and `total` again. Until you do, the list is busy
 (`aria-busy="true"` on `.dv-root`, and the `busy` attribute on the element). Set `rows` or
 `total` even when the answer is the same, so the busy state clears. You may answer inside the
@@ -335,8 +338,13 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `layoutIcons` | none | `{ table?: Content; cards?: Content }` | built-in icons | Your own icons for the switch. A string is shown as text, never HTML. A `Node` is copied for each drawing. |
 | `compact` | `compact` | boolean | `false` | No bar and no pages, for a short list inside another card. |
 | `words` | none | `Partial<Words>` | `{}` | Replaces any of the text. See [Words](#words). |
-| `state` | none | `Partial<Query>` | unset | Hands it page, search, sort, dir and view from outside (a router, say). |
-| `searchKeys` | none | `string[]` | every column | The row keys search looks at. A key need not be a column. |
+| `state` | none | `Partial<Query>` | unset | Hands it page, search, sort, dir, view, `searchIn` and `filters` from outside (a router, say). |
+| `searchKeys` | none | `string[]` | every column | The row keys search looks at. A key need not be a column. Columns marked `searchable` win over it. |
+| `searchIn` | `search-in` | boolean | `false` | Shows the "Search in" picker beside the search box (with two or more searchable columns). See [Search and filter](#search-and-filter). |
+| `searchSubmitLabel` | `search-submit-label` | string | unset | A button after the search box with these words; then typing alone doesn't search, only Enter or the button. |
+| `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. |
+| `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
+| `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
 | `config` | `config` | string | unset | A module whose default export sets the list up. See [Setup in its own file](#setup-in-its-own-file). |
@@ -368,6 +376,10 @@ column is formatted the way that column is.
 | `label` | The header text. Defaults to the key. |
 | `type` | One of the [column types](#column-types). Anything else is `text`. |
 | `sortable` | Present: the header is a sorting button. |
+| `searchable` | Present: search looks at this column. |
+| `filterable` | Present: the filter has a part for this column. |
+| `options` | A choice's options, `options="Sun,Part shade,Shade"`, in that order. |
+| `ranges` | A range's quick ranges, `ranges="1900s:1900..1999,Recent:2020.."` (label, colon, `from..to`; either end may be empty). |
 | `align` | `left` or `right`. |
 | `currency` | For `type="money"`, such as `EUR`. Defaults to `USD`. |
 
@@ -383,6 +395,10 @@ type Column<T> = {
   sortable?: boolean;
   align?: 'left' | 'right';     // numbers and money default to right
   format?: { currency?: string; locale?: string; date?: Intl.DateTimeFormatOptions };
+  searchable?: boolean;         // search looks at it (none marked: every column)
+  filterable?: boolean;         // the filter has a part for it
+  options?: (string | FilterOption)[];                      // a choice's options, in order
+  ranges?: { label: string; from?: string; to?: string }[]; // a range's quick ranges
 };
 ```
 
@@ -406,6 +422,51 @@ values sort last in both directions.
 Row text is always escaped. Only `render` returning a `Node` or a Lit `TemplateResult` can add
 markup. Links and pictures from rows are kept only when they are `http:`, `https:`, `mailto:`,
 `tel:` or relative addresses; anything else (`javascript:`, `data:`) is dropped.
+
+## Search and filter
+
+**Search** looks at the columns marked `searchable`. With none marked it looks at `searchKeys`, and
+without those at every column, as before. `search-in` adds a "Search in" picker ("All fields", then
+each searchable column) when there are two or more. `search-submit-label="Search"` adds a button
+and stops search-as-you-type. A search goes back to page 1.
+
+**The filter** has one part for each `filterable` column, after the filter on the Gonsalves family
+albums: a funnel button in the bar that sums up what is applied, a popover with the parts on the
+left and the picked one on the right (a bottom sheet on phones), changes held in a draft until
+Apply, and the applied filters as chips under the bar. Its kind follows the column type:
+
+| Column type | Filter | Value |
+|---|---|---|
+| `text`, `badge`, `link`, `tags` | A choice: tick any of the values | `['Sun', 'Shade']` |
+| `number`, `money`, `date` | A range: From and To, and the column's `ranges` as quick picks | `{ from: '10', to: '50' }` |
+| `bool` | Any, Yes or No | `true` / `false` |
+| `image` | Never filterable | |
+
+- **In the browser** a choice lists the values in the view's rows, sorted (a column's `options`
+  first, in their order), and counts each over the rows the view, the search and the other filters
+  leave, so the counts say what you would get. A tags cell counts each tag; empty and missing values
+  are never options.
+- **Matching:** every set filter must match (AND); a choice matches any of its ticked values (OR,
+  any tag of a tags cell); a range compares numbers (`"12.50"` is 12.5) or dates by period (`1950`
+  is the whole year, `1950-06` the month). A cell with no value never matches a set filter, and a
+  value that is no longer an option (an old bookmark) matches nothing, while its chip still shows
+  so it can be removed.
+- **From a server** the list can't count, so it uses `facets` (`{ status: [{ value, label?, count }] }`),
+  set with `rows` and `total` or returned by an adapter. Without facets a choice uses the column's
+  `options` without counts; with neither it is left out. `dv-query` then carries `searchIn` and
+  `filters` (`{ status: ['paid'], price: { from: '10' }, organic: true }`). Both are left out when
+  unset, so a query without them looks as it always did.
+- A filter change goes back to page 1.
+
+```js
+list.columns = [
+  { key: 'name', label: 'Plant', searchable: true },
+  { key: 'kind', label: 'Kind', type: 'badge', searchable: true, filterable: true },
+  { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, filterable: true,
+    ranges: [{ label: 'Under €5', to: '5' }, { label: 'Over €10', from: '10' }] },
+  { key: 'added', label: 'Added', type: 'date', filterable: true },
+];
+```
 
 ## The table
 
@@ -570,7 +631,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 
 | Event | `detail` | When |
 |---|---|---|
-| `dv-query` | `{ page, search, sort, dir, view, size }` | What to show changed, in both modes. `dir` is `'asc'` or `'desc'`. `size` is the rows per page in use: the visitor's pick when there is a picker, otherwise `page-size`. |
+| `dv-query` | `{ page, search, sort, dir, view, size, searchIn?, filters? }` | What to show changed, in both modes. `dir` is `'asc'` or `'desc'`. `size` is the rows per page in use: the visitor's pick when there is a picker, otherwise `page-size`. `searchIn` (the "Search in" column) and `filters` are there only when set. |
 | `dv-open` | `{ row }` | A card or a first cell was pressed and the row has no `href`. |
 | `dv-action` | `{ id, row }` | A menu item or the footer button was pressed (after its confirm, if any). |
 | `dv-layout` | `{ layout }` | The table-or-cards switch changed. |
@@ -578,7 +639,10 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 ## Address
 
 `url-state="orders"` keeps the list's state in the address as `orders.page`, `orders.search`,
-`orders.sort`, `orders.dir`, `orders.view` and, with a page-size picker, `orders.size`. Defaults are
+`orders.sort`, `orders.dir`, `orders.view`, with a page-size picker `orders.size`, and `orders.in`
+("Search in") and one `orders.f.<key>` per filter: a choice `orders.f.status=shipped,pending` (each
+value URL-encoded, so a comma inside one is `%2C`), a range `orders.f.price=10..50` (either end may
+be empty: `10..`, `..50`), yes or no `orders.f.organic=yes`. Defaults are
 left out (the size when it is the starting `page-size`), so a fresh list has a clean
 address. Two lists with different prefixes don't clash. Back, a reload and a bookmark come back to
 the same list. A search replaces the address entry; other changes add one. Without `url-state` the
@@ -608,8 +672,11 @@ what they may see.
 
 `GET src` with `page`, `search`, `sort`, `dir`, `view` and `size` (rows per page) added, only the
 ones that differ from the defaults (page 1, ascending, size 20). So with the default page size the
-first load asks for `src` as written; with `page-size="10"` every request says `size=10`. The answer is either an array (every
-row) or `{ rows, total }` (one page). `{ rows }` without a total is every row too.
+first load asks for `src` as written; with `page-size="10"` every request says `size=10`. It adds
+`in` for "Search in" and `f.<key>` for each filter, written as the [address](#address) writes them:
+read a choice by splitting on the commas, then decoding each value. The answer is either an array
+(every row) or `{ rows, total, facets? }` (one page, with the options and counts for the filter).
+`{ rows }` without a total is every row too.
 
 ### pammy
 
@@ -624,6 +691,10 @@ pages and searches on the server, so the list is in server mode. Its limits:
 - **Only columns the catalog marks sortable sort.** Sorting by any other column quietly falls back
   to the table's key order, so mark only those columns `sortable`.
 - It has no views, so `view` is not sent.
+- **One exact value per column.** Its only filter is `where.<column>=value`, so it says
+  `supports: { filters: 'equals', searchIn: false, facets: false }`: the list offers single choices
+  only (from the columns' `options`), no ranges, no yes / no and no "Search in" picker, and sends a
+  choice as `where.<key>`.
 
 ### Your own adapter
 
@@ -640,6 +711,10 @@ const mine: Adapter = {
 };
 registerAdapter('mine', mine);
 ```
+
+An adapter may say what its server can do with `supports: { filters?: 'all' | 'equals', searchIn?:
+boolean, facets?: boolean }`; without it the list offers everything. It may return `facets` with the
+rows.
 
 `q` is the same query `dv-query` carries, `size` included (`pageSize` is the same number, kept
 for older adapters). `src` is the element's `src`, trimmed, or `''` when it has none, so an adapter that knows where
@@ -683,20 +758,28 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 | `pageNumber(page)` | `Page ${page}` (each number's name) |
 | `rowsPerPage` | `Rows per page` (the page-size picker's label) |
 | `configFailed(file)` | `Couldn't load this list's setup from ${file}.` |
+| `searchIn`, `allFields`, `clear` | `Search in`, `All fields`, `Clear` (the search box) |
+| `filter`, `heading` | `Filter`, `Filter` (the filter button, the filter's title) |
+| `apply`, `clearAll`, `none`, `nothingMatches` | `Apply filter`, `Clear all`, `No filters yet`, `Nothing matches` |
+| `any`, `yes`, `no`, `from`, `to`, `upTo`, `back`, `close` | `Any`, `Yes`, `No`, `From`, `To`, `Up to`, `Back`, `Close` |
+| `selected(n)`, `searchOptions(label)`, `remove(label)` | `${n} selected`, `Search ${label.toLowerCase()}`, `Remove ${label}` |
 
 `table-label` and `cards-label` win over `showTable` and `showCards`. The pager's words
-(`pages` to `rowsPerPage`, and `empty`) are the pagination package's `PaginationWords`.
+(`pages` to `rowsPerPage`, and `empty`) are the pagination package's `PaginationWords`, the search
+box's the search package's `SearchWords` and the filter's the filter package's `FilterWords`.
 The numbers handed to `showing`, `pageOf` and `pageNumber` are already formatted for the locale.
 `defaultWords` is exported.
 
 ## Styling
 
 The viewer adds one `<style id="lfdln-dv-style">` as the first child of `<head>`, and the menu,
-pagination and card packages add theirs (`lfdln-menu-style`, `lfdln-pagination-style`,
-`lfdln-card-style`, the card's always after the menu's), each once per page. Every rule in them
+pagination, card, search and filter packages add theirs (`lfdln-menu-style`,
+`lfdln-pagination-style`, `lfdln-card-style`, `lfdln-search-style`, `lfdln-filter-style`, the
+card's always after the menu's), each once per page. Inside a list, their `--search-*` and
+`--filter-*` variables are set from the list's `--dv-*` ones. Every rule in them
 sits inside `:where()`, which has no specificity, so any rule of yours wins. Two rules can't be
 inside `:where()`, because pseudo-elements can't: `.lfdln-card-link::after` (the layer that makes
-the whole card open it) and `.lfdln-menu-confirm::backdrop`. To change those, use a selector with at least
+the whole card open it), `.lfdln-menu-confirm::backdrop` and `.lfdln-filter-sheet::backdrop`. To change those, use a selector with at least
 one class, such as `.lfdln-card .lfdln-card-link::after`.
 
 Because your rules win, page-wide ones reach inside the viewer too: an `a { … }` rule restyles its
@@ -740,8 +823,10 @@ These are the styling interface.
 | Class | Part |
 |---|---|
 | `dv-root` | The whole list (has `aria-busy`) |
-| `dv-bar` | The bar above the list: search, views, layout switch |
-| `dv-search` | The search box |
+| `dv-bar` | The bar above the list: search, filter, views, layout switch |
+| `dv-search` | Holds the search box (`lfdln-search-root`, `lfdln-search-input`, `lfdln-search-in`, `lfdln-search-clear`, `lfdln-search-submit`: see the [search package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search#class-names)) |
+| `dv-filter` | Holds the filter button and its dialog (`lfdln-filter-*`: see the [filter package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#class-names)) |
+| `lfdln-filter-chips`, `lfdln-filter-chip` | The applied filters, under the bar |
 | `dv-views` | The views (`<nav>` of links; the current one has `aria-current="true"`) |
 | `dv-count` | A view's count |
 | `dv-layout` | The table-or-cards switch (buttons with `aria-pressed`) |
@@ -768,6 +853,8 @@ These are the styling interface.
 At 640 px wide or less:
 
 - The list starts as cards, unless `layout` is set or a remembered choice exists.
+- The "Search in" picker goes under the search box, and the filter opens as a bottom sheet
+  (639 px or less).
 - Buttons, inputs, the page-size picker, view links and menu items are at least 44 px tall; the ⋯
   buttons and the layout switch's buttons are at least 44 px wide too.
 - Numbered pages give way to "Page 5 of 12" between Previous and Next.

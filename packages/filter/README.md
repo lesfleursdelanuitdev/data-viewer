@@ -10,6 +10,8 @@ filter the [data viewer](https://github.com/lesfleursdelanuitdev/data-viewer/tre
 - They draw into the page itself (no shadow root), so your CSS reaches every part of them.
 - They never filter anything. The filter tells you what was applied (`filter-change`); your
   page shows the matching rows.
+- In a data viewer you don't write them: mark columns `filterable` and the list builds the
+  sections, counts the options and draws the chips itself.
 
 ## Install
 

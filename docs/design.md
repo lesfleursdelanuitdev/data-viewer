@@ -400,7 +400,12 @@ confirmation before `dv-action` fires.
 5. **DV-5 Builds, demo, docs:** both builds, the size check, a README with every property, class
    name and variable, and the browser tests. Then, **with your OK at each step**: the GitHub repo,
    then the first npm publish (`0.1.0`).
-6. **DV-6 The panel switches (separate, after you've used it):** `@panel/dataviewer` becomes a React
+6. **DV-5b Search and filter (built 2026-10-15, branch `filter-search`):** the search and filter
+   packages (`<lfdln-search>`, `<lfdln-filter>`, `<lfdln-filter-chips>`), columns marked `searchable`
+   and `filterable`, browser-mode options and counts, `facets` for server mode, `in` and `f.<key>` in
+   the address and the json adapter, `supports` on adapters (pammy: one exact value per column), and
+   examples 9 and 10 on the sample page. Plan: `docs/plan-filter-search.md`.
+7. **DV-6 The panel switches (separate, after you've used it):** `@panel/dataviewer` becomes a React
    wrapper (a React cell is drawn with `render` into a node). Studio records and the shop admin
    switch, and their e2e tests must pass unchanged.
 
