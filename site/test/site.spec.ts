@@ -39,6 +39,7 @@ test.describe('live demos', () => {
     ['/docs/', 'lfdln-data-viewer .dv-root'],
     ['/docs/basics/', 'lfdln-data-viewer .dv-table'],
     ['/docs/setup-file/', 'lfdln-data-viewer .dv-table'],
+    ['/docs/custom-cards/', 'lfdln-data-viewer .dv-card-custom'],
     ['/docs/server-pages/', 'lfdln-data-viewer .dv-table'],
     ['/docs/light-dark/', 'lfdln-data-viewer .dv-root'],
     ['/docs/menu/', 'lfdln-menu .lfdln-menu-button'],
@@ -137,6 +138,24 @@ test.describe('panel', () => {
     await page.getByRole('menuitem', { name: /Care notes/ }).click();
     await expect(page.locator('.event').first()).toContainText('dv-action');
     await expect(page.locator('.event').first()).toContainText('"row":"Foxglove"');
+  });
+
+  test('custom cards: the template card opens, its button and its menu show as events', async ({ page }) => {
+    await page.goto('/docs/custom-cards/');
+    const card = page.locator('[data-host] .dv-card-custom').first();
+    await expect(card.locator('h3')).toHaveText('Foxglove');
+    await expect(card.locator('.facts')).toContainText('€6.50');
+    await expect(card).toHaveAccessibleName('Foxglove');
+    await card.locator('h3 button').click();
+    await expect(page.locator('.event').first()).toContainText('dv-open');
+    await expect(page.locator('.event').first()).toContainText('"row":"Foxglove"');
+    await card.getByRole('button', { name: 'Put one aside' }).click();
+    await expect(page.locator('.event').first()).toContainText('"id":"aside"');
+    await card.locator('dv-menu .lfdln-menu-button').click();
+    await page.getByRole('menuitem', { name: /Care notes/ }).click();
+    await expect(page.locator('.event').first()).toContainText('"id":"care"');
+    // Lit and React are code samples only.
+    for (const name of ['HTML', 'Lit', 'React']) await expect(page.getByRole('tab', { name, exact: true })).toHaveCount(1);
   });
 
   test('card actions control changes the list', async ({ page }) => {

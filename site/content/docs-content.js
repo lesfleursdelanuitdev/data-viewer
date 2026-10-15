@@ -97,7 +97,7 @@ const listStyle = 'margin:0;padding:0 0 0 1.6em;display:grid;grid-template-colum
 
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
-  { name: 'The list', items: ['basics', 'config', 'server', 'scheme'] },
+  { name: 'The list', items: ['basics', 'config', 'custom', 'server', 'scheme'] },
   { name: 'Parts', items: ['menu', 'pagination', 'card', 'search', 'filter'] },
   { name: 'Reference', items: ['styling'] },
 ];
@@ -108,7 +108,7 @@ export const PAGES = {
     intro: '`<lfdln-data-viewer>` shows rows with search, filters, sorting, pages and a ⋯ menu on each row. It runs on a plain HTML page or inside any framework.',
     features: [
       ['One tag', 'Load one script, write the tag, hand it rows.'],
-      ['No framework', 'About 40 KB gzipped with Lit inside. No React, no build step.'],
+      ['No framework', 'About 44 KB gzipped with Lit inside. No React, no build step.'],
       ['Parts on their own', 'Menu, pages, card, search and filter are tags of their own.'],
       ['Your CSS wins', 'No shadow DOM, zero-specificity rules, `--dv-*` colour variables.'],
       ['Phones and keyboards', 'Cards on small screens, 44 px targets, full keyboard use.'],
@@ -283,6 +283,150 @@ export default {
     ],
     mount: (host, ctx) => catalogue(host, ctx.controls.cardActions || 'menu'),
     onControl: (host, key, value) => { const l = host.querySelector('lfdln-data-viewer'); if (l) l.cardActions = value; },
+  },
+
+  custom: {
+    nav: 'Custom cards', kicker: 'The list', title: 'Your own cards',
+    intro: 'Draw each card yourself: a `<template>` on a plain page, `cardTemplate` with Lit, or `cardMount` for React. The list still opens the card by click and keyboard, names it for screen readers, and draws its ⋯ menu and confirm dialog.',
+    tabs: [
+      { label: 'HTML', code: `<lfdln-data-viewer id="plants" label="Plants" adapter="json" src="plants.json"
+    layout="cards" page-size="6" open-event>
+  <lfdln-dv-column key="name" label="Plant" sortable></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+  <template card>
+    <h3 data-open>{{name}}</h3>
+    <p class="latin">{{latin}}</p>
+    <p class="facts"><span class="badge">{{light}}</span> {{height}} cm · {{price}}</p>
+    <button type="button" data-action="aside">Put one aside</button>
+    <dv-menu></dv-menu>
+  </template>
+</lfdln-data-viewer>
+
+<script type="module">
+  // The ⋯ menu's items come from cardOf, as for the built-in card.
+  document.querySelector('#plants').cardOf = (p) => ({
+    title: p.name,
+    menu: [
+      { id: 'care', label: 'Care notes' },
+      { id: 'remove', label: 'Remove from the list', danger: true, confirm: \`Remove \${p.name}?\` },
+    ],
+  });
+</script>
+
+<style>
+  .dv-card-custom {
+    display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem;
+    background: var(--dv-surface); border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
+  }
+  .dv-card-custom:hover { border-color: var(--dv-muted); }
+  .dv-card-custom h3 { margin: 0 2.5rem 0 0; font-size: 1rem; }
+  .dv-card-custom p { margin: 0; }
+  .dv-card-custom dv-menu { position: absolute; top: 0.5rem; right: 0.5rem; }
+</style>` },
+      { label: 'Lit', code: `import { html } from 'lit';
+import { configure, define } from '@lesfleursdelanuitdev/data-viewer';
+
+define();
+configure(document.querySelector('#plants'), {
+  columns: [
+    { key: 'name', label: 'Plant', sortable: true },
+    { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' } },
+  ],
+  cardOf: (p) => ({ title: p.name, menu: [{ id: 'care', label: 'Care notes' }] }),
+  // Your own button opens the card: data-open stretches it over the whole card.
+  cardTemplate: (p, pieces) => html\`
+    <button type="button" data-open>\${p.name}</button>
+    <p class="latin">\${p.latin}</p>
+    <p class="facts">\${p.light} · \${pieces.text('price')}</p>
+    <button type="button" data-action="aside">Put one aside</button>
+    \${pieces.menu}\`,
+  load: async () => (await fetch('plants.json')).json(),
+});` },
+      { label: 'React', code: `import { useEffect, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { configure, define } from '@lesfleursdelanuitdev/data-viewer';
+
+define();
+
+function PlantCard({ plant, pieces }) {
+  const menu = useRef(null);
+  // pieces.menu is an element the list keeps up to date: put it where you want it.
+  useEffect(() => { menu.current.append(pieces.menu); }, [pieces]);
+  return (
+    <>
+      <button type="button" data-open>{plant.name}</button>
+      <p className="latin">{plant.latin}</p>
+      <p className="facts">{plant.light} · {pieces.text('price')}</p>
+      <span ref={menu} />
+    </>
+  );
+}
+
+export function Plants() {
+  const list = useRef(null);
+  useEffect(() => {
+    configure(list.current, {
+      columns: [
+        { key: 'name', label: 'Plant', sortable: true },
+        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' } },
+      ],
+      cardOf: (p) => ({ title: p.name, menu: [{ id: 'care', label: 'Care notes' }] }),
+      cardMount: (el, plant, pieces) => {
+        const root = createRoot(el);
+        root.render(<PlantCard plant={plant} pieces={pieces} />);
+        return () => root.unmount();
+      },
+      load: async () => (await fetch('plants.json')).json(),
+    });
+  }, []);
+  return <lfdln-data-viewer ref={list} label="Plants" layout="cards" />;
+}` },
+    ],
+    notes: [
+      'A `<template card>` is read with the columns, before the list first draws. `card-template="id"` names a `<template>` elsewhere on the page, so several lists can share one.',
+      '`{{key}}` gives a column’s key in that column’s format: `{{price}}` is `€6.50`. `data-if="key"` leaves an element out when the field is empty.',
+      '`data-open` (or else the first heading) opens the card, and the whole card is its hit area. `data-action="id"` fires `dv-action`.',
+      'Fields always go in as text. An address with a field is checked, and a field in `on…` or `style` drops the attribute.',
+      'The ⋯ menu’s items still come from `cardOf`; `<dv-menu>` and `<dv-actions>` say where they go.',
+    ],
+    mount: (host) => {
+      host.innerHTML = `<style>
+          [data-host] .dv-card-custom {
+            display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem;
+            background: var(--dv-surface); border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
+          }
+          [data-host] .dv-card-custom:hover { border-color: var(--dv-muted); }
+          [data-host] .dv-card-custom h3 { margin: 0 2.5rem 0 0; font-size: 1rem; line-height: 1.3; }
+          [data-host] .dv-card-custom p { margin: 0; }
+          [data-host] .dv-card-custom .latin { font-style: italic; color: var(--dv-muted); }
+          [data-host] .dv-card-custom .badge { display: inline-block; padding: 0 0.5rem; margin-right: 0.25rem; border: 1px solid var(--dv-border); border-radius: 999px; font-size: 0.85em; }
+          [data-host] .dv-card-custom > button { align-self: start; margin-top: auto; padding: 0.35rem 0.75rem; color: inherit; background: var(--dv-bg); border: 1px solid var(--dv-border); border-radius: var(--dv-radius); cursor: pointer; }
+          [data-host] .dv-card-custom dv-menu { position: absolute; top: 0.5rem; right: 0.5rem; }
+        </style>
+        <lfdln-data-viewer label="Plants" layout="cards" page-size="6" open-event>
+          <lfdln-dv-column key="name" label="Plant" sortable></lfdln-dv-column>
+          <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+          <template card>
+            <h3 data-open>{{name}}</h3>
+            <p class="latin">{{latin}}</p>
+            <p class="facts"><span class="badge">{{light}}</span> {{height}} cm · {{price}}</p>
+            <button type="button" data-action="aside">Put one aside</button>
+            <dv-menu></dv-menu>
+          </template>
+        </lfdln-data-viewer>`;
+      const list = host.querySelector('lfdln-data-viewer');
+      list.cardOf = (p) => ({
+        title: p.name,
+        menu: [
+          { id: 'care', label: 'Care notes' },
+          { id: 'remove', label: 'Remove from the list', danger: true, confirm: `Remove ${p.name}?` },
+        ],
+      });
+      list.rows = copy(PLANTS);
+      list.addEventListener('dv-action', (e) => {
+        if (e.detail.id === 'remove') list.rows = list.rows.filter((p) => p !== e.detail.row);
+      });
+    },
   },
 
   server: {

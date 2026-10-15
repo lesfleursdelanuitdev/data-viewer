@@ -33,7 +33,7 @@ test('a <template card> child: fields, data-if, text stays text, scripts never r
   await expect(rose!.locator('h3')).toHaveText('Rose');
   await expect(rose!.locator('.price')).toHaveText('€6.50'); // formatted like the price column
   await expect(rose!.locator('.badge')).toHaveText('Sun');
-  await expect(rose!.locator('img')).toHaveAttribute('src', /\/pictures\/rose\.jpg$/);
+  await expect(rose!.locator('img')).toHaveAttribute('src', /\/pictures\/rose\.svg$/);
   await expect(rose!.locator('[data-if]')).toHaveCount(0);
   // data-if: Fern has no picture and no light.
   await expect(fern!.locator('img, .badge')).toHaveCount(0);

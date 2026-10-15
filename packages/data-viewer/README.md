@@ -30,7 +30,7 @@ pagination, card, search and filter packages come with it (exact versions, 0.1.0
 | File | For | Registers the tags |
 |---|---|---|
 | `@lesfleursdelanuitdev/data-viewer` (`dist/data-viewer.js`) | apps with a bundler; Lit is left out | No: you call `define()` |
-| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 40 KB gzipped) | Yes, on load: all eight tags |
+| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 44 KB gzipped) | Yes, on load: all eight tags |
 
 ### In an app
 
@@ -400,6 +400,9 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `rows` | none | `T[]` | `[]` | All rows (browser mode) or one page (server mode). |
 | `total` | `total` | number | unset | Set it for server mode: how many rows the server has. |
 | `cardOf` | none | `(row) => CardParts` | unset | Each row's card. See [Cards](#cards). |
+| `cardTemplate` | none | `(row, pieces) => Content` | unset | Your own card for each row, drawn with Lit (or an element). See [Your own cards](#your-own-cards). |
+| `cardMount` | none | `(el, row, pieces) => void \| (() => void)` | unset | Your own card mounted into an empty element, for React and other frameworks; may return a cleanup. See [Your own cards](#your-own-cards). |
+| `cardTemplateId` | `card-template` | string | unset | The `id` of a `<template>` on the page to draw every card from (several lists can share one). A `<template card>` child does the same for one list. See [Your own cards](#your-own-cards). |
 | `views` | none | `View[]` | unset | Tabs such as All / Quick: `{ key, label, count?, where? }`. In browser mode `where(row)` filters. The list starts on view `''` (no filter), so give an "All" view the key `''`. |
 | `pageSize` | `page-size` | number | `20` | Rows per page. With `page-sizes`, the starting choice. |
 | `pageSizes` | `page-sizes` | `number[]` (attribute: `"10,20,50"`) | unset | Shows a "Rows per page" picker beside the paging status. See [Pages](#pages). |
@@ -643,6 +646,182 @@ the title and the next two columns are the facts.
 
 The same `CardParts` drive the table: `href` and `picture` for the first cell, `menu` for the last.
 
+## Your own cards
+
+When `cardOf` and the `card-*` attributes don't give the card you want, draw it yourself. The
+viewer keeps the hard parts: the list item and the grid, opening the card by click and keyboard,
+focus, the card's name for screen readers, the menus and the confirm dialog. You draw what is
+inside the card.
+
+There are three ways, for three kinds of page:
+
+| Way | For | What you write |
+|---|---|---|
+| An HTML `<template>` | plain pages, no script | `<template card>` inside the list, or `card-template="id"` |
+| `cardTemplate` | Lit, or plain JS | ``(row, pieces) => html`…` `` (or a DOM element) |
+| `cardMount` | React, and any other framework | `(el, row, pieces) => cleanup` |
+
+When more than one is set, the first in this order wins: `cardMount`, `cardTemplate`, a template
+(`card-template` before a `<template card>` child), then `cardOf` / `card-*`, then the built-in
+card. The table doesn't change: it still uses `cardOf`, the `card-*` attributes and the columns.
+
+### An HTML template
+
+Put a `<template card>` inside the list, next to the columns. The viewer copies it for each row
+and fills in the fields:
+
+```html
+<lfdln-data-viewer label="Plants" adapter="json" src="plants.json" open-event>
+  <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+  <template card>
+    <img src="{{picture}}" alt="" data-if="picture">
+    <h3 data-open>{{name}}</h3>
+    <span class="badge" data-if="light">{{light}}</span>
+    <p class="price">{{price}}</p>
+    <button type="button" data-action="aside">Put one aside</button>
+    <dv-menu></dv-menu>
+  </template>
+</lfdln-data-viewer>
+```
+
+Several lists can share one template: give it an `id` anywhere on the page and name it in
+`card-template`. It wins over a `<template card>` child. If no `<template>` has that id, the list
+uses the built-in card and the console says so once.
+
+```html
+<template id="plant-card">…</template>
+<lfdln-data-viewer card-template="plant-card" …></lfdln-data-viewer>
+<lfdln-data-viewer card-template="plant-card" …></lfdln-data-viewer>
+```
+
+The template is read once, when the list first draws (like the columns), and again when
+`card-template` changes. Each card is made once per row and kept, so redrawing the list (a menu
+opening, a busy state) doesn't rebuild it, and focus stays where it was. A card is made again
+only for a new row object or a new template.
+
+### Markers
+
+| Marker | What it does |
+|---|---|
+| `{{key}}` | The row's field, as text, in text or in an attribute value. A column's key is formatted like that column (`{{price}}` gives `€6.50`); any other key gives the plain value, and a list gives its items joined with commas. `{{shop.name}}` reads a nested field. A missing field gives nothing. Template only. |
+| `data-if="key"` | The element is left out when the field is empty: missing, `null`, `''` or an empty list. `0` and `false` are not empty. Template only. |
+| `data-open` | This element opens the card (see below). Without it, the first heading (`h1`–`h6`) does. |
+| `data-action="id"` | A click fires `dv-action` with `{ id, item: { id, label }, row }`, where `label` is the element's text. Like a menu item, but with no confirm. |
+| `<dv-menu>` | The row's ⋯ menu, from `cardOf(row).menu`, with confirm for `confirm` items. Nothing when the row has no items. |
+| `<dv-actions>` | The row's menu items as buttons, laid out by `card-actions` (`wrap`, the default here, or `row`) and `card-actions-max`, the rest in a More menu. |
+
+Menu items still come only from `cardOf(row).menu`, so a list with `<dv-menu>` or `<dv-actions>`
+sets `cardOf` from a script or a [setup file](#setup-in-its-own-file). After filling, `data-if` is
+gone from the card; `data-open` and `data-action` stay, so your CSS can use them.
+
+### Opening the card
+
+In a template, the viewer puts the open control's contents into a link (when `cardOf(row).href`
+or `card-href` gives an address) or a button that fires `dv-open`, with the class the built-in
+card uses (`lfdln-card-link`, and `dv-card-open`). Its `::after` covers the whole card, so a click
+anywhere opens it; the card's other buttons, links and menus sit above that layer and keep their
+own clicks. The `<li>` is named by that control (`aria-labelledby`), so a screen reader hears
+"Rose", not the whole card. The usual rules apply: with columns written in HTML, a card without an
+address fires `dv-open` only with `open-event`. A template with no `data-open` and no heading makes
+cards that can't be opened, and the console says so once.
+
+With `cardTemplate` and `cardMount` the viewer doesn't change your markup. Put `data-open` on your
+own `<a href>` or `<button>`: the viewer stretches it over the card, a click on a `[data-open]`
+button fires `dv-open`, and the `<li>` is named by it.
+
+### `cardTemplate`: Lit or plain JS
+
+```js
+import { html } from 'lit';
+
+list.cardTemplate = (row, pieces) => html`
+  <button type="button" data-open>${row.name}</button>
+  <p class="price">${pieces.text('price')}</p>
+  <button type="button" data-action="aside">Put one aside</button>
+  ${pieces.menu}${pieces.actions}`;
+```
+
+It may also return a DOM element built by hand (a new one on every call replaces the old one, so
+keep it if focus matters). `pieces`:
+
+- `pieces.menu`: the row's ⋯ menu (what `<dv-menu>` shows), or nothing.
+- `pieces.actions`: the row's menu items as buttons (what `<dv-actions>` shows), or nothing.
+- `pieces.text(key)`: the field as `{{key}}` would give it, formatted like its column.
+
+The function runs on every drawing of the list; Lit only changes what changed.
+
+### `cardMount`: React and other frameworks
+
+`cardMount(el, row, pieces)` gets an empty `<div class="dv-card-mount">` inside the card's `<li>`
+and draws into it however it likes. It may return a cleanup function. With React:
+
+```jsx
+import { createRoot } from 'react-dom/client';
+import { useEffect, useRef } from 'react';
+
+function PlantCard({ plant, menu }) {
+  const spot = useRef(null);
+  useEffect(() => { spot.current.append(menu); }, [menu]);
+  return (
+    <>
+      <button type="button" data-open>{plant.name}</button>
+      <p>{plant.latin}</p>
+      <span ref={spot} />
+    </>
+  );
+}
+
+list.cardMount = (el, row, pieces) => {
+  const root = createRoot(el);
+  root.render(<PlantCard plant={row} menu={pieces.menu} />);
+  return () => root.unmount();
+};
+```
+
+Here `pieces.menu` and `pieces.actions` are elements (`<dv-menu>` and `<dv-actions>`) that the
+viewer keeps up to date; put them where you want them in your card. `pieces.text(key)` is as above.
+
+The viewer calls `cardMount` after it draws, for each card that is new on the screen, and the
+cleanup for each card that left: another page, a search, a filter, a sort, new `rows`, the switch
+to the table, or the list leaving the page (it mounts them again when the list comes back). A
+`cardMount` that throws leaves its own card empty and logs the error; the other cards are drawn.
+
+`configure()` and setup files take `cardTemplate` and `cardMount` too, and `defineList<Row>`
+types their `row` as `Row`.
+
+### Safety
+
+- Fields go in as text (`textContent` and `setAttribute`), never as HTML, so `<b>` in a name shows
+  as `<b>`.
+- In `href`, `src`, `srcset`, `action`, `formaction`, `poster` and `xlink:href`, a value with a
+  `{{field}}` must be a web, mail or phone address (or relative); anything else (`javascript:`, say)
+  removes the attribute. In `srcset` every address is checked.
+- A `{{field}}` in an `on…` attribute, in `style` or in `srcdoc` is refused: the attribute is
+  dropped and the console says so once per template. Fields inside `<style>` are left alone.
+- The template itself is your own markup and is used as written, except that `<script>` elements
+  in it are taken out: they never run.
+
+### Starter CSS
+
+A custom card's `<li>` has the class `dv-card-custom` and none of the built-in card's look, so it
+starts bare. This gives it the built-in card's frame:
+
+```css
+.dv-card-custom {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem;
+  background: var(--dv-surface); border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
+}
+.dv-card-custom:hover { border-color: var(--dv-muted); }
+.dv-card-custom h3 { margin: 0; font-size: 1rem; }
+.dv-card-custom p { margin: 0; }
+.dv-card-custom img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
+.dv-card-custom dv-menu { position: absolute; top: 0.5rem; right: 0.5rem; }
+```
+
+The built-in pieces keep their own classes and look (`lfdln-menu-*` for `<dv-menu>`,
+`lfdln-card-actions*` for `<dv-actions>`).
+
 ## Menus
 
 ### The ⋯ menu on each row
@@ -707,7 +886,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 |---|---|---|
 | `dv-query` | `{ page, search, sort, dir, view, size, searchIn?, filters? }` | What to show changed, in both modes. `dir` is `'asc'` or `'desc'`. `size` is the rows per page in use: the visitor's pick when there is a picker, otherwise `page-size`. `searchIn` (the "Search in" column) and `filters` are there only when set. |
 | `dv-open` | `{ row }` | A card or a first cell was pressed and the row has no `href`. |
-| `dv-action` | `{ id, row }` | A menu item or the footer button was pressed (after its confirm, if any). |
+| `dv-action` | `{ id, row }` (and `item`) | A menu item or the footer button was pressed (after its confirm, if any). From a `data-action` element in [your own card](#your-own-cards), `detail` also has `item: { id, label }`. |
 | `dv-layout` | `{ layout }` | The table-or-cards switch changed. |
 
 ## Address
@@ -914,6 +1093,9 @@ These are the styling interface.
 | `dv-row-picture` | The first cell's small picture |
 | `dv-row-menu` | The last cell, with the ⋯ menu |
 | `dv-cards` | The card list (`<ul>`); each card is an `<li class="lfdln-card">` |
+| `dv-card-custom` | A card you draw yourself (see [Your own cards](#your-own-cards)); it also has `dv-card` |
+| `dv-card-open` | The link or button the viewer puts in a template card's open control (it also has `lfdln-card-link`) |
+| `dv-card-mount` | The empty element `cardMount` draws into |
 | `dv-badge` | A `badge` column's pill |
 | `lfdln-card`, `lfdln-card-head`, `lfdln-card-link`, `lfdln-card-title`, `lfdln-card-badge`, `lfdln-card-body`, `lfdln-card-picture`, `lfdln-card-fact`, `lfdln-card-foot`, `lfdln-card-meta`, `lfdln-card-value`, `lfdln-card-action`, `lfdln-card-actions`, `lfdln-card-actions-row`, `lfdln-card-actions-more`, `lfdln-card-more`, `lfdln-card-danger` | A card's parts: see the [card package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#class-names) (they were `dv-card-*` before the split) |
 | `lfdln-menu-wrap`, `lfdln-menu-button`, `lfdln-menu-list`, `lfdln-menu-item`, `lfdln-menu-label`, `lfdln-menu-icon`, `lfdln-menu-desc`, `lfdln-menu-why`, `lfdln-menu-heading`, `lfdln-menu-group`, `lfdln-menu-danger`, `lfdln-menu-confirm` | The ⋯ menus and the confirm dialog: see the [menu package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#class-names) (they were `dv-menu-*` and `dv-confirm`) |
