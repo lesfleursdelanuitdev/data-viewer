@@ -35,7 +35,7 @@ export const VIEWER_UNCLAIMED = ['Licence'];
 // page id -> { pkg, sections } (named sections, in this order) or { pkg, from, skip } (every
 // section from `from` to the end, without those in `skip`). Pages left out have no Reference.
 export const REFERENCE = {
-  install: { pkg: 'data-viewer', sections: ['Install', 'Two ways to load it'] },
+  install: { pkg: 'data-viewer', sections: ['Install', 'Two ways to load it', 'define, configure and defineList'] },
   basics: {
     pkg: 'data-viewer',
     sections: [

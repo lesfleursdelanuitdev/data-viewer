@@ -66,8 +66,13 @@ test.describe('live demos', () => {
   test('Install has no demo: its first code tab is open, with Copy', async ({ page }) => {
     await page.goto('/docs/install/');
     await expect(page.getByRole('tab', { name: 'Demo' })).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: 'Terminal' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('pre.code-view:visible')).toHaveText('npm i @lesfleursdelanuitdev/data-viewer');
+    await expect(page.getByRole('tab', { name: 'Plain page' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('pre.code-view:visible')).toContainText('data-viewer.standalone.js');
+    // define(), configure() and defineList() each have a tab of their own.
+    for (const name of ['define()', 'configure()', 'defineList()']) {
+      await page.getByRole('tab', { name }).click();
+      await expect(page.locator('pre.code-view:visible')).toContainText(name.replace('()', ''));
+    }
     await expect(page.locator('[data-copy-code]')).toBeVisible();
   });
 

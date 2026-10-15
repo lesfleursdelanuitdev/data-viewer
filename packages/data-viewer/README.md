@@ -34,19 +34,9 @@ pagination, card, search and filter packages come with it (exact versions, 0.1.0
 
 ### In an app
 
-Importing the package registers nothing. Call `define()` once, before the tag is used:
-
-```ts
-import { define } from '@lesfleursdelanuitdev/data-viewer';
-
-define(); // <lfdln-data-viewer> and <lfdln-dv-column>
-```
-
-`define(name, columnName)` registers the tags under other names, for a page where
-`lfdln-data-viewer` is taken. A name that is already registered is left alone, so calling
-`define()` twice is safe. The viewer needs no other tag: it draws its menus, pages and cards
-itself. To use `<lfdln-menu>`, `<lfdln-pagination>` or `<lfdln-card>` on their own in an app,
-call `define()` from those packages.
+Importing the package registers nothing: until you call `define()`, the browser treats
+`<lfdln-data-viewer>` as an unknown, empty tag. Call it once, before the tag is used (see
+[define, configure and defineList](#define-configure-and-definelist)).
 
 ### On a plain page
 
@@ -57,11 +47,95 @@ call `define()` from those packages.
 Copy `dist/data-viewer.standalone.js` from the package to your site, or load it from a CDN that
 serves npm packages, for example
 `https://cdn.jsdelivr.net/npm/@lesfleursdelanuitdev/data-viewer@0.1.0/dist/data-viewer.standalone.js`.
-It registers `<lfdln-data-viewer>`, `<lfdln-dv-column>`, `<lfdln-menu>`, `<lfdln-pagination>`
-and `<lfdln-card>` when it loads, each only if no other script registered that name first, so it
-can share a page with the menu, pagination and card standalone scripts. It also exports everything
+It registers all eight tags when it loads (`<lfdln-data-viewer>`, `<lfdln-dv-column>`,
+`<lfdln-menu>`, `<lfdln-pagination>`, `<lfdln-card>`, `<lfdln-search>`, `<lfdln-filter>` and
+`<lfdln-filter-chips>`), each only if no other script registered that name first, so it can share
+a page with the parts' own standalone scripts. You don't call `define()` on a plain page. It also exports everything
 the package exports (plus `LfdlnMenu`, `LfdlnPagination` and `LfdlnCard`), so a page script can do
 `import { registerAdapter } from '/js/data-viewer.standalone.js'`.
+
+## define, configure and defineList
+
+Three functions, each for one job. Only `define()` is needed in every app; the other two are for
+keeping a list's setup in its own file.
+
+### `define()`: make the tags work
+
+Tells the browser that `<lfdln-data-viewer>` and `<lfdln-dv-column>` are this package's
+elements. Before it runs they are empty, unknown tags; after it, every one on the page (and every
+one added later) starts working.
+
+```ts
+// main.ts, once, before any list is shown
+import { define } from '@lesfleursdelanuitdev/data-viewer';
+
+define();
+```
+
+```html
+<!-- anywhere in your HTML or templates -->
+<lfdln-data-viewer label="Plants"></lfdln-data-viewer>
+```
+
+- `define(name, columnName)` registers the tags under other names, for a page where
+  `lfdln-data-viewer` is taken: `define('plant-list', 'plant-column')`.
+- A name that is already registered is left alone, so calling `define()` twice is safe.
+- The viewer draws its menus, pages, cards, search box and filter itself, so it needs no other
+  tag. To use `<lfdln-menu>`, `<lfdln-card>` and the rest on their own in an app, call the
+  `define()` from that part's package.
+
+### `configure(list, setup)`: hand a list its setup
+
+Gives one list its columns, rows, cards and event handlers in one go, from an object. It is what
+the `config="./plants-list.js"` attribute does on a plain page, for apps where your bundler
+imports the file.
+
+```ts
+import { configure } from '@lesfleursdelanuitdev/data-viewer';
+import plants from './plants-list.js';
+
+const list = document.querySelector('lfdln-data-viewer');
+await configure(list, plants); // resolves once the columns are set and the rows are loaded
+```
+
+```ts
+// plants-list.js: the setup object
+export default {
+  columns: [
+    { key: 'name', label: 'Plant', sortable: true },
+    { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' } },
+  ],
+  load: async () => (await fetch('/plants.json')).json(),
+  on: { 'dv-open': (e) => console.log('opened', e.detail.row.name) },
+};
+```
+
+- Calling it again replaces the old setup, including its `on` handlers.
+- `list.configure(setup)` is the same thing as a method.
+- In React, call it in an effect: `useEffect(() => { void configure(ref.current!, plants); }, [])`.
+
+### `defineList<Row>(setup)`: let TypeScript check the setup
+
+Does nothing when the page runs: it returns the setup unchanged. Wrap your setup in it, in
+TypeScript, and the editor checks every column `key` against your row type and knows what's in
+each event.
+
+```ts
+// plants-list.ts
+import { defineList } from '@lesfleursdelanuitdev/data-viewer';
+
+type Plant = { id: number; name: string; price: number };
+
+export default defineList<Plant>({
+  columns: [
+    { key: 'name', label: 'Plant' },
+    { key: 'prize', label: 'Price' }, // error: 'prize' is not a key of Plant
+  ],
+  on: { 'dv-open': (e) => e.detail.row.price }, // row is a Plant
+});
+```
+
+In plain JavaScript, leave it out and export the object as it is.
 
 ## A first list
 

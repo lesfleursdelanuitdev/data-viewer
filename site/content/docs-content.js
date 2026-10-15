@@ -124,29 +124,61 @@ export const PAGES = {
 
   install: {
     nav: 'Install', kicker: 'Get started', title: 'Install',
-    intro: 'Use the npm package in an app with a bundler, or copy one standalone script onto a plain page.',
+    intro: 'On a plain HTML page, add one script and you’re done. In an app with a bundler, install the package and call `define()` once.',
     tabs: [
-      { label: 'Terminal', code: 'npm i @lesfleursdelanuitdev/data-viewer' },
-      { label: 'Bundler', code: `import { define, configure } from '@lesfleursdelanuitdev/data-viewer';
-define(); // registers <lfdln-data-viewer> and <lfdln-dv-column>
-
-// A list's setup can live in its own module (see "Setup file"):
-import plants from './plants-list.js';
-await configure(document.querySelector('#plants'), plants);
-
-// The parts on their own:
-// npm i @lesfleursdelanuitdev/menu @lesfleursdelanuitdev/pagination
-//       @lesfleursdelanuitdev/card @lesfleursdelanuitdev/search @lesfleursdelanuitdev/filter` },
-      { label: 'Plain page', code: `<!-- Copy dist/data-viewer.standalone.js (Lit is inside) -->
+      { label: 'Plain page', code: `<!-- 1. Copy dist/data-viewer.standalone.js to your site (Lit is inside) -->
 <script type="module" src="/js/data-viewer.standalone.js"></script>
-<!-- Only if you use adapter="json": -->
+
+<!-- 2. Use the tags. Nothing else to call: the script makes them work. -->
+<lfdln-data-viewer label="Plants" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<!-- adapter="json" needs this one too -->
 <script type="module" src="/js/data-viewer-json.js"></script>` },
+      { label: 'App: install', code: `npm i @lesfleursdelanuitdev/data-viewer lit` },
+      { label: 'define()', code: `// main.ts: once, before any list is shown
+import { define } from '@lesfleursdelanuitdev/data-viewer';
+
+define();
+// From here on, every <lfdln-data-viewer> and <lfdln-dv-column>
+// on the page works. Before it, they're unknown, empty tags.
+
+// Name taken by something else? Pick your own:
+// define('plant-list', 'plant-column');` },
+      { label: 'configure()', code: `// Hand one list its whole setup from an object or a file
+import { configure } from '@lesfleursdelanuitdev/data-viewer';
+import plants from './plants-list.js';
+
+const list = document.querySelector('lfdln-data-viewer');
+await configure(list, plants);
+
+// plants-list.js
+export default {
+  columns: [{ key: 'name', label: 'Plant', sortable: true }],
+  load: async () => (await fetch('/plants.json')).json(),
+  on: { 'dv-open': (e) => console.log(e.detail.row.name) },
+};` },
+      { label: 'defineList()', code: `// plants-list.ts: TypeScript only. It does nothing at run time;
+// it tells the editor what a row looks like.
+import { defineList } from '@lesfleursdelanuitdev/data-viewer';
+
+type Plant = { id: number; name: string; price: number };
+
+export default defineList<Plant>({
+  columns: [
+    { key: 'name', label: 'Plant' },
+    { key: 'prize', label: 'Price' }, // error: not a key of Plant
+  ],
+  on: { 'dv-open': (e) => e.detail.row.price }, // row is a Plant
+});` },
     ],
     notes: [
-      'Built with Lit, installed as a peer dependency. Importing registers nothing until you call `define()`.',
-      '`defineList()` only tells TypeScript the row type.',
-      'The standalone script registers every tag: `<lfdln-menu>`, `<lfdln-pagination>`, `<lfdln-card>`, `<lfdln-search>`, `<lfdln-filter>` and `<lfdln-filter-chips>`.',
-      'A page that needs only one part can load that package’s smaller script instead.',
+      '`define()` makes the tags work. Importing the package registers nothing until you call it. A plain page doesn’t need it: the standalone script calls it for you.',
+      '`configure(list, setup)` gives one list its columns, rows and event handlers from an object. It’s the app version of the `config="./plants-list.js"` attribute.',
+      '`defineList()` is for TypeScript only. It returns the setup unchanged, so the editor can check column keys against your row type.',
+      'Lit is a peer dependency, so your app and the list share one copy. The standalone script has it inside.',
+      'The standalone script registers every tag, the parts included. A page that needs only one part can load that package’s smaller script instead.',
       'Works in Chrome and Edge 123, Safari 17.5 and Firefox 125, or newer.',
     ],
   },
