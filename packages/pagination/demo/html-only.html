@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pagination, HTML only</title>
+  <script type="module" src="/pagination.standalone.js"></script>
+  <script>
+    // What the pagers fired, for the tests (a page would show its rows here).
+    window.events = [];
+    document.addEventListener('page-change', (e) => window.events.push({ on: e.target.id, ...e.detail }));
+  </script>
+</head>
+<body>
+  <h1>Pages with no script of the page's own</h1>
+  <lfdln-pagination id="a" total="120" page="5" page-size="10" page-sizes="10,20,50" pager="numbers" label="Plant pages"></lfdln-pagination>
+  <h2>Previous and Next</h2>
+  <lfdln-pagination id="simple" total="45"></lfdln-pagination>
+  <h2>A gap that would hide one page shows it</h2>
+  <lfdln-pagination id="seven" total="70" page="4" page-size="10" pager="numbers"></lfdln-pagination>
+  <h2>One size is no choice</h2>
+  <lfdln-pagination id="solo" total="45" page-sizes="20" page-size="20"></lfdln-pagination>
+  <h2>One page, and a page past the end</h2>
+  <lfdln-pagination id="one" total="5" pager="numbers"></lfdln-pagination>
+  <lfdln-pagination id="past" total="120" page="99" page-size="10"></lfdln-pagination>
+  <h2>Nothing</h2>
+  <lfdln-pagination id="none" total="0"></lfdln-pagination>
+</body>
+</html>

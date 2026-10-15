@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, menus</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+    .bar { display: flex; gap: 1rem; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, menus</h1>
+  <h2>Row menus with icons, descriptions and a heading</h2>
+  <lfdln-data-viewer id="rich" label="Files" layout="table"></lfdln-data-viewer>
+  <lfdln-data-viewer id="rich-cards" label="Files as cards" layout="cards"></lfdln-data-viewer>
+  <script type="module" src="./menus.ts"></script>
+</body>
+</html>

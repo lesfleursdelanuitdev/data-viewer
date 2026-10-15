@@ -23,6 +23,51 @@ shop admin's Products, Product and Orders pages use it.
 | Home | **Its own repo, published on public npm.** Public GitHub repo `lesfleursdelanuitdev/data-viewer`, MIT licence. |
 | Tag | **`<lfdln-data-viewer>`** (and `<lfdln-dv-column>`). |
 
+## The split into four packages (decided by momolig 2026-10-15)
+
+One repository, npm workspaces, four packages published separately (all 0.1.0, MIT, Monica
+Gonsalves; each with its own package.json, README, LICENSE, vite build, standalone script with a
+size check, types and tests). The root package.json is private and builds and tests them all.
+
+| Folder | Package | Tags | Standalone (limit, gzipped) |
+|---|---|---|---|
+| `packages/menu` | `@lesfleursdelanuitdev/menu` | `<lfdln-menu>` (+ `-item`, `-separator`, `-heading` children) | `menu.standalone.js` (14 KB) |
+| `packages/pagination` | `@lesfleursdelanuitdev/pagination` | `<lfdln-pagination>` | `pagination.standalone.js` (12 KB) |
+| `packages/card` | `@lesfleursdelanuitdev/card` | `<lfdln-card>` (+ `-header`, `-body`, `-footer`) | `card.standalone.js` (18 KB; defines `<lfdln-menu>` too) |
+| `packages/data-viewer` | `@lesfleursdelanuitdev/data-viewer` | `<lfdln-data-viewer>`, `<lfdln-dv-column>` | `data-viewer.standalone.js` (30 KB; defines all five tags) |
+
+- The card depends on the menu; the viewer depends on all three (exact versions). Lit stays a
+  peer dependency everywhere.
+- **One implementation, shared as render functions.** Each package exports its drawing
+  (`renderMenu`/`renderConfirm`, `renderPagination`/`focusCurrentPage`, `renderCard` with the
+  `rowFit` directive) and its custom element is a thin wrapper over it. The viewer calls the
+  functions, not the elements: its menus, pager and cards stay part of its own light DOM and
+  its own update, its events stay `dv-action`/`dv-query`/… with the row attached (no
+  `menu-action` or `page-change` leaks out of a list), one confirm dialog per list as before,
+  and it works whatever tag names a page registers (or none). No shadow DOM anywhere.
+- **Styles:** each package injects its own `<style id="lfdln-menu-style">` (…`-pagination-`,
+  `-card-`) once per page, rules in `:where()`, colours as `--menu-*`, `--pagination-*`,
+  `--card-*` with `light-dark()` defaults. Inside `.dv-root` the viewer sets those variables from
+  its `--dv-*`, so theming a list themes its menus, pager and cards. The viewer's own rules only
+  reach its bar, table and error box, so the order of the sheets doesn't matter, except the
+  card's, which goes right after the menu's (it adjusts the row's More button).
+- **Class names** of the moved parts became `lfdln-menu-*`, `lfdln-pagination-*` and
+  `lfdln-card-*` (the menu's popover is `lfdln-menu-list`, the pages bar `lfdln-pagination-nav`,
+  a card `lfdln-card`). Everything else keeps `dv-*`.
+- **Several scripts on one page:** every `define()` skips a name that is taken, and ids come from
+  one counter on `globalThis[Symbol.for('lfdln.ids')]`, shared by every copy of the code.
+- **Behaviour kept and pinned by tests:** a one-size list shows no picker; a gap that would hide
+  one page shows it; after a number, focus moves to the current page (fixed on the way: it could
+  stay on the button that now showed the next number); a new size keeps the first row
+  (`pageAfterResize`, exported). The light-dismiss click-swallow now works on any element marked
+  `data-lfdln-menu-guard` (the card's open layer), not on a class of the viewer's.
+- **Card actions:** `card-actions` takes `menu` (default), `wrap` (the former `footer`, which
+  stays as an alias since it shipped in b11c4c5) or `row`; `card-actions-max`, `card-more-label`,
+  and per card `actionsAt` with the same values. `row` keeps one line: as many buttons as fit
+  (measured with a ResizeObserver), at most max, the rest in the row's own More menu; danger
+  items go into More first; More always fits. The rule is `fitRow()` in `packages/card/src/fit.ts`,
+  unit-tested.
+
 ## The package
 
 - Name `@lesfleursdelanuitdev/data-viewer` (free on npm, checked 2026-10-14; the plain name `data-viewer`
@@ -149,10 +194,12 @@ English defaults), `state` (to hand it page, search, sort, dir and view from out
   with the click-swallow fix, the confirm dialog template, disabled + why, focus return) on its
   own: `label`, `icon`, `trigger-text`, `items`, or `<lfdln-dv-menu-item>` / `-separator` /
   `-heading` children (an item's own markup is cloned). Fires `dv-action` `{ id, item }`,
-  `dv-menu-open`, `dv-menu-close`.
+  `dv-menu-open`, `dv-menu-close`. **Since the split it is `<lfdln-menu>` in the menu package,
+  firing `menu-action`, `menu-open` and `menu-close`.**
 
 ### Card actions (decided by momolig 2026-10-15)
 
+- (Since the split: `menu`, `wrap` and `row`, with `footer` kept as `wrap`; see above.)
 - `card-actions="menu"` (default): the ⋯ menu in the card head, as before. `"footer"`: the items
   become buttons in the footer after the primary `action` (icons kept, danger styled and last,
   separators and headings dropped, disabled kept with `aria-disabled` and `why` as title and

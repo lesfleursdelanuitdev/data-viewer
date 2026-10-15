@@ -1,0 +1,42 @@
+{
+  "name": "@lesfleursdelanuitdev/menu",
+  "version": "0.1.0",
+  "description": "A ⋯ button and its menu: <lfdln-menu>, a Lit web component with keyboard, popover and a built-in confirm.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/menu"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": ["web-component", "custom-element", "lit", "menu", "dropdown", "popover"],
+  "type": "module",
+  "module": "./dist/menu.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/menu.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/menu.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": ["./dist/*.standalone.js"],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/menu.standalone.js=14336",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  }
+}

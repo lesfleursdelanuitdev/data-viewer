@@ -1,0 +1,56 @@
+{
+  "name": "@lesfleursdelanuitdev/card",
+  "version": "0.1.0",
+  "description": "One card for any list: <lfdln-card>, a Lit web component with a clickable layer, a header menu and footer actions that wrap or fit one row.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/card"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "lit",
+    "card"
+  ],
+  "type": "module",
+  "module": "./dist/card.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/card.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/card.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/card.standalone.js=18432",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  },
+  "dependencies": {
+    "@lesfleursdelanuitdev/menu": "0.1.0"
+  }
+}

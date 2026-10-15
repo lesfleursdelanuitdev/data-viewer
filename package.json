@@ -1,66 +1,23 @@
 {
-  "name": "@lesfleursdelanuitdev/data-viewer",
-  "version": "0.1.0",
-  "description": "A list of rows as a table or cards: <lfdln-data-viewer>, a Lit web component.",
+  "name": "lfdln-components",
+  "private": true,
+  "description": "The data viewer and the menu, pagination and card it is built from: four packages, one repo.",
   "license": "MIT",
   "author": "Monica Gonsalves",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git"
-  },
-  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer#readme",
-  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
-  "keywords": [
-    "web-component",
-    "custom-element",
-    "lit",
-    "table",
-    "cards",
-    "data-table",
-    "list"
-  ],
   "type": "module",
-  "module": "./dist/data-viewer.js",
-  "types": "./dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/data-viewer.js"
-    },
-    "./adapters/json": {
-      "types": "./dist/types/adapters/json.d.ts",
-      "import": "./dist/adapters/json.js"
-    },
-    "./adapters/pammy": {
-      "types": "./dist/types/adapters/pammy.d.ts",
-      "import": "./dist/adapters/pammy.js"
-    },
-    "./standalone": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/data-viewer.standalone.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "sideEffects": [
-    "./dist/*.standalone.js",
-    "./dist/data-viewer-*.js",
-    "./dist/adapters/*.js"
+  "workspaces": [
+    "packages/menu",
+    "packages/pagination",
+    "packages/card",
+    "packages/data-viewer"
   ],
   "scripts": {
-    "test": "node --test test/*.test.ts",
-    "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && npm run types",
-    "types": "tsc -p tsconfig.build.json && node scripts/fix-types.mjs",
-    "size": "node scripts/size.mjs",
-    "e2e": "playwright test"
-  },
-  "peerDependencies": {
-    "lit": "^3.3.3"
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "size": "npm run size --workspaces",
+    "e2e": "npm run e2e --workspaces",
+    "check": "npm run typecheck && npm test && npm run build && npm run e2e"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

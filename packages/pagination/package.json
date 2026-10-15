@@ -1,0 +1,55 @@
+{
+  "name": "@lesfleursdelanuitdev/pagination",
+  "version": "0.1.0",
+  "description": "Pages for any list: <lfdln-pagination>, a Lit web component with a live status, numbered pages and a rows-per-page picker.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/pagination"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "lit",
+    "pagination",
+    "pager",
+    "paging"
+  ],
+  "type": "module",
+  "module": "./dist/pagination.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/pagination.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/pagination.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/pagination.standalone.js=12288",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  }
+}

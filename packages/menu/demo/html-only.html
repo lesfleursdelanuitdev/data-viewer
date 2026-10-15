@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>menu, HTML only</title>
+  <script type="module" src="/menu.standalone.js"></script>
+</head>
+<body>
+  <h1>A menu with no script of the page's own</h1>
+  <lfdln-menu id="plain" label="More for this page" icon="☰" trigger-text>
+    <lfdln-menu-item value="edit">Edit</lfdln-menu-item>
+    <lfdln-menu-separator></lfdln-menu-separator>
+    <lfdln-menu-item value="delete" danger confirm="Delete this page?">Delete</lfdln-menu-item>
+  </lfdln-menu>
+</body>
+</html>

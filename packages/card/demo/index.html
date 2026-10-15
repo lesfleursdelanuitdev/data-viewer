@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>card demo, from script</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--card-bg); color: var(--card-text); }
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+  </style>
+</head>
+<body>
+  <h1>&lt;lfdln-card&gt; from script</h1>
+  <div class="cards">
+    <lfdln-card id="js" clickable></lfdln-card>
+    <lfdln-card id="js-row" actions="row" more-label="Others"></lfdln-card>
+  </div>
+  <script type="module" src="./cards.ts"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, card actions</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, card actions</h1>
+  <h2>In the footer, three at most (the rest in ⋯)</h2>
+  <lfdln-data-viewer id="foot" label="Things" layout="cards" card-actions="footer"></lfdln-data-viewer>
+  <h2>In the footer, all of them</h2>
+  <lfdln-data-viewer id="foot-all" label="Things" layout="cards" card-actions="footer" card-actions-max="10"></lfdln-data-viewer>
+  <h2>A menu, but the second card asks for its footer</h2>
+  <lfdln-data-viewer id="mixed" label="Things" layout="cards"></lfdln-data-viewer>
+  <h2>Wrap (the same as footer), and one row that never wraps</h2>
+  <lfdln-data-viewer id="wrap" label="Things" layout="cards" card-actions="wrap"></lfdln-data-viewer>
+  <div id="row-box" style="max-width: 100%">
+    <lfdln-data-viewer id="row" label="Things" layout="cards" card-actions="row" card-actions-max="10" card-more-label="Others"></lfdln-data-viewer>
+  </div>
+  <h2>A table: always the ⋯ column</h2>
+  <lfdln-data-viewer id="tbl" label="Things" layout="table" card-actions="footer"></lfdln-data-viewer>
+  <script type="module" src="./card-actions.ts"></script>
+</body>
+</html>

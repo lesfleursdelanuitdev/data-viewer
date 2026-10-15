@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>card, HTML only</title>
+  <script type="module" src="/card.standalone.js"></script>
+  <script>
+    // What the cards fired, for the tests.
+    window.events = [];
+    for (const type of ['menu-action', 'card-open']) {
+      document.addEventListener(type, (e) => window.events.push({ type, on: e.target.closest('[id]')?.id, id: e.detail?.id }));
+    }
+  </script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    .cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+    #row-box { width: 360px; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Cards with no script of the page's own</h1>
+  <div class="cards">
+    <lfdln-card id="fox" href="#foxglove">
+      <lfdln-card-header badge="Part shade">
+        <svg class="pic" viewBox="0 0 4 3" aria-hidden="true"><rect width="4" height="3" fill="#b9a0d8"/></svg>
+        Foxglove <em>(Digitalis)</em>
+        <lfdln-menu label="More for Foxglove">
+          <lfdln-menu-item value="share">Share</lfdln-menu-item>
+          <lfdln-menu-item value="report" danger confirm="Report this plant?">Report</lfdln-menu-item>
+        </lfdln-menu>
+      </lfdln-card-header>
+      <lfdln-card-body><p class="free">Tall spires of bells. <a href="#care">Care notes</a></p></lfdln-card-body>
+      <lfdln-card-footer meta="12 in stock" value="€6.50">
+        <lfdln-menu-item value="buy" primary>Buy</lfdln-menu-item>
+        <lfdln-menu-item value="aside" icon="🧺">Put one aside</lfdln-menu-item>
+        <lfdln-menu-item value="gift" disabled why="Gift wrap is sold out">Gift wrap</lfdln-menu-item>
+        <lfdln-menu-separator></lfdln-menu-separator>
+        <lfdln-menu-item value="remove" danger confirm="Remove Foxglove from the list?">Remove</lfdln-menu-item>
+        <lfdln-menu-item value="compare">Compare</lfdln-menu-item>
+      </lfdln-card-footer>
+    </lfdln-card>
+    <lfdln-card id="fern" clickable actions="menu">
+      <lfdln-card-header>Hart's-tongue fern</lfdln-card-header>
+      <lfdln-card-body>Glossy, strap-shaped leaves.</lfdln-card-body>
+      <lfdln-card-footer value="€5.00">
+        <lfdln-menu-item value="aside">Put one aside</lfdln-menu-item>
+        <lfdln-menu-item value="remove" danger>Remove</lfdln-menu-item>
+      </lfdln-card-footer>
+    </lfdln-card>
+  </div>
+  <h2>One row that never wraps</h2>
+  <div id="row-box">
+    <lfdln-card id="row" actions="row" max="10" more-icon="⋯">
+      <lfdln-card-header>Sweet woodruff</lfdln-card-header>
+      <lfdln-card-footer meta="Ground cover">
+        <lfdln-menu-item value="delete" danger>Delete</lfdln-menu-item>
+        <lfdln-menu-item value="edit" icon="✏️">Edit</lfdln-menu-item>
+        <lfdln-menu-item value="share">Share</lfdln-menu-item>
+        <lfdln-menu-item value="print">Print</lfdln-menu-item>
+        <lfdln-menu-item value="history" href="#history">History</lfdln-menu-item>
+      </lfdln-card-footer>
+    </lfdln-card>
+  </div>
+</body>
+</html>

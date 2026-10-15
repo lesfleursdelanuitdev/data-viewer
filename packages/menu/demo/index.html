@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>menu demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--menu-bg); color: var(--menu-text); }
+    h2 { font-size: 1.1rem; }
+    .bar { display: flex; gap: 1rem; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>&lt;lfdln-menu&gt;</h1>
+  <h2>A menu on its own, HTML only</h2>
+  <div class="bar">
+    <span>A page</span>
+    <lfdln-menu id="m1" label="More for this page">
+      <lfdln-menu-item value="edit" description="Change the words and pictures"><svg class="pen" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 14l1-4 8-8 3 3-8 8z" fill="none" stroke="currentColor"/></svg> Edit</lfdln-menu-item>
+      <lfdln-menu-item value="history" href="#history" icon="🕘">See its history</lfdln-menu-item>
+      <lfdln-menu-heading>Share</lfdln-menu-heading>
+      <lfdln-menu-item value="mail" icon="✉️">By email</lfdln-menu-item>
+      <lfdln-menu-item value="print" disabled why="No printer is set up" description="On paper">Print</lfdln-menu-item>
+      <lfdln-menu-separator></lfdln-menu-separator>
+      <lfdln-menu-item value="delete" danger confirm="Delete this page?" icon="🗑️">Delete</lfdln-menu-item>
+    </lfdln-menu>
+  </div>
+  <h2>A menu on its own, from script</h2>
+  <div class="bar">
+    <lfdln-menu id="m2" label="Sort by" trigger-text></lfdln-menu>
+  </div>
+  <script type="module" src="./menu.ts"></script>
+</body>
+</html>

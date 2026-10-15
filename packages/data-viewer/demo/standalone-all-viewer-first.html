@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>every standalone script on one page (the viewer first)</title>
+  <script>
+    window.problems = [];
+    addEventListener('error', (e) => window.problems.push(String(e.message)));
+  </script>
+  <script type="module" src="/data-viewer.standalone.js"></script>
+  <script type="module" src="/menu/menu.standalone.js"></script>
+  <script type="module" src="/pagination/pagination.standalone.js"></script>
+  <script type="module" src="/card/card.standalone.js"></script>
+  <script type="module">
+    const v = document.querySelector('#v');
+    v.columns = [{ key: 'name', label: 'Name' }];
+    v.cardOf = (r) => ({ title: r.name, menu: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] });
+    v.rows = Array.from({ length: 30 }, (_, i) => ({ id: i, name: `Row ${i + 1}` }));
+    window.ready = true;
+  </script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    #v { --dv-accent: rgb(200, 0, 100); --dv-radius: 3px; --dv-surface: rgb(250, 240, 200); }
+  </style>
+</head>
+<body>
+  <lfdln-menu id="m" label="Page menu">
+    <lfdln-menu-item value="one">One</lfdln-menu-item>
+    <lfdln-menu-item value="two">Two</lfdln-menu-item>
+  </lfdln-menu>
+  <lfdln-pagination id="p" total="50" page-size="10" pager="numbers"></lfdln-pagination>
+  <lfdln-card id="c" actions="row">
+    <lfdln-card-header>A card</lfdln-card-header>
+    <lfdln-card-footer><lfdln-menu-item value="x">X</lfdln-menu-item></lfdln-card-footer>
+  </lfdln-card>
+  <lfdln-data-viewer id="v" label="Rows" layout="cards" pager="numbers" page-size="5"></lfdln-data-viewer>
+</body>
+</html>
