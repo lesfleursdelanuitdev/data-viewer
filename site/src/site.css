@@ -491,3 +491,7 @@ html:has(.l-page) { scroll-behavior: smooth; }
 /* — 404 — */
 .nf { padding: clamp(64px, 10vw, 112px) 0; display: flex; flex-direction: column; gap: 18px; }
 .nf h1 { margin: 0; font-size: clamp(36px, 5vw, 56px); line-height: 1.1; letter-spacing: -0.025em; }
+
+/* Phones: the docs header has no room for the version tag; keep the name on one line. */
+.brand-name, .d-head .tag, .d-home { white-space: nowrap; }
+@media (max-width: 439.98px) { .d-head .tag { display: none; } }

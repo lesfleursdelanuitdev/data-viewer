@@ -37,23 +37,79 @@ async function write(path, text) {
 }
 
 // ── pages ──
+// Backticks in docs-content strings mark inline code.
+const inline = (text, cls = 'ic') => String(text || '').split('`')
+  .map((t, i) => (i % 2 ? `<code class="${cls}">${esc(t)}</code>` : esc(t))).join('');
+const plain = (text) => String(text || '').replace(/`/g, '');
+
+const ORDER = C.GROUPS.flatMap((g) => g.items);
+
+function sidebar(current) {
+  return C.GROUPS.map((g) => `      <div class="side-group">
+        <div class="side-label">${esc(g.name)}</div>
+${g.items.map((id) => `        <a class="side-item" href="${ADDRESSES[id]}"${id === current ? ' aria-current="page"' : ''}>${esc(C.PAGES[id].nav)}</a>`).join('\n')}
+      </div>`).join('\n');
+}
+
+function options(current) {
+  return C.GROUPS.flatMap((g) => g.items.map((id) =>
+    `        <option value="${ADDRESSES[id]}"${id === current ? ' selected' : ''}>${esc(`${g.name} · ${C.PAGES[id].nav}`)}</option>`)).join('\n');
+}
+
+function textBlock(id, P) {
+  const parts = [
+    `<div class="kicker">${esc(P.kicker)}</div>`,
+    `<h1>${esc(P.title)}</h1>`,
+  ];
+  if (P.mono) parts.push(`<code class="mono-tag">${esc(`<${P.mono}>`)}</code>`);
+  parts.push(`<p class="intro">${inline(P.intro)}</p>`);
+  if (P.features) {
+    parts.push(`<div class="features">${P.features.map(([t, d]) =>
+      `<div class="feature"><div class="feature-title">${esc(t)}</div><div class="feature-copy">${inline(d, '')}</div></div>`).join('')}</div>`);
+  }
+  if (id === 'overview') {
+    parts.push(`<div class="btn-row"><a class="btn btn-primary" href="${ADDRESSES.basics}">Read the guide</a><a class="btn btn-secondary" href="${ADDRESSES.install}">Install</a></div>`);
+  }
+  return `        <section class="d-text">\n          ${parts.join('\n          ')}\n        </section>`;
+}
+
+function notesBlock(id, P) {
+  const parts = [];
+  if (P.vars) {
+    parts.push(`<table class="table vars"><thead><tr><th>Variable</th><th>Used for</th></tr></thead><tbody>${P.vars.map(([n, u]) =>
+      `<tr><td>${esc(n)}</td><td>${esc(u)}</td></tr>`).join('')}</tbody></table>`);
+  }
+  if (P.notes?.length) {
+    parts.push(`<div class="good"><div class="good-label">Good to know</div><ul>${P.notes.map((n) => `<li><span>${inline(n)}</span></li>`).join('')}</ul></div>`);
+  }
+  const i = ORDER.indexOf(id);
+  const prev = ORDER[i - 1], next = ORDER[i + 1];
+  parts.push(`<nav class="pn" aria-label="Previous and next page"><div>${prev ? `<a class="pn-prev" href="${ADDRESSES[prev]}" rel="prev"><span class="pn-label">Previous</span><span class="pn-name">${esc(C.PAGES[prev].nav)}</span></a>` : ''}</div><div>${next ? `<a class="pn-next" href="${ADDRESSES[next]}" rel="next"><span class="pn-label">Next</span><span class="pn-name">${esc(C.PAGES[next].nav)}</span></a>` : ''}</div></nav>`);
+  return `        <section class="notes">\n          ${parts.join('\n          ')}\n        </section>`;
+}
+
 async function docsPage(id) {
   const P = C.PAGES[id];
   const shell = await readFile(join(src, 'docs-shell.html'), 'utf8');
   return fill(shell, {
     title: esc(id === 'overview' ? 'data-viewer docs' : `${P.nav} · data-viewer docs`),
-    description: esc(P.title),
+    description: esc(plain(P.intro)),
     page: esc(id),
     bodyClass: id === 'overview' ? 'is-overview' : '',
-    preload: '',
+    preload: P.mount ? '  <link rel="modulepreload" href="/js/data-viewer.standalone.js">\n' : '',
     logo: LOGO,
-    sidebar: '',
-    options: '',
-    text: `<section class="d-text"><h1>${esc(P.title)}</h1></section>`,
-    panel: '',
-    notes: '',
+    sidebar: sidebar(id),
+    options: options(id),
+    text: textBlock(id, P),
+    panel: panelBlock(id, P),
+    notes: notesBlock(id, P),
     reference: '',
   });
+}
+
+// The panel: Demo (when the page has one) and the code tabs; filled in by docs.js.
+function panelBlock() {
+  return '';
 }
 
 // ── checks ──
