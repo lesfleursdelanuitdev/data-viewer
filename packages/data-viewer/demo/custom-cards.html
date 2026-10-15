@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, custom cards</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+    /* The README's starter CSS for custom cards. */
+    .dv-card-custom {
+      display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem;
+      background: var(--dv-surface); border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
+    }
+    .dv-card-custom:hover { border-color: var(--dv-muted); }
+    .dv-card-custom h3 { margin: 0; font-size: 1rem; }
+    .dv-card-custom p { margin: 0; }
+    .dv-card-custom img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
+    .dv-card-custom dv-menu { position: absolute; top: 0.5rem; right: 0.5rem; }
+    .dv-card-custom .badge { align-self: start; padding: 0 0.5rem; border: 1px solid var(--dv-border); border-radius: 999px; font-size: 0.8em; }
+    .dv-card-custom > button { align-self: start; font: inherit; padding: 0.35rem 0.75rem; }
+  </style>
+  <script type="module" src="/data-viewer.standalone.js"></script>
+</head>
+<body>
+  <h1>data-viewer, custom cards</h1>
+
+  <h2>A &lt;template card&gt; child</h2>
+  <lfdln-data-viewer id="child" label="Plants" layout="cards" open-event>
+    <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+    <template card>
+      <img src="{{picture}}" alt="" data-if="picture">
+      <h3 data-open>{{name}}</h3>
+      <span class="badge" data-if="light">{{light}}</span>
+      <p class="price">{{price}}</p>
+      <button type="button" data-action="aside">Put one aside</button>
+      <dv-menu></dv-menu>
+      <script>window.ran = true;</script>
+    </template>
+  </lfdln-data-viewer>
+
+  <h2>One shared template, two lists</h2>
+  <template id="plant-card">
+    <h3>{{name}}</h3>
+    <p class="price">{{price}}</p>
+    <dv-actions></dv-actions>
+  </template>
+  <lfdln-data-viewer id="shared-a" label="Plants with pages" layout="cards" card-template="plant-card" card-href="link">
+    <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <lfdln-data-viewer id="shared-b" label="Plants to open" layout="cards" card-template="plant-card" open-event>
+    <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+    <template card><p>The child loses to card-template</p></template>
+  </lfdln-data-viewer>
+
+  <h2>Nothing to open by</h2>
+  <lfdln-data-viewer id="no-open" label="Plants" layout="cards" open-event>
+    <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+    <template card><p>{{name}}</p></template>
+  </lfdln-data-viewer>
+
+  <h2>A card-template that isn't there</h2>
+  <lfdln-data-viewer id="missing" label="Plants" layout="cards" card-template="nope">
+    <lfdln-dv-column key="name" label="Plant"></lfdln-dv-column>
+  </lfdln-data-viewer>
+
+  <script type="module">
+    const plants = [
+      { id: 1, name: 'Rose', price: 6.5, light: 'Sun', picture: 'pictures/rose.jpg', link: '#rose' },
+      { id: 2, name: 'Fern', price: 4, light: '', picture: '', link: '#fern' },
+      { id: 3, name: 'Moss <b>soft</b>', price: 2, light: 'Shade', picture: 'javascript:alert(1)', link: 'javascript:alert(1)' },
+    ];
+    const menu = [
+      { id: 'edit', label: 'Edit' },
+      { id: 'share', label: 'Share' },
+      { id: 'delete', label: 'Delete', danger: true, confirm: 'Delete this plant?' },
+    ];
+    window.events = [];
+    for (const el of document.querySelectorAll('lfdln-data-viewer')) {
+      if (el.id === 'child' || el.id === 'shared-a' || el.id === 'shared-b') {
+        el.cardOf = (r) => ({ title: r.name, menu, href: el.id === 'shared-a' ? r.link : undefined });
+      }
+      el.rows = plants;
+      for (const type of ['dv-open', 'dv-action']) {
+        el.addEventListener(type, (e) => window.events.push({ on: el.id, type, id: e.detail.id, item: e.detail.item, row: e.detail.row.id }));
+      }
+    }
+  </script>
+</body>
+</html>

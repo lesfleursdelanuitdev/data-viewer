@@ -4,7 +4,7 @@ import {
   defaultPaginationWords, focusCurrentPage, pageAfterResize, pageSizeChoices, pageSizeOf, parsePageSizes,
   renderPagination, type PaginationWords,
 } from '@lesfleursdelanuitdev/pagination';
-import { renderCard, type CardActions } from '@lesfleursdelanuitdev/card';
+import { renderCard, renderCardActions, type CardActions, type CardHooks } from '@lesfleursdelanuitdev/card';
 import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
 import {
   defaultFilterWords, normalise, removeChip, renderFilter, renderFilterChips,
@@ -14,9 +14,11 @@ import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuIte
 import { applyQuery } from '../core/list.ts';
 import { filterKind, filterSections, searchColumns } from '../core/filters.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
+import { fieldText, fieldValue } from '../core/card-template.ts';
 import { readQuery, writeQuery, type AddressQuery, type FilterKinds } from '../core/address.ts';
 import { addStyles } from './styles.ts';
 import { columnsIn } from './column.ts';
+import { CustomCards, planOf, type CardSource } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
 import type { ListConfig } from './setup.ts';
@@ -80,6 +82,7 @@ const PHONE = '(max-width: 640px)';
 const FILTER_PHONE = '(max-width: 639px)'; // the filter's bottom sheet, as in the filter package
 const DEBOUNCE_MS = 300;
 const warnedKeys = new Set<string>(); // unknown config keys, warned about once per page
+const warnedIds = new Set<string>(); // card-template ids not found, warned about once per page
 
 // What the built-in confirm dialog is asking about.
 type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
@@ -126,6 +129,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardMeta: { type: String, attribute: 'card-meta' },
     cardValue: { type: String, attribute: 'card-value' },
     cardHref: { type: String, attribute: 'card-href' },
+    cardTemplateId: { type: String, attribute: 'card-template' },
     adapter: { type: String },
     openEvent: { type: Boolean, attribute: 'open-event' },
     src: { type: String },
@@ -189,6 +193,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare cardMeta: string | undefined;
   declare cardValue: string | undefined;
   declare cardHref: string | undefined;
+  /** The id of a <template> on the page to draw every card from (wins over a <template card> child). */
+  declare cardTemplateId: string | undefined;
+  // The <template card> child (read with the columns) and the template in use.
+  private _tplChild: HTMLTemplateElement | undefined;
+  private _tpl: HTMLTemplateElement | undefined;
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
   declare src: string | undefined;
@@ -236,6 +245,31 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare _ask: Ask<T> | undefined;
   declare _failed: boolean;
   private _uid = nextId('dv'); // unique on the page, even beside other copies of the menu code
+  // Custom cards (a card template): built once per row object and kept between drawings.
+  private _custom = new CustomCards<T>({
+    uid: this._uid,
+    href: (row) => safeUrl(this._parts(row).href),
+    opens: () => this._opens,
+    fields: (row) => ({
+      text: (k) => fieldText(k, row, this.columns, this.lang || undefined),
+      value: (k) => {
+        const c = this.columns.find((x) => x.key === k);
+        return c?.value ? c.value(row) : fieldValue(row, k);
+      },
+      url: safeUrl,
+    }),
+    text: (row, k) => fieldText(k, row, this.columns, this.lang || undefined),
+    menu: (row, id) => {
+      const p = this._parts(row);
+      return renderMenu(p.menu, id, this.text.menuFor(p.title), (item, button) => this._pick(item, row, button));
+    },
+    actions: (row, id) => {
+      const p = this._parts(row);
+      return renderCardActions(p, this._hooks(row, p, id));
+    },
+    open: (row) => this._open(row),
+    action: (row, id, label) => this._action(id, row, { id, label }),
+  });
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
   // Set when the host hands over rows or a total, so busy clears even if the host
@@ -317,6 +351,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (this.hasUpdated && this._stale) this._requestLoad();
     // The config's handlers come back with the element (never twice: same functions).
     for (const [type, fn] of this._cfgOn) this.addEventListener(type, fn);
+    // Custom cards mounted by cardMount were cleaned up on leaving: mount them again.
+    if (this.hasUpdated) this.requestUpdate();
   }
 
   override disconnectedCallback(): void {
@@ -333,6 +369,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._unwait?.();
     this._unwait = undefined;
     this._seq++;
+    this._custom.unmountAll();
   }
 
   // HTML only: what the markup says, read before the first drawing clears the children. The
@@ -345,6 +382,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         this._fromMarkup = true;
       }
     }
+    // A card template written as a child: <template card>.
+    this._tplChild = [...this.children].find((c): c is HTMLTemplateElement => c instanceof HTMLTemplateElement && c.hasAttribute('card'));
     this.adapter ??= this.getAttribute('adapter') ?? undefined;
     this.src ??= this.getAttribute('src') ?? undefined;
   }
@@ -356,6 +395,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._readMarkup();
       this.replaceChildren();
     }
+    if (!this.hasUpdated || changed.has('cardTemplateId')) this._findTemplate();
+    if (changed.has('columns')) this._custom.forget(); // {{key}} follows the columns' formats
     // A config module: load it (again when the attribute changes).
     if (changed.has('config') && (this.config ?? '').trim()) void this._fromModule(this.config!.trim());
     // A new adapter or address: start again from the first answer.
@@ -632,12 +673,38 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._announce();
   }
 
+  // card-template names a <template> on the page (looked up again when it changes); a missing
+  // one gives the built-in card and one warning. Without it, the <template card> child.
+  private _findTemplate(): void {
+    const id = (this.cardTemplateId ?? '').trim();
+    if (!id) {
+      this._tpl = this._tplChild;
+      return;
+    }
+    const el = this.ownerDocument.getElementById(id);
+    this._tpl = el instanceof HTMLTemplateElement ? el : undefined;
+    if (!this._tpl && !warnedIds.has(id)) {
+      warnedIds.add(id);
+      console.warn(`<lfdln-data-viewer> card-template="${id}": no <template> with that id; the built-in card is used`);
+    }
+  }
+
+  // Where custom cards come from, if anywhere: the function forms win over a template.
+  private get _source(): CardSource<T> | undefined {
+    return this._tpl ? { kind: 'html', plan: planOf(this._tpl) } : undefined;
+  }
+
+  protected override updated(): void {
+    this._custom.after();
+  }
+
   private _open(row: T): void {
     this.dispatchEvent(new CustomEvent('dv-open', { detail: { row }, bubbles: true, composed: true }));
   }
 
-  private _action(id: string, row: T): void {
-    this.dispatchEvent(new CustomEvent('dv-action', { detail: { id, row }, bubbles: true, composed: true }));
+  // item: what a data-action element in a custom card said (its id and its text).
+  private _action(id: string, row: T, item?: { id: string; label: string }): void {
+    this.dispatchEvent(new CustomEvent('dv-action', { detail: item ? { id, item, row } : { id, row }, bubbles: true, composed: true }));
   }
 
   // A menu choice. Only an item with confirm text is asked about here; the host asks for the rest.
@@ -864,6 +931,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ({ rows, total, page } = out);
     }
     this._page = page;
+    this._custom.reset();
     // Before an adapter's first answer there is nothing to say yet ("Nothing to show." would be wrong).
     const first = ((this._adapted && this._mode === 'unknown') || this._configuring) && !this._failed && rows.length === 0;
     // A load that failed with no rows to keep shows only the error box.
@@ -1057,24 +1125,31 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     return p;
   }
 
-  private _cards(rows: T[]): TemplateResult {
+  // The card hooks for one row: the built-in card's, and a custom card's <dv-actions>.
+  private _hooks(row: T, p: CardParts, menuId: string): CardHooks {
     const w = this.text;
+    return {
+      menuId,
+      menuLabel: w.menuFor(p.title),
+      onOpen: this._opens ? () => this._open(row) : undefined,
+      onAction: (id) => this._action(id, row),
+      onPick: (item, button) => this._pick(item, row, button),
+      actions: this.cardActions ?? 'menu',
+      max: Number.isFinite(Number(this.cardActionsMax)) && this.cardActionsMax !== undefined && this.cardActionsMax !== null
+        ? Number(this.cardActionsMax) : 3,
+      moreLabel: w.moreFor(p.title),
+      moreText: this.cardMoreLabel || w.more,
+      as: 'li',
+    };
+  }
+
+  private _cards(rows: T[]): TemplateResult {
+    const custom = this._source;
+    if (custom) return this._custom.list(rows, custom, this.label);
     return html`<ul class="dv-cards" aria-label=${this.label || nothing}>
       ${rows.map((row, r) => {
         const p = this._parts(row);
-        return renderCard(p, {
-          menuId: `${this._uid}-c${r}`,
-          menuLabel: w.menuFor(p.title),
-          onOpen: this._opens ? () => this._open(row) : undefined,
-          onAction: (id) => this._action(id, row),
-          onPick: (item, button) => this._pick(item, row, button),
-          actions: this.cardActions ?? 'menu',
-          max: Number.isFinite(Number(this.cardActionsMax)) && this.cardActionsMax !== undefined && this.cardActionsMax !== null
-            ? Number(this.cardActionsMax) : 3,
-          moreLabel: w.moreFor(p.title),
-          moreText: this.cardMoreLabel || w.more,
-          as: 'li',
-        });
+        return renderCard(p, this._hooks(row, p, `${this._uid}-c${r}`));
       })}
     </ul>`;
   }
@@ -1109,7 +1184,8 @@ function tidy(q: AddressQuery): AddressQuery {
 /** The events a viewer fires. All bubble and are composed; check `e.target` when lists nest. */
 export type DataViewerEventMap<T = Record<string, unknown>> = {
   'dv-open': CustomEvent<{ row: T }>;
-  'dv-action': CustomEvent<{ id: string; row: T }>;
+  /** item: only from a data-action element in a custom card (its id and its text). */
+  'dv-action': CustomEvent<{ id: string; row: T; item?: { id: string; label: string } }>;
   'dv-query': CustomEvent<Query>;
   'dv-layout': CustomEvent<{ layout: Layout }>;
 };

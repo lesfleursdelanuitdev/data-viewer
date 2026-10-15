@@ -90,6 +90,16 @@ function footerActions(p: CardParts, h: CardHooks, mode: 'wrap' | 'row', items: 
 }
 
 /**
+ * A card's menu items as footer buttons on their own, for cards drawn by someone else (the data
+ * viewer's custom cards): laid out like the footer's, 'menu' placement counting as 'wrap'. No
+ * primary action. Draws nothing when there are no items.
+ */
+export function renderCardActions(p: CardParts, h: CardHooks): TemplateResult | typeof nothing {
+  const items = menuItems(p.menu);
+  return items.length ? footerActions(p, h, actionsMode(p.actionsAt, h.actions) === 'row' ? 'row' : 'wrap', items, nothing) : nothing;
+}
+
+/**
  * One card: the one drawing shared by <lfdln-card> and the data viewer's cards. The title is a
  * link (href) or a button (onOpen) whose ::after covers the whole card, so a click anywhere opens
  * it; the menus and footer buttons sit above that layer. A tap that only closes an open menu

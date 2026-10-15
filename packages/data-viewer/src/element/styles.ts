@@ -96,6 +96,16 @@ export const css: string = `
   list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
 }
+/* A custom card (a card template, cardTemplate or cardMount): the list item and the open layer
+   only; what is inside is the page's. Its open control's ::after covers the card, like the
+   built-in title's; the card's other buttons, links, fields and menus sit above that layer. */
+:where(.dv-card-custom) { position: relative; min-width: 0; overflow-wrap: anywhere; }
+:where(.dv-card-custom :is(a, button)[data-open])::after { content: ""; position: absolute; inset: 0; }
+:where(.dv-card-custom) :where(a, button, input, select, textarea, summary, label, dv-menu, dv-actions):where(:not([data-open], .dv-card-open, .lfdln-menu-list *)) {
+  position: relative; z-index: 1;
+}
+:where(.dv-card-custom:has(:is(.dv-card-open, a[data-open], button[data-open]):focus-visible)) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
+:where(dv-actions) { display: block; }
 :where(.dv-badge) {
   display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8em; white-space: nowrap;
   border: 1px solid var(--dv-border); color: var(--dv-muted); background: var(--dv-bg);

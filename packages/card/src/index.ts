@@ -1,7 +1,7 @@
 import { LfdlnCard } from './lfdln-card.ts';
 
 export { LfdlnCard, defaultCardWords, partsIn, type CardEventMap, type CardWords } from './lfdln-card.ts';
-export { actionsMode, renderCard, type CardActions, type CardHooks, type CardParts } from './render.ts';
+export { actionsMode, renderCard, renderCardActions, type CardActions, type CardHooks, type CardParts } from './render.ts';
 export { fitRow, type RowItem, type RowRoom } from './fit.ts';
 export { rowFit } from './row-fit.ts';
 export { addCardStyles, cardCss } from './styles.ts';
