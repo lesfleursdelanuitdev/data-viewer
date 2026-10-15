@@ -1,7 +1,6 @@
 # Custom cards: your own card markup in `<lfdln-data-viewer>`
 
 Status: BUILT 2026-10-15 on branch `custom-cards` (CC-1..CC-4), not merged. Deviations found while building are listed in the CC-2..CC-4 commit messages.
-this file. Branch `custom-cards`, worktree `~/data-viewer-cards`.
 
 ## Goal
 
