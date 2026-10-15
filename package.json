@@ -9,6 +9,7 @@
     "packages/menu",
     "packages/pagination",
     "packages/card",
+    "packages/search",
     "packages/data-viewer"
   ],
   "scripts": {

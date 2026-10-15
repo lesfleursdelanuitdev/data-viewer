@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>search demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--search-bg); color: var(--search-text); }
+    section { margin-block: 1.5rem; max-width: 40rem; }
+    h2 { font-size: 1rem; }
+  </style>
+  <script type="module" src="/search.standalone.js"></script>
+</head>
+<body>
+  <h1>&lt;lfdln-search&gt;</h1>
+
+  <section>
+    <h2>Search as you type</h2>
+    <lfdln-search id="plain" placeholder="Search plants"></lfdln-search>
+  </section>
+
+  <section>
+    <h2>With "Search in" (fields from &lt;option&gt; children)</h2>
+    <lfdln-search id="in" search-in>
+      <option value="name">Name</option>
+      <option value="owner">Owner</option>
+      <option value="notes">Notes</option>
+    </lfdln-search>
+  </section>
+
+  <section>
+    <h2>With a submit button (fields from script)</h2>
+    <lfdln-search id="submit" search-in submit-label="Search"></lfdln-search>
+  </section>
+
+  <section>
+    <h2>With an icon button</h2>
+    <lfdln-search id="icon" submit></lfdln-search>
+  </section>
+
+  <form id="wrapped" action="/nowhere" onsubmit="window.submitted = true; return false">
+    <h2>Inside a page's form (Enter must not submit it)</h2>
+    <lfdln-search id="inform"></lfdln-search>
+  </form>
+
+  <pre id="log" aria-live="polite"></pre>
+
+  <script type="module">
+    const events = [];
+    window.events = events;
+    document.querySelector('#submit').fields = [
+      { key: 'name', label: 'Name' },
+      { key: 'owner', label: 'Owner' },
+    ];
+    document.addEventListener('search-change', (e) => {
+      events.push({ on: e.target.id, ...e.detail });
+      document.querySelector('#log').textContent = events.map((x) => JSON.stringify(x)).join('\n');
+    });
+  </script>
+</body>
+</html>

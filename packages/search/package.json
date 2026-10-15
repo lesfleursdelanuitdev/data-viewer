@@ -1,0 +1,55 @@
+{
+  "name": "@lesfleursdelanuitdev/search",
+  "version": "0.1.0",
+  "description": "A search box for any list: <lfdln-search>, a Lit web component with search-as-you-type, an optional \"Search in\" picker and an optional submit button.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/search"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "lit",
+    "search",
+    "search-box",
+    "filter"
+  ],
+  "type": "module",
+  "module": "./dist/search.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/search.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/search.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/search.standalone.js=10240",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  }
+}
