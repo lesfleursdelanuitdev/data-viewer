@@ -187,3 +187,13 @@ test.describe('on a phone', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 });
+
+test('no request ever goes to a placeholder address like {{picture}}', async ({ page }) => {
+  const asked: string[] = [];
+  page.on('request', (r) => {
+    if (/%7B%7B|\{\{/.test(r.url())) asked.push(r.url());
+  });
+  await open(page);
+  await page.waitForLoadState('networkidle');
+  expect(asked).toEqual([]);
+});

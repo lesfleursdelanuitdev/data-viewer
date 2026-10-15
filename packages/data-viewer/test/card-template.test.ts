@@ -215,3 +215,15 @@ test('fieldValue: a key with a dot in it wins over the nested path', () => {
   assert.equal(fieldValue({ a: { b: 2 } }, 'a.b'), 2);
   assert.equal(fieldValue({ a: null }, 'a.b'), undefined);
 });
+
+test('an address with a field is not in the copies until it is filled, so nothing loads "{{picture}}"', () => {
+  const plan = compile(frag(h('img', { src: '{{picture}}', alt: '', 'data-if': 'picture' }), h('a', { href: 'plants/{{id}}', title: '{{name}}' })));
+  const [img, a] = (plan.source as E).childNodes as [E, E];
+  assert.equal(img.hasAttribute('src'), false);
+  assert.equal(a.hasAttribute('href'), false);
+  assert.equal(a.getAttribute('title'), '{{name}}'); // not an address: harmless as written
+  const copy = (plan.source as E).cloneNode();
+  fill(plan, copy, fields({ picture: 'pics/rose.jpg', id: 7, name: 'Rose' }));
+  assert.equal((copy.childNodes[0] as E).getAttribute('src'), 'pics/rose.jpg');
+  assert.equal((copy.childNodes[1] as E).getAttribute('href'), 'plants/7');
+});

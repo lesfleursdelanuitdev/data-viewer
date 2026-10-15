@@ -102,7 +102,13 @@ export function compile(root: TNode): Plan {
         if (refused(name)) {
           k.removeAttribute(name);
           plan.warnings.push(`a field in ${name}="…" on <${k.localName}> is not allowed; the attribute was dropped`);
-        } else plan.attrs.push({ path: p, name, parts, url: URLS.has(name) });
+        } else {
+          const url = URLS.has(name);
+          plan.attrs.push({ path: p, name, parts, url });
+          // An address with a field is left out of the copies until filled, so no browser ever
+          // asks for "{{picture}}" (an image starts loading as soon as its copy is made).
+          if (url) k.removeAttribute(name);
+        }
       }
       const key = k.getAttribute('data-if');
       if (key !== null) {
