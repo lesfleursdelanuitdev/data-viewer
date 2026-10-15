@@ -484,7 +484,8 @@ html:has(.l-page) { scroll-behavior: smooth; }
 .ref-scroll { overflow-x: auto; margin: 0 0 18px; }
 .ref .table { font-size: 13.5px; line-height: 1.55; }
 .ref .table td, .ref .table th { padding: 7px 10px 7px 0; vertical-align: top; }
-.ref .table td { min-width: 9em; }
+.ref .table td { min-width: 8em; }
+.ref .table td:last-child { min-width: 16em; }
 .ref .table td:first-child { color: var(--color-text); }
 .ref blockquote { margin: 0 0 14px; padding-left: 14px; border-left: 1px solid var(--color-accent-700); }
 

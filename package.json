@@ -19,8 +19,9 @@
     "typecheck": "npm run typecheck --workspaces",
     "size": "npm run size --workspaces",
     "e2e": "npm run e2e --workspaces",
-    "check": "npm run typecheck && npm test && npm run build && npm run e2e",
-    "site:build": "node site/build.mjs"
+    "check": "npm run typecheck && npm test && npm run build && npm run e2e && npm run site:build && npm run site:test",
+    "site:build": "node site/build.mjs",
+    "site:test": "tsc -p site && playwright test -c site/playwright.config.ts"
   },
   "devDependencies": {
     "@fontsource/inter": "5.3.0",

@@ -3,6 +3,7 @@
 // /js/docs.js. It only reads the packages' built dist/ folders: run `npm run build` first.
 import { readFile, writeFile, mkdir, rm, copyFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Marked } from 'marked';
@@ -332,6 +333,7 @@ for (const [pkg, file] of [
 }
 
 await write('index.html', fill(await readFile(join(src, 'landing.html'), 'utf8'), { logo: LOGO }));
+await write('404.html', fill(await readFile(join(src, '404.html'), 'utf8'), { logo: LOGO }));
 for (const id of Object.keys(C.PAGES)) {
   if (!ADDRESSES[id]) fail(`page ${id} has no address in reference-map.mjs`);
   await write(join(ADDRESSES[id], 'index.html'), await docsPage(id));
@@ -339,8 +341,13 @@ for (const id of Object.keys(C.PAGES)) {
 
 await checkNoOtherSites();
 
-console.log(`built ${relative(root, out)}:`);
-for (const f of (await readdir(out, { recursive: true, withFileTypes: true })).filter((d) => d.isFile())) {
-  const p = join(f.parentPath, f.name);
-  console.log(`  ${relative(out, p)}  ${(await readFile(p)).length} bytes`);
+// What was written, with the gzipped size of each (as the server sends them).
+const files = (await readdir(out, { recursive: true, withFileTypes: true })).filter((d) => d.isFile()).map((d) => join(d.parentPath, d.name));
+let total = 0;
+const rows = [];
+for (const p of files.sort()) {
+  const buf = await readFile(p);
+  total += buf.length;
+  rows.push(`  ${relative(out, p).padEnd(44)} ${String(buf.length).padStart(7)} bytes${/\.woff2$/.test(p) ? '' : `, ${gzipSync(buf).length} gzipped`}`);
 }
+console.log(`built ${relative(root, out)} (${files.length} files, ${total} bytes):\n${rows.join('\n')}`);

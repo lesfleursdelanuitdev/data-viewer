@@ -294,3 +294,41 @@ test.describe('reference', () => {
     await expect(page.locator('.ref a[href="/docs/server-pages/#pages"]').first()).toBeVisible();
   });
 });
+
+test.describe('phones', () => {
+  for (const width of [360, 390]) {
+    test(`at ${width}px no page is wider than the screen`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      for (const path of ALL) {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle');
+        if (path !== '/' && path !== '/docs/install/') await expect(page.locator('[data-host] > *').first()).toBeAttached();
+        const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+        expect(scroll, `${path} at ${width}px`).toBeLessThanOrEqual(inner);
+        // With a code tab open too: long lines scroll inside the code box.
+        const codeTab = page.locator('.panel-tabs [role="tab"]').last();
+        if (await codeTab.count()) {
+          await codeTab.click();
+          const [s2, i2] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+          expect(s2, `${path} at ${width}px, code tab`).toBeLessThanOrEqual(i2);
+        }
+      }
+    });
+  }
+});
+
+test('an unknown address answers 404 with the not-found page', async ({ page }) => {
+  const problems: string[] = [];
+  page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) problems.push(m.text()); });
+  const res = await page.goto('/docs/no-such-page/');
+  expect(res?.status()).toBe(404);
+  await expect(page.locator('h1')).toHaveText('There’s no page at this address');
+  await expect(page.getByRole('link', { name: 'Go to the docs' })).toHaveAttribute('href', '/docs/');
+  expect(problems).toEqual([]);
+});
+
+test('a docs address without its slash goes to the page', async ({ page }) => {
+  await page.goto('/docs/menu');
+  await expect(page).toHaveURL(/\/docs\/menu\/$/);
+  await expect(page.locator('h1')).toHaveText('Menu');
+});
