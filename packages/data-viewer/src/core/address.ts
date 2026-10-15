@@ -9,9 +9,12 @@ export type AddressQuery = Omit<Query, 'size'> & { size?: number };
 /** How each filter is written in the address; without it the value's shape decides. */
 export type FilterKinds = Record<string, 'choice' | 'range' | 'bool'>;
 
-// A filter's value in the address: a choice "a,b" (each value URL-encoded, so a comma inside one
-// is %2C), a range "from..to" (either end may be empty), yes / no.
-function writeFilter(v: FilterValue[string]): string {
+/**
+ * A filter's value as the address (and the json adapter) writes it: a choice "a,b" (each value
+ * URL-encoded, so a comma inside one is %2C), a range "from..to" (either end may be empty), yes /
+ * no. '' when it narrows nothing.
+ */
+export function filterParam(v: FilterValue[string]): string {
   if (typeof v === 'boolean') return v ? 'yes' : 'no';
   if (Array.isArray(v)) return v.map(encodeURIComponent).join(',');
   const from = (v?.from ?? '').trim();
@@ -87,7 +90,7 @@ export function writeQuery(params: URLSearchParams, prefix: string, q: AddressQu
   if (startSize !== undefined && q.size !== undefined && q.size !== startSize) params.set(`${prefix}.size`, String(q.size));
   if (q.searchIn) params.set(`${prefix}.in`, q.searchIn);
   for (const [key, v] of Object.entries(q.filters ?? {})) {
-    const text = writeFilter(v);
+    const text = filterParam(v);
     if (text) params.set(`${prefix}.f.${key}`, text);
   }
   return params;

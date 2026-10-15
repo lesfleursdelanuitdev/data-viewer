@@ -1,15 +1,20 @@
 import { LitElement, html, nothing, type PropertyValues, type TemplateResult } from 'lit';
-import { live } from 'lit/directives/live.js';
 import { copyOf, nextId, openConfirm, renderConfirm, renderMenu, safeUrl } from '@lesfleursdelanuitdev/menu';
 import {
   defaultPaginationWords, focusCurrentPage, pageAfterResize, pageSizeChoices, pageSizeOf, parsePageSizes,
   renderPagination, type PaginationWords,
 } from '@lesfleursdelanuitdev/pagination';
 import { renderCard, type CardActions } from '@lesfleursdelanuitdev/card';
-import type { CardParts, Column, Content, MenuItem, Query, View } from '../core/types.ts';
+import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
+import {
+  defaultFilterWords, normalise, removeChip, renderFilter, renderFilterChips,
+  type FilterSection, type FilterValue, type FilterWords,
+} from '@lesfleursdelanuitdev/filter';
+import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
+import { filterKind, filterSections, searchColumns } from '../core/filters.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
-import { readQuery, writeQuery, type AddressQuery } from '../core/address.ts';
+import { readQuery, writeQuery, type AddressQuery, type FilterKinds } from '../core/address.ts';
 import { addStyles } from './styles.ts';
 import { columnsIn } from './column.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
@@ -34,9 +39,9 @@ const cardsIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="non
 
 // Every piece of text the list shows. Plain English defaults; a page can replace any of them.
 // The pager's words (pages, previous, next, empty, showing, pageOf, pageNumbers, pageNumber,
-// rowsPerPage) are the pagination package's.
-export type Words = PaginationWords & {
-  search: string;
+// rowsPerPage) are the pagination package's; the search box's (search, searchIn, allFields, clear)
+// the search package's; the filter's (filter, apply, clearAll, none, any, …) the filter package's.
+export type Words = PaginationWords & SearchWords & FilterWords & {
   views: string;
   showTable: string;
   showCards: string;
@@ -53,7 +58,8 @@ export type Words = PaginationWords & {
 
 export const defaultWords: Words = {
   ...defaultPaginationWords,
-  search: 'Search',
+  ...defaultSearchWords,
+  ...defaultFilterWords,
   views: 'Views',
   showTable: 'Show a table',
   showCards: 'Show cards',
@@ -71,6 +77,7 @@ export const defaultWords: Words = {
 // The query as the viewer keeps it: size is the visitor's pick (unchecked), undefined when none.
 const blank: AddressQuery = { page: 1, search: '', sort: '', dir: 'asc', view: '' };
 const PHONE = '(max-width: 640px)';
+const FILTER_PHONE = '(max-width: 639px)'; // the filter's bottom sheet, as in the filter package
 const DEBOUNCE_MS = 300;
 const warnedKeys = new Set<string>(); // unknown config keys, warned about once per page
 
@@ -123,7 +130,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     openEvent: { type: Boolean, attribute: 'open-event' },
     src: { type: String },
     config: { type: String },
+    facets: { attribute: false },
+    searchIn: { type: Boolean, attribute: 'search-in' },
+    searchSubmitLabel: { type: String, attribute: 'search-submit-label' },
+    filterLabel: { type: String, attribute: 'filter-label' },
+    filterChips: { type: String, attribute: 'filter-chips' },
     _q: { state: true },
+    _fDraft: { state: true },
+    _fActive: { state: true },
+    _fSearch: { state: true },
+    _fPhone: { state: true },
     _configuring: { state: true },
     _failReason: { state: true },
     _failed: { state: true },
@@ -178,6 +194,28 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare src: string | undefined;
   /** A module's address (read against the page): its default export sets the list up. */
   declare config: string | undefined;
+  /**
+   * Server mode: each filterable column's options with counts, from the server (set with rows
+   * and total; adapters return them with the rows).
+   */
+  declare facets: Record<string, FilterOption[]> | undefined;
+  /** Show the "Search in" picker beside the search box. */
+  declare searchIn: boolean;
+  /** A button after the search box with these words; then typing alone doesn't search. */
+  declare searchSubmitLabel: string | undefined;
+  /** The filter button's words when nothing is set (default words.filter). */
+  declare filterLabel: string | undefined;
+  /** 'on' (the default) shows the applied filters as chips under the bar; 'off' doesn't. */
+  declare filterChips: string | undefined;
+  // The filter's state: its draft (null while closed), its open section, its option search.
+  declare _fDraft: FilterValue | null;
+  declare _fActive: string | null;
+  declare _fSearch: string;
+  declare _fPhone: boolean;
+  private _fMedia: MediaQueryList | undefined;
+  private _onFMedia = () => {
+    this._fPhone = Boolean(this._fMedia?.matches);
+  };
   declare _configuring: boolean;
   declare _failReason: string | undefined;
   // Config: the newest setup wins; its on handlers are kept so they can be taken off again.
@@ -252,6 +290,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._searchText = '';
     this._failed = false;
     this._configuring = false;
+    this.searchIn = false;
+    this._fDraft = null;
+    this._fActive = null;
+    this._fSearch = '';
+    this._fPhone = false;
   }
 
   // Light DOM, so page CSS reaches in.
@@ -262,6 +305,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     addStyles(this.ownerDocument);
+    this._fMedia = matchMedia(FILTER_PHONE);
+    this._fMedia.addEventListener('change', this._onFMedia);
+    this._onFMedia();
     this.layout = this._remembered() ?? this.layout ?? (matchMedia(PHONE).matches ? 'cards' : 'table');
     if (this._prefix) {
       window.addEventListener('popstate', this._onPop);
@@ -276,6 +322,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPop);
+    this._fMedia?.removeEventListener('change', this._onFMedia);
+    this._fDraft = null;
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
     // A load still running or waiting for its adapter is dropped, and redone on return.
@@ -317,7 +365,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._requestLoad();
     }
     if (changed.has('state') && this.state) {
-      this._q = { ...this._q, ...this.state };
+      this._q = tidy({ ...this._q, ...this.state });
       this._searchText = this._q.search;
     }
     // rememberAs is often set after the element connects; the stored choice still wins.
@@ -419,7 +467,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   private _readAddress(announce: boolean): void {
-    const q = readQuery(new URLSearchParams(location.search), this._prefix);
+    const q = readQuery(new URLSearchParams(location.search), this._prefix, this._filterKinds);
     clearTimeout(this._timer);
     this._q = q;
     this._searchText = q.search;
@@ -489,6 +537,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._mode = out.total === undefined || out.total === null ? 'browser' : 'server';
       this._failed = false;
       this.total = this._mode === 'server' ? out.total : undefined;
+      this.facets = out.facets;
       this.rows = (out.rows ?? []) as T[];
       this.busy = false;
     } catch (err) {
@@ -575,9 +624,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (!this._adapted) this.busy = false;
   }
 
-  // One change to what is shown: store it, put it in the address, tell the host.
+  // One change to what is shown: store it, put it in the address, tell the host. "Search in" and
+  // the filters are left out of the query when unset, so hosts see them only when they matter.
   private _change(over: Partial<AddressQuery>, replace = false): void {
-    this._q = { ...this._q, ...over };
+    this._q = tidy({ ...this._q, ...over });
     this._writeAddress(replace);
     this._announce();
   }
@@ -607,13 +657,143 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if ((e.currentTarget as HTMLDialogElement).returnValue === 'ok') this._action(ask.item.id, ask.row);
   }
 
-  private _onSearchInput(e: Event): void {
-    this._searchText = (e.target as HTMLInputElement).value;
+  // What a server can do with filters and "Search in" (its adapter's supports; else everything).
+  private get _supports(): AdapterSupports | undefined {
+    return this._adapted ? adapterNamed(this.adapter!.trim())?.supports : undefined;
+  }
+
+  // How each filterable column's value is written in the address.
+  private get _filterKinds(): FilterKinds {
+    const kinds: FilterKinds = {};
+    for (const c of this.columns ?? []) {
+      const k = c.filterable ? filterKind(c) : null;
+      if (k) kinds[c.key] = k;
+    }
+    return kinds;
+  }
+
+  private _searchNow(over: Partial<AddressQuery> = {}): void {
     clearTimeout(this._timer);
-    this._timer = setTimeout(() => {
-      const search = this._searchText.trim();
-      if (search !== this._q.search) this._change({ search, page: 1 }, true);
-    }, DEBOUNCE_MS);
+    const search = this._searchText.trim();
+    const next = { search, ...over };
+    if (search === this._q.search && Object.entries(over).every(([k, v]) => this._q[k as keyof AddressQuery] === v)) return;
+    this._change({ ...next, page: 1 }, true);
+  }
+
+  private _searchBox(w: Words): TemplateResult {
+    const supports = this._supports;
+    const fields = searchColumns(this.columns ?? [], this.searchKeys).map((c) => ({ key: c.key, label: c.label }));
+    const submit = Boolean(this.searchSubmitLabel);
+    return renderSearch({
+      value: this._searchText,
+      in: this._q.searchIn ?? '',
+      fields,
+      searchIn: this.searchIn && supports?.searchIn !== false && fields.length > 1,
+      submitLabel: this.searchSubmitLabel || undefined,
+      submit,
+      label: w.search,
+      words: w,
+      uid: `${this._uid}-s`,
+    }, {
+      onInput: (text) => {
+        this._searchText = text;
+        if (submit) return;
+        clearTimeout(this._timer);
+        this._timer = setTimeout(() => this._searchNow(), DEBOUNCE_MS);
+      },
+      onIn: (key) => {
+        if (this._searchText.trim() || !submit) return this._searchNow({ searchIn: key || undefined });
+        this._q = tidy({ ...this._q, searchIn: key || undefined });
+        this._writeAddress(true);
+      },
+      onSubmit: () => this._searchNow(),
+      onClear: () => {
+        this._searchText = '';
+        this._searchNow();
+      },
+    });
+  }
+
+  private _applyFilters(value: FilterValue, sections: FilterSection[]): void {
+    this._change({ filters: normalise(sections, value), page: 1 });
+  }
+
+  private _filter(w: Words, sections: FilterSection[]): TemplateResult {
+    return renderFilter({
+      sections,
+      value: this._q.filters ?? {},
+      draft: this._fDraft,
+      open: this._fDraft !== null,
+      active: this._fActive,
+      phone: this._fPhone,
+      optionSearch: this._fSearch,
+      words: w,
+      uid: `${this._uid}-f`,
+      label: this.filterLabel || undefined,
+    }, {
+      onOpen: () => {
+        this._fDraft = structuredClone(this._q.filters ?? {});
+        this._fActive = this._fPhone ? null : sections[0]?.key ?? null;
+        this._fSearch = '';
+      },
+      onClose: () => {
+        this._fDraft = null;
+        this._fSearch = '';
+      },
+      onSection: (key) => {
+        this._fActive = key;
+        this._fSearch = '';
+      },
+      onDraft: (next) => {
+        if (this._fDraft !== null) this._fDraft = next;
+      },
+      onOptionSearch: (text) => {
+        this._fSearch = text;
+      },
+      onApply: () => {
+        const draft = this._fDraft ?? {};
+        this._fDraft = null;
+        this._fSearch = '';
+        this._applyFilters(draft, sections);
+      },
+      onClearAll: () => {
+        this._fDraft = {};
+        this._applyFilters({}, sections);
+      },
+    });
+  }
+
+  // The applied filters as chips under the bar. After a removal, focus goes to the next chip's
+  // ×, or to the filter button when none is left.
+  private _chips(w: Words, sections: FilterSection[]): TemplateResult | typeof nothing {
+    if ((this.filterChips ?? '').trim().toLowerCase() === 'off') return nothing;
+    const refocus = (index: number) => void this.updateComplete.then(() => {
+      const xs = this.querySelectorAll<HTMLElement>(':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x');
+      (xs[Math.min(index, xs.length - 1)] ?? this.querySelector<HTMLElement>(':scope > .dv-root .lfdln-filter-button'))?.focus();
+    });
+    return renderFilterChips(sections, this._q.filters ?? {}, w, (chip) => {
+      const xs = [...this.querySelectorAll(':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x')];
+      const at = Math.max(0, xs.indexOf(document.activeElement as Element));
+      this._applyFilters(removeChip(this._q.filters ?? {}, chip), sections);
+      refocus(at);
+    }, () => {
+      this._applyFilters({}, sections);
+      refocus(0);
+    });
+  }
+
+  // The filter's sections: one per filterable column, with options from the rows (browser mode)
+  // or the facets and column options (server mode).
+  private _sections(): FilterSection[] {
+    if (!(this.columns ?? []).some((c) => c.filterable)) return [];
+    return filterSections(this.columns, {
+      rows: this._server ? undefined : this.rows ?? [],
+      facets: this.facets,
+      supports: this._supports,
+      q: this._q,
+      views: this.views,
+      searchKeys: this.searchKeys,
+    });
   }
 
   private _sortBy(key: string): void {
@@ -689,8 +869,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // A load that failed with no rows to keep shows only the error box.
     const failedEmpty = this._failed && rows.length === 0;
 
+    const sections = this.compact ? [] : this._sections();
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
-      ${this.compact ? nothing : this._bar(w)}
+      ${this.compact ? nothing : this._bar(w, sections)}
+      ${this.compact ? nothing : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
             <p>${this._failReason ?? w.loadFailed}</p>
@@ -709,10 +891,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     </div>`;
   }
 
-  private _bar(w: Words): TemplateResult {
+  private _bar(w: Words, sections: FilterSection[]): TemplateResult {
     return html`<div class="dv-bar">
-      <input class="dv-search" type="search" aria-label=${w.search} placeholder=${w.search}
-        .value=${live(this._searchText)} @input=${this._onSearchInput} />
+      <div class="dv-search">${this._searchBox(w)}</div>
+      ${sections.length ? html`<div class="dv-filter">${this._filter(w, sections)}</div>` : nothing}
       ${this.views?.length
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {
@@ -914,6 +1096,14 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       format: (n) => this._num(n),
     }, { onPage: (n, num) => this._goTo(n, num), onSize: (n) => this._setSize(n) });
   }
+}
+
+// A query without the parts that are unset: no "Search in" and no empty filters.
+function tidy(q: AddressQuery): AddressQuery {
+  const out = { ...q };
+  if (!out.searchIn) delete out.searchIn;
+  if (!out.filters || !Object.keys(out.filters).length) delete out.filters;
+  return out;
 }
 
 /** The events a viewer fires. All bubble and are composed; check `e.target` when lists nest. */

@@ -1,4 +1,4 @@
-import type { Query } from '../core/types.ts';
+import type { AdapterSupports, FilterOption, Query } from '../core/types.ts';
 
 /**
  * Loads rows for one query. An answer without `total` means "these are all the rows": the
@@ -9,5 +9,13 @@ import type { Query } from '../core/types.ts';
  * where its rows are needs no src; json and pammy throw without one).
  */
 export type Adapter = {
-  load(q: Query, opts: { signal: AbortSignal; src: string; pageSize?: number }): Promise<{ rows: unknown[]; total?: number }>;
+  /**
+   * What its server can do with filters and "Search in" (see AdapterSupports). Without it the
+   * viewer offers everything.
+   */
+  supports?: AdapterSupports;
+  /** `facets` (server mode): each filterable column's options with counts, for the filter. */
+  load(q: Query, opts: { signal: AbortSignal; src: string; pageSize?: number }): Promise<AdapterAnswer>;
 };
+
+export type AdapterAnswer = { rows: unknown[]; total?: number; facets?: Record<string, FilterOption[]> };

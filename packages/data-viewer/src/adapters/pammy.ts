@@ -20,7 +20,9 @@ import { getJson, withParams } from './fetch.ts';
  *   search  free text (first 200 characters), over the catalog's searchable columns; ignored
  *           when the table has search switched off
  *   where.<column>=value  equality filters (up to 10)
- * There are no views, so the query's `view` is not sent.
+ * There are no views, so the query's `view` is not sent. Its only filter is one exact value per
+ * column, so the adapter says `supports: { filters: 'equals', searchIn: false, facets: false }`:
+ * the viewer then offers single choices only, and a choice goes as where.<key>=value.
  *
  * Its answer (:283): { resource, rich, page, per, total, items }. It pages and searches on the
  * server, so this adapter returns { rows: items, total }: server mode. An error is a non-2xx
@@ -28,6 +30,7 @@ import { getJson, withParams } from './fetch.ts';
  * It sends the page's cookies, so a signed-in visitor sees what they may see.
  */
 export const pammyAdapter: Adapter = {
+  supports: { filters: 'equals', searchIn: false, facets: false },
   async load(q: Query, { signal, src, pageSize }) {
     if (!src.trim()) throw new Error('adapter="pammy" needs src: the list\'s address under "Where programs ask"');
     const params: Record<string, string> = {};
@@ -38,6 +41,9 @@ export const pammyAdapter: Adapter = {
     if (q.search) params.search = q.search;
     if (q.sort) params.sort = q.sort;
     if (q.dir === 'desc') params.dir = 'desc';
+    for (const [key, v] of Object.entries(q.filters ?? {})) {
+      if (Array.isArray(v) && v[0] !== undefined) params[`where.${key}`] = v[0];
+    }
     const body = (await getJson(withParams(src, params), signal)) as { items?: unknown; total?: unknown } | null;
     if (!body || !Array.isArray(body.items)) throw new Error(`Couldn't load ${src}: the answer is not a list`);
     return { rows: body.items, total: Number(body.total) || 0 };

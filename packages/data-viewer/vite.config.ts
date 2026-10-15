@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { demo, library, standalone } from '../../vite.shared.ts';
 
-const LIMIT = 30 * 1024; // the standalone viewer (menu, pager and card inside) must stay under 30 KB gzipped
+const LIMIT = 45 * 1024; // the standalone viewer (menu, pager, card, search and filter inside) must stay under 45 KB gzipped
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 
 // --- The demo's fake data source (dev server only), for demo/adapters.html and its e2e tests.

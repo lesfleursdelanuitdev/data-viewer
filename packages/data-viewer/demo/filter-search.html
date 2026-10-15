@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, search and filter</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, search and filter</h1>
+  <h2>Plants, in the browser: name and notes searchable, "Search in", six filters</h2>
+  <lfdln-data-viewer id="plants" label="Plants" search-in url-state="plants" page-size="5" layout="table"></lfdln-data-viewer>
+  <h2>Orders from a server that sends facets</h2>
+  <lfdln-data-viewer id="orders" label="Orders" filter-label="Narrow down" layout="table"></lfdln-data-viewer>
+  <h2>No chips row, and a Go button for search</h2>
+  <lfdln-data-viewer id="quiet" label="Plants again" filter-chips="off" search-submit-label="Go" layout="table"></lfdln-data-viewer>
+  <h2>Through the pammy adapter (one exact value per column)</h2>
+  <lfdln-data-viewer id="pammy" label="Recipes" adapter="pammy" src="/_pammy/api/data/postgres/demo/recipes"
+    search-in layout="table">
+    <lfdln-dv-column key="name" label="Name" searchable></lfdln-dv-column>
+    <lfdln-dv-column key="cuisine" label="Cuisine" filterable options="Persian,Indian,French,Turkish"></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" filterable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="module" src="./filter-search.ts"></script>
+</body>
+</html>

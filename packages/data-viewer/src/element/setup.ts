@@ -1,4 +1,4 @@
-import type { CardActions, CardParts, Column, Query, View } from '../core/types.ts';
+import type { CardActions, CardParts, Column, FilterOption, Query, View } from '../core/types.ts';
 import type { DataViewerEventMap, LayoutIcons, LayoutSwitch, LfdlnDataViewer, Pager, Words } from './data-viewer.ts';
 
 /** A column in a list's setup: its key is a row key, unless it reads its own value or draws itself. */
@@ -47,6 +47,11 @@ export type ListSetup<T = Record<string, unknown>> = {
   state?: Partial<Query>;
   adapter?: string;
   src?: string;
+  facets?: Record<string, FilterOption[]>;
+  searchIn?: boolean;
+  searchSubmitLabel?: string;
+  filterLabel?: string;
+  filterChips?: 'on' | 'off';
 };
 
 /** The setup, or a function that gets the element and sets it up (and may return a setup too). */

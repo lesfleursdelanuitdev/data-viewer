@@ -57,7 +57,7 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && npm run types && npm run size",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=30720 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072",
+    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=46080 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072",
     "e2e": "playwright test"
   },
   "peerDependencies": {

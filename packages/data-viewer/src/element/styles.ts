@@ -1,10 +1,13 @@
 import { addPaginationStyles } from '@lesfleursdelanuitdev/pagination';
 import { addCardStyles } from '@lesfleursdelanuitdev/card';
+import { addSearchStyles } from '@lesfleursdelanuitdev/search';
+import { addFilterStyles } from '@lesfleursdelanuitdev/filter';
 
 // The built-in look. Every rule sits inside :where() so any page rule wins, and the style
-// element goes first in <head> so page CSS loaded later wins ties too. The menus, the pager and
-// the cards are the menu, pagination and card packages, with their own styles; inside a list
-// their variables are the list's (--dv-*), so theming the list themes them too.
+// element goes first in <head> so page CSS loaded later wins ties too. The menus, the pager, the
+// cards, the search box and the filter are the menu, pagination, card, search and filter
+// packages, with their own styles; inside a list their variables are the list's (--dv-*), so
+// theming the list themes them too.
 // Colours follow the page's color-scheme through light-dark(): a page with none (or `light`)
 // gets the light ones even on a dark OS; a page with `color-scheme: light dark` follows the OS.
 export const css: string = `
@@ -30,6 +33,12 @@ export const css: string = `
   --card-bg: var(--dv-bg); --card-surface: var(--dv-surface); --card-text: var(--dv-text);
   --card-muted: var(--dv-muted); --card-border: var(--dv-border); --card-accent: var(--dv-accent);
   --card-danger: var(--dv-danger); --card-radius: var(--dv-radius); --card-font: var(--dv-font);
+  --search-bg: var(--dv-bg); --search-surface: var(--dv-surface); --search-text: var(--dv-text);
+  --search-muted: var(--dv-muted); --search-border: var(--dv-border); --search-accent: var(--dv-accent);
+  --search-radius: var(--dv-radius); --search-font: var(--dv-font);
+  --filter-bg: var(--dv-bg); --filter-surface: var(--dv-surface); --filter-text: var(--dv-text);
+  --filter-muted: var(--dv-muted); --filter-border: var(--dv-border); --filter-accent: var(--dv-accent);
+  --filter-on-accent: var(--dv-bg); --filter-radius: var(--dv-radius); --filter-font: var(--dv-font);
 }
 :where(.dv-root) {
   display: block; font-family: var(--dv-font); color: var(--dv-text); background: var(--dv-bg);
@@ -37,11 +46,12 @@ export const css: string = `
 }
 :where(.dv-root) :where(*, *::before, *::after) { box-sizing: border-box; }
 :where(.dv-root[aria-busy="true"]) :where(.dv-table, .dv-cards) { opacity: 0.6; }
-/* The list's own controls (the menus, the pager and the cards style theirs). */
-:where(.dv-bar, .dv-table, .dv-error) :where(button, a, input, select):where(:not(.lfdln-menu-item, .lfdln-menu-button)):where(:focus-visible) {
+/* The list's own controls (the menus, the pager, the cards, the search box and the filter style
+   theirs, so these rules leave them alone). */
+:where(.dv-bar, .dv-table, .dv-error) :where(button, a, input, select):where(:not(.lfdln-menu-item, .lfdln-menu-button, .lfdln-search-root *, .lfdln-filter-root *)):where(:focus-visible) {
   outline: 2px solid var(--dv-accent); outline-offset: 2px;
 }
-:where(.dv-bar, .dv-error) :where(button) {
+:where(.dv-bar, .dv-error) :where(button:not(.lfdln-search-root *, .lfdln-filter-root *)) {
   font: inherit; color: inherit; background: var(--dv-surface); border: 1px solid var(--dv-border);
   border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
 }
@@ -53,10 +63,9 @@ export const css: string = `
 }
 
 :where(.dv-bar) { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
-:where(.dv-search) {
-  flex: 1 1 14rem; min-width: 0; font: inherit; color: var(--dv-text); background: var(--dv-bg);
-  border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 0.4rem 0.6rem;
-}
+:where(.dv-search) { flex: 1 1 14rem; min-width: 0; }
+:where(.dv-filter) { display: flex; min-width: 0; max-width: 100%; }
+:where(.dv-root) > :where(.lfdln-filter-chips) { margin: -0.25rem 0 0.75rem; }
 :where(.dv-views) { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 :where(.dv-views) :where(a) {
   display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: 999px;
@@ -70,7 +79,9 @@ export const css: string = `
 :where(.dv-layout-icon) { display: inline-flex; line-height: 1; }
 :where(.dv-layout-icon) > :where(svg) { display: block; width: 1.1em; height: 1.1em; }
 
-:where(.dv-table-wrap) { overflow-x: auto; border: 1px solid var(--dv-border); border-radius: var(--dv-radius); }
+/* position: relative keeps the hidden "What you can do" heading inside the scrolling box, so a
+   wide table never makes the page scroll sideways on phones. */
+:where(.dv-table-wrap) { position: relative; overflow-x: auto; border: 1px solid var(--dv-border); border-radius: var(--dv-radius); }
 :where(.dv-table) { width: 100%; border-collapse: collapse; }
 :where(.dv-table) :where(th, td) { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--dv-border); vertical-align: middle; }
 :where(.dv-table) :where(thead th) { font-size: 0.85em; color: var(--dv-muted); font-weight: 600; background: var(--dv-surface); white-space: nowrap; }
@@ -109,7 +120,7 @@ export const css: string = `
 :where(.dv-error) { color: var(--dv-danger); margin-bottom: 0.75rem; }
 
 @media (max-width: 640px) {
-  :where(.dv-bar, .dv-error, .dv-table) :where(button, input, select, .dv-views a) { min-height: 44px; }
+  :where(.dv-bar, .dv-error, .dv-table) :where(button, input, select, .dv-views a):where(:not(.lfdln-search-root *, .lfdln-filter-root *)) { min-height: 44px; }
   :where(.dv-layout) :where(button) { min-width: 44px; }
 }
 `;
@@ -120,6 +131,8 @@ export const css: string = `
 export function addStyles(doc: Document = document): void {
   addCardStyles(doc);
   addPaginationStyles(doc);
+  addSearchStyles(doc);
+  addFilterStyles(doc);
   if (doc.getElementById('lfdln-dv-style')) return;
   const el = doc.createElement('style');
   el.id = 'lfdln-dv-style';

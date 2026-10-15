@@ -148,3 +148,41 @@ test('pammy: per follows the query\'s size, and is capped at 100', async () => {
   await pammyAdapter.load(q({ size: 250 }), opts('https://pammy.test/_pammy/api/data/postgres/r/r'));
   assert.equal(params(calls[0]!.url).per, '100');
 });
+
+test('json: sends "Search in" as in and filters as f.<key>, encoded as in the address (Review Focus 2)', async () => {
+  answer({ rows: [], total: 0 });
+  const filters = { owner: ['Smith, Jane', 'Café', 'A & B'], price: { from: '10' }, organic: false, empty: [] };
+  await jsonAdapter.load(q({ searchIn: 'name', filters }), opts('https://x.test/api/orders'));
+  const url = new URL(calls[0]!.url);
+  assert.equal(url.searchParams.get('in'), 'name');
+  assert.equal(url.searchParams.get('f.price'), '10..');
+  assert.equal(url.searchParams.get('f.organic'), 'no');
+  assert.equal(url.searchParams.has('f.empty'), false);
+  // How a server reads a choice back: split on the commas, then decode each value.
+  const owner = url.searchParams.get('f.owner')!.split(',').map(decodeURIComponent);
+  assert.deepEqual(owner, ['Smith, Jane', 'Café', 'A & B']);
+  // Nothing set: neither is sent.
+  answer({ rows: [], total: 0 });
+  await jsonAdapter.load(q(), opts('https://x.test/api/orders'));
+  assert.equal(calls[0]!.url, 'https://x.test/api/orders');
+});
+
+test('json: passes facets through; junk facets are dropped', async () => {
+  const facets = { status: [{ value: 'paid', label: 'Paid', count: 3 }, { value: 'due', count: 1 }] };
+  answer({ rows: [], total: 4, facets: { ...facets, bad: 'x', worse: [{ label: 'no value' }, 5] } });
+  const out = await jsonAdapter.load(q(), opts('https://x.test/api/orders'));
+  assert.deepEqual(out.facets, { ...facets, worse: [] });
+  answer({ rows: [], total: 4 });
+  assert.equal((await jsonAdapter.load(q(), opts('https://x.test/api/orders'))).facets, undefined);
+});
+
+test('pammy: says what it supports, sends a choice as where.<key>, never in or f.*', async () => {
+  assert.deepEqual(pammyAdapter.supports, { filters: 'equals', searchIn: false, facets: false });
+  answer({ items: [], total: 0 });
+  await pammyAdapter.load(q({ searchIn: 'name', search: 'rose', filters: { status: ['shipped'], price: { from: '1' }, organic: true } }),
+    opts('https://x.test/_pammy/api/data/postgres/shop/orders'));
+  const p = params(calls[0]!.url);
+  assert.equal(p['where.status'], 'shipped');
+  assert.equal(p.search, 'rose');
+  assert.deepEqual(Object.keys(p).filter((k) => k === 'in' || k.startsWith('f.') || k.startsWith('where.')), ['where.status']);
+});
