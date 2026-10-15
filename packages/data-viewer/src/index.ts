@@ -4,6 +4,7 @@ import { LfdlnDvColumn } from './element/column.ts';
 export { LfdlnDataViewer, defaultWords } from './element/data-viewer.ts';
 export { LfdlnDvColumn } from './element/column.ts';
 export type { DataViewerEventMap, Layout, LayoutIcons, LayoutSwitch, Pager, Words } from './element/data-viewer.ts';
+export type { CardMount, CardPieces, CardTemplate } from './element/custom-cards.ts';
 export type {
   AdapterSupports, CardActions, CardParts, Column, Content, FilterOption, FilterSection, FilterValue,
   MenuEntry, MenuHeading, MenuItem, MenuSeparator, Query, View,

@@ -68,3 +68,25 @@ test('defineList returns the config as is, and types its rows (checked by tsc)',
   defineList<Plant>({ columns: [{ key: 'nmae', label: 'Typo' }] });
   assert.equal(typeof cfg, 'object');
 });
+
+test('custom cards: cardTemplate, cardMount and cardTemplateId are config keys, applied before rows', () => {
+  const cardTemplate = () => 'x';
+  const cardMount = () => {};
+  const out = splitConfig({ rows: [], cardMount, cardTemplate, cardTemplateId: 'plant-card' });
+  assert.deepEqual(out.props.map(([k]) => k), ['cardTemplate', 'cardMount', 'cardTemplateId', 'rows']);
+  assert.deepEqual(out.unknown, []);
+});
+
+test('defineList types cardTemplate and cardMount with the row type (checked by tsc)', async () => {
+  const { defineList } = await import('../src/element/setup.ts');
+  type Plant = { name: string; price: number };
+  defineList<Plant>({
+    cardTemplate: (p, pieces) => `${p.name} ${pieces.text('price')}`,
+    cardMount: (el, p, pieces) => {
+      el.append(p.name, pieces.menu, pieces.actions);
+      return () => el.replaceChildren();
+    },
+  });
+  // @ts-expect-error a field the row doesn't have
+  defineList<Plant>({ cardTemplate: (p) => p.nmae });
+});

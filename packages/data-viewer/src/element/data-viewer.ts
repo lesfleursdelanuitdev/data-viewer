@@ -18,7 +18,7 @@ import { fieldText, fieldValue } from '../core/card-template.ts';
 import { readQuery, writeQuery, type AddressQuery, type FilterKinds } from '../core/address.ts';
 import { addStyles } from './styles.ts';
 import { columnsIn } from './column.ts';
-import { CustomCards, planOf, type CardSource } from './custom-cards.ts';
+import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
 import type { ListConfig } from './setup.ts';
@@ -104,6 +104,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     total: { type: Number, noAccessor: true },
     columns: { attribute: false },
     cardOf: { attribute: false },
+    cardTemplate: { attribute: false },
+    cardMount: { attribute: false },
     views: { attribute: false },
     pageSize: { type: Number, attribute: 'page-size' },
     pageSizes: { attribute: 'page-sizes', converter: { fromAttribute: (v: string | null) => parsePageSizes(v) } },
@@ -154,6 +156,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare label: string;
   declare columns: Column<T>[];
   declare cardOf: ((row: T) => CardParts) | undefined;
+  /** Each card drawn by a function: Lit content or an element. Wins over card templates. */
+  declare cardTemplate: CardTemplate<T> | undefined;
+  /** Each card mounted into an empty element (React and other frameworks); may return a cleanup. Wins over cardTemplate. */
+  declare cardMount: CardMount<T> | undefined;
   declare views: View<T>[] | undefined;
   declare pageSize: number;
   /** The sizes a visitor may pick from ("Rows per page"); none valid means no picker. */
@@ -689,8 +695,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
-  // Where custom cards come from, if anywhere: the function forms win over a template.
+  // Where custom cards come from, if anywhere: cardMount, then cardTemplate, then a template.
   private get _source(): CardSource<T> | undefined {
+    if (this.cardMount) return { kind: 'mount', fn: this.cardMount };
+    if (this.cardTemplate) return { kind: 'lit', fn: this.cardTemplate };
     return this._tpl ? { kind: 'html', plan: planOf(this._tpl) } : undefined;
   }
 

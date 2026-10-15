@@ -1,5 +1,6 @@
 import type { CardActions, CardParts, Column, FilterOption, Query, View } from '../core/types.ts';
 import type { DataViewerEventMap, LayoutIcons, LayoutSwitch, LfdlnDataViewer, Pager, Words } from './data-viewer.ts';
+import type { CardMount, CardTemplate } from './custom-cards.ts';
 
 /** A column in a list's setup: its key is a row key, unless it reads its own value or draws itself. */
 export type ListColumn<T> =
@@ -16,6 +17,12 @@ export type ListSetup<T = Record<string, unknown>> = {
   columns?: ListColumn<T>[];
   views?: View<T>[];
   cardOf?: (row: T) => CardParts;
+  /** Your own card for each row, drawn with Lit (or an element). See "Your own cards". */
+  cardTemplate?: CardTemplate<T>;
+  /** Your own card mounted into an empty element (React and other frameworks). */
+  cardMount?: CardMount<T>;
+  /** The id of a <template> on the page to draw the cards from (the card-template attribute). */
+  cardTemplateId?: string;
   rows?: T[];
   total?: number;
   load?: (list: LfdlnDataViewer<T>) => T[] | Promise<T[]>;
