@@ -68,6 +68,112 @@ size check, types and tests). The root package.json is private and builds and te
   items go into More first; More always fits. The rule is `fitRow()` in `packages/card/src/fit.ts`,
   unit-tested.
 
+## Search and filter: two more packages (decided by momolig 2026-10-15)
+
+momolig asked: developers mark which columns search looks at and which can be filtered, and the
+filter looks like the one on the Gonsalves generated albums
+(`/srv/apps/gonsalves/the-gonsalves-family/src/components/album/AlbumMediaFilterPanel.tsx` and
+`PublicAlbumLayout.tsx`: funnel button, two-column popover, phone sheet, draft then Apply, chips).
+Decided: the whole album pattern (not a simpler bar); search and filter are packages of their own,
+like menu, pagination and card; "Search in" picker, optional; optional submit button for search;
+in server mode the server sends options and counts back as `facets`.
+
+| Folder | Package | Tags | Standalone (limit, gzipped) |
+|---|---|---|---|
+| `packages/search` | `@lesfleursdelanuitdev/search` | `<lfdln-search>` | `search.standalone.js` (8 KB) |
+| `packages/filter` | `@lesfleursdelanuitdev/filter` | `<lfdln-filter>`, `<lfdln-filter-chips>` | `filter.standalone.js` (20 KB) |
+
+The viewer depends on both (exact versions) and calls their render functions, as it does for the
+other three (its search box and filter stay in its own light DOM and its own update, and its events
+stay `dv-*`). Its standalone limit goes from 30 KB to 45 KB. The views tabs, the table/cards switch
+and the confirm dialog stay inside the viewer.
+
+### `<lfdln-search>`
+
+- Attributes: `value`, `placeholder`, `label` (accessible name, default "Search"), `delay` (ms,
+  default 300), `search-in` (shows the picker), `in` (the picked field, `''` = all),
+  `submit-label`, `submit` (boolean).
+- **Search in:** a `<select>` beside the box: "All fields" first, then the fields from the
+  `fields` property (`{key, label}[]`) or `<option value>` children. On phones it goes under the box.
+- **Typing:** fires after `delay` ms of quiet; Enter fires at once; a clear × empties and fires.
+- **Submit button:** with `submit-label="Search"` (or `submit` alone: a magnifier icon, accessible
+  name from `label`) a button follows the box; typing then does **not** fire, only Enter or the button.
+- Event `search-change` `{ search, in }` (bubbles, composed). Changing the picker fires at once
+  when there is text (or always, with no submit button).
+- Classes `lfdln-search-*`, variables `--search-*`, style `<style id="lfdln-search-style">`.
+
+### `<lfdln-filter>` and `<lfdln-filter-chips>`
+
+```ts
+type FilterOption = { value: string; label?: string; count?: number; description?: string };
+type FilterSection =
+  | { key: string; label: string; kind: 'choice'; options: FilterOption[]; single?: boolean }
+  | { key: string; label: string; kind: 'range'; type?: 'number' | 'money' | 'date';
+      ranges?: { label: string; from?: string; to?: string }[]; format?: { currency?: string; locale?: string } }
+  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string };
+type FilterValue = Record<string, string[] | { from?: string; to?: string } | boolean>;
+```
+
+- Properties `sections`, `value`; attributes `label` (button text when nothing is set, default
+  "Filter"), `heading` (popover title, default "Filter"), `apply-label`, `clear-label`.
+- **Button:** outline, funnel icon, the applied filters summed up and joined with " · "
+  ("Shipped · Pending · €10–50"; a choice with more than two picked shows "3 statuses"-style
+  "<n> <section label>"); `aria-expanded`, `aria-haspopup="dialog"`.
+- **Desktop (wider than 639px):** a popover under the button, `role="dialog"`, up to 42rem wide:
+  header (heading + ×), the draft's chips (or "No filters yet"), then two columns. Left: one row per
+  section with a chevron and its summary ("2 selected", "Any", "€10–50"), then "Clear all". Right:
+  the active section's controls, then Cancel and Apply. Esc and a click outside close it (as Cancel).
+- **Phone (639px or narrower):** a bottom sheet with a dim backdrop and a grab handle: header, the
+  draft's chips, the section rows; a row opens its own screen with a back chevron and the section's
+  title; sticky footer Clear + Apply (48px, safe-area padding). Focus is trapped in the sheet.
+- **choice:** a `listbox` (`aria-multiselectable` unless `single`), each row a round check, label,
+  optional description, count on the right. A search box above the list when there are more than 8
+  options; "Nothing matches" with a link that clears it. Options with count 0 stay but are muted.
+- **range:** quick-range pills (from `ranges`), then From and To boxes (`inputmode="decimal"` for
+  numbers and money; dates take `1950`, `1950-06` or `1950-06-15`, so text boxes, not date
+  pickers). From greater than To swaps them on Apply. Values stay strings.
+- **bool:** Any / Yes / No (labels from `yes`/`no`).
+- **Draft, then Apply:** changes stay in a draft, filled from `value` when it opens. Apply sets
+  `value` and fires `filter-change` `{ value }`; Cancel, × and Esc drop the draft. "Clear all" on
+  desktop applies at once (as on the albums); Clear on the phone only empties the draft.
+- **`<lfdln-filter-chips for="id">`:** the applied filters as chips with ×, and "Clear all"
+  when there are two or more; removing one applies at once (it sets the filter's `value` and the
+  filter fires `filter-change`). It can sit anywhere on the page. Nothing is drawn when nothing is set.
+- Classes `lfdln-filter-*`, variables `--filter-*`, style `<style id="lfdln-filter-style">`; the
+  same keyboard rules as the menu (Esc, focus back to the button).
+- Render functions exported (`renderFilter`, `renderFilterChips`, plus pure helpers
+  `summarise`, `chipsOf`, `removeChip`) so the viewer can draw them in its own DOM.
+
+### In the viewer
+
+- **Columns:** `searchable?: boolean`, `filterable?: boolean`, `options?: (string | FilterOption)[]`,
+  `ranges?: {label, from?, to?}[]`; `<lfdln-dv-column searchable filterable options="A,B"
+  ranges="1900s:1900..1999,Recent:2020..">`. `searchKeys` stays and means the same as marking those
+  columns searchable. With no column marked (and no `searchKeys`), search looks at every column, as before.
+- **Filter kind from the column type:** text, badge, link, tags → `choice`; number, money, date →
+  `range`; bool → `bool`; image is never filterable.
+- **Browser mode:** choice options are the distinct values with counts (a tags cell counts each
+  tag), sorted by label; the counts are over the rows the other filters, the view and the search
+  leave (so they say what you'd get). Matching: AND across fields, OR within a field, a tags cell
+  matches if any tag matches; range compares numbers, or dates by their start/end (`1950` = the
+  whole year); a value-less cell never matches a set filter.
+- **Server mode:** `dv-query` gains `searchIn: string` and `filters: FilterValue`. The host may set
+  `facets` (`Record<key, FilterOption[]>`) with `rows`/`total`; adapters return it with `rows`.
+  Without facets a choice uses the column's `options` (no counts); with neither it is left out.
+- **Attributes:** `search-in` (the picker), `search-submit-label`, `filter-label`, `filter-chips`
+  (`on` default | `off`). Words: "Search in", "All fields", "Filter", "Apply filter", "Cancel",
+  "Clear all", "No filters yet", "Nothing matches", "Any", "Yes", "No", "From", "To".
+- **Bar layout:** search (and its picker), then the filter button, then the layout switch; the chips
+  row under the bar. A filter or search change goes back to page 1.
+- **Address** (`url-state="orders"`): `orders.in=name`, `orders.f.status=shipped,pending`,
+  `orders.f.price=10..50`, `orders.f.planted=1990..`, `orders.f.organic=yes|no`. Values are
+  URL-encoded; a comma inside a value is written `%2C`.
+- **json adapter:** sends `in` and `f.<key>` in that same form, reads `facets` from the answer.
+- **pammy adapter:** the panel's data API only has `where.<column>=value` (one exact value). The
+  adapter declares `supports: { filters: 'equals', searchIn: false, facets: false }`; with it the
+  viewer makes choices single, leaves out range and bool sections and the "Search in" picker, and
+  sends a choice as `where.<key>`. Adapters without `supports` get everything.
+
 ## The package
 
 - Name `@lesfleursdelanuitdev/data-viewer` (free on npm, checked 2026-10-14; the plain name `data-viewer`
