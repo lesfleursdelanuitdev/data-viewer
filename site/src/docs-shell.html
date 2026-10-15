@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site.css">
+{{preload}}  <script type="module" src="/js/docs.js"></script>
+</head>
+<body data-page="{{page}}" class="{{bodyClass}}">
+<a class="skip" href="#main">Skip to the content</a>
+<div class="d-page">
+
+  <header class="d-head">
+    <a class="brand" href="/docs/">
+      {{logo}}
+      <span class="brand-name">data-viewer</span>
+    </a>
+    <span class="tag tag-neutral">v0.1 · MIT</span>
+    <a class="d-home" href="/">Home</a>
+    <div class="grow"></div>
+    <button type="button" class="npm-pill" data-copy="npm i @lesfleursdelanuitdev/data-viewer" title="Copy" aria-label="Copy the install command: npm i @lesfleursdelanuitdev/data-viewer">
+      <span class="dollar">$</span>
+      <span>npm i @lesfleursdelanuitdev/data-viewer</span>
+      <span class="copy-hint" data-copy-label aria-live="polite">Copy</span>
+    </button>
+    <a href="https://github.com/lesfleursdelanuitdev/data-viewer" target="_blank" rel="noopener" class="btn btn-secondary gh-btn">
+      <svg viewBox="0 0 256 256" width="15" height="15" aria-hidden="true"><path d="M119.8 56A52 52 0 0 0 76 32a51.9 51.9 0 0 0-3.5 44.7A49.3 49.3 0 0 0 64 104v8a48 48 0 0 0 48 48h48a48 48 0 0 0 48-48v-8a49.3 49.3 0 0 0-8.5-27.3A51.9 51.9 0 0 0 196 32a52 52 0 0 0-43.8 24Z"></path><path d="M104 232v-40a32 32 0 0 1 32-32h-16a32 32 0 0 1 32 32v40M104 208H72a32 32 0 0 1-32-32 32 32 0 0 0-32-32"></path></svg>
+      GitHub
+    </a>
+  </header>
+
+  <div class="d-body">
+    <nav class="d-side" aria-label="Docs">
+{{sidebar}}
+    </nav>
+
+    <main class="d-main" id="main">
+      <select class="input page-pick" aria-label="Page" data-page-pick>
+{{options}}
+      </select>
+
+      <div class="bench">
+{{text}}
+{{panel}}
+{{notes}}
+      </div>
+{{reference}}
+    </main>
+  </div>
+</div>
+</body>
+</html>

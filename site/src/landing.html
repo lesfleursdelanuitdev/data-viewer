@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>data-viewer: one tag, table or cards</title>
+  <meta name="description" content="A web component that shows a list of rows with search, filters, sorting, pages and a menu on every row. It works on a plain HTML page or inside any framework.">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/inter-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/site.css">
+  <script type="module" src="/js/landing.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<div class="l-page">
+
+  <nav class="l-wrap l-nav" aria-label="Site">
+    <a class="brand" href="/">
+      {{logo}}
+      <span class="brand-name">data-viewer</span>
+    </a>
+    <div class="l-links">
+      <a href="#parts">Parts</a>
+      <a href="#start">Install</a>
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/lesfleursdelanuitdev/data-viewer" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <a href="/docs/" class="btn btn-primary">Read the docs</a>
+  </nav>
+
+  <main id="main">
+    <div class="l-wrap">
+      <section class="hero">
+        <div class="hero-text">
+          <h1><span>One tag.</span> <span class="dim">Table or cards.</span></h1>
+          <p class="hero-sub">A web component that shows a list of rows with search, filters, sorting, pages and a menu on every row. It works on a plain HTML page or inside any framework.</p>
+          <div class="btn-row">
+            <a href="/docs/basics/" class="btn btn-primary nowrap">Get started</a>
+            <button type="button" class="btn btn-secondary npm-btn" data-copy="npm i @lesfleursdelanuitdev/data-viewer" aria-label="Copy the install command: npm i @lesfleursdelanuitdev/data-viewer">
+              <span class="dollar">$</span><span class="cmd">npm i @lesfleursdelanuitdev/data-viewer</span>
+              <span class="copy-hint" data-copy-label aria-live="polite">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <figure class="code-panel">
+          <div class="tabbar" role="tablist" aria-label="Example code">
+            <button type="button" class="tab" role="tab" id="hero-tab-0" aria-controls="hero-code-0" aria-selected="true">index.html</button>
+            <button type="button" class="tab" role="tab" id="hero-tab-1" aria-controls="hero-code-1" aria-selected="false" tabindex="-1">app.js</button>
+          </div>
+          <pre id="hero-code-0" role="tabpanel" aria-labelledby="hero-tab-0" tabindex="0"><code>&lt;script type="module" src="/js/data-viewer.standalone.js"&gt;&lt;/script&gt;
+
+&lt;lfdln-data-viewer label="Plants" src="plants.json"
+    adapter="json" page-size="6"
+    card-title="name" card-value="price"&gt;
+  &lt;lfdln-dv-column key="name" label="Plant" sortable&gt;
+  &lt;/lfdln-dv-column&gt;
+  &lt;lfdln-dv-column key="light" label="Light"&gt;
+  &lt;/lfdln-dv-column&gt;
+  &lt;lfdln-dv-column key="price" label="Price"
+      type="money" currency="EUR" sortable&gt;
+  &lt;/lfdln-dv-column&gt;
+&lt;/lfdln-data-viewer&gt;</code></pre>
+          <pre id="hero-code-1" role="tabpanel" aria-labelledby="hero-tab-1" tabindex="0" hidden><code>import { define, configure } from '@lesfleursdelanuitdev/data-viewer';
+import plants from './plants-list.js';
+
+define();
+const list = document.querySelector('#plants');
+await configure(list, plants);
+
+list.addEventListener('dv-action', (e) =&gt; {
+  const { id, row } = e.detail;
+  if (id === 'remove') list.rows = list.rows.filter((p) =&gt; p !== row);
+});</code></pre>
+        </figure>
+      </section>
+    </div>
+
+    <section class="stats" aria-label="data-viewer, by the numbers">
+      <div class="l-wrap">
+        <div><p class="stat-fig">~40 KB</p><p class="stat-label">Gzipped, Lit inside</p></div>
+        <div><p class="stat-fig">0</p><p class="stat-label">Build steps required</p></div>
+        <div><p class="stat-fig">44 px</p><p class="stat-label">Tap targets on phones</p></div>
+        <div><p class="stat-fig">5</p><p class="stat-label">Parts you can use alone</p></div>
+      </div>
+    </section>
+
+    <div class="l-wrap">
+      <section class="why">
+        <div class="l-kicker">Why it fits</div>
+        <div class="feat">
+          <div class="feat-head"><span class="feat-num">01</span><h2>No framework</h2></div>
+          <p class="l-copy">One script of about 40 KB gzipped with everything inside. No React and no build step. With a bundler, install the npm package and call define() once.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-head"><span class="feat-num">02</span><h2>Your CSS wins</h2></div>
+          <p class="l-copy">It draws into your page, with no shadow DOM. Its own rules have zero specificity, and its colours are --dv-* variables you set on any parent.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-head"><span class="feat-num">03</span><h2>Small lists or server pages</h2></div>
+          <p class="l-copy">Hand it every row and it searches, sorts and pages in the browser. For long lists, register an adapter and the server answers one page at a time.</p>
+        </div>
+        <div class="feat">
+          <div class="feat-head"><span class="feat-num">04</span><h2>Phones and keyboards</h2></div>
+          <p class="l-copy">Tables become cards on small screens, with 44 px tap targets and no sideways scrolling. Every control works from the keyboard.</p>
+        </div>
+      </section>
+
+      <section class="parts" id="parts">
+        <div class="l-kicker">The parts</div>
+        <h2>Take the whole list, or one piece of it</h2>
+        <p class="l-copy">Each part is a tag and a small package of its own. The list’s script already includes all of them.</p>
+        <div class="part-grid">
+          <a class="part-card" href="/docs/basics/"><code class="part-tag">&lt;lfdln-data-viewer&gt;</code><span class="part-name">The list</span><span class="part-copy">Table or cards with search, filters, sorting, pages and row menus.</span></a>
+          <a class="part-card" href="/docs/menu/"><code class="part-tag">&lt;lfdln-menu&gt;</code><span class="part-name">Menu</span><span class="part-copy">Keyboard, headings, disabled items that say why, and a built-in confirm.</span></a>
+          <a class="part-card" href="/docs/pagination/"><code class="part-tag">&lt;lfdln-pagination&gt;</code><span class="part-name">Pagination</span><span class="part-copy">Previous and Next, numbered pages and Rows per page for any list.</span></a>
+          <a class="part-card" href="/docs/card/"><code class="part-tag">&lt;lfdln-card&gt;</code><span class="part-name">Card</span><span class="part-copy">A title, badge, picture, header menu and footer actions, in HTML.</span></a>
+          <a class="part-card" href="/docs/search/"><code class="part-tag">&lt;lfdln-search&gt;</code><span class="part-name">Search</span><span class="part-copy">A search box with Search in, as you type or on submit.</span></a>
+          <a class="part-card" href="/docs/filter/"><code class="part-tag">&lt;lfdln-filter&gt;</code><span class="part-name">Filter</span><span class="part-copy">Choices, ranges and yes-or-no parts, with chips for what is applied.</span></a>
+        </div>
+      </section>
+
+      <div class="rule-fade"></div>
+
+      <section class="start" id="start">
+        <h3>Add it in a minute</h3>
+        <p class="l-copy">Install from npm for an app with a bundler, or copy one standalone script onto a plain page. Works in Chrome and Edge 123, Safari 17.5 and Firefox 125, or newer.</p>
+        <div class="btn-row">
+          <a href="/docs/install/" class="btn btn-primary nowrap">Install guide</a>
+          <a href="https://github.com/lesfleursdelanuitdev/data-viewer" target="_blank" rel="noopener" class="btn btn-secondary nowrap">View on GitHub</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="l-wrap">
+    <footer class="l-foot">
+      <span>Free to use under the MIT licence.</span>
+      <span>Made by Monica Gonsalves, <a href="https://lesfleursdelanuit.com" target="_blank" rel="noopener">lesfleursdelanuit.com</a></span>
+    </footer>
+  </div>
+</div>
+</body>
+</html>
