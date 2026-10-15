@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>filter demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--filter-bg); color: var(--filter-text); }
+    .bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    #chips { display: block; margin-block: 0.75rem; }
+  </style>
+  <script type="module" src="/filter.standalone.js"></script>
+</head>
+<body>
+  <h1>&lt;lfdln-filter&gt;</h1>
+  <div class="bar">
+    <input aria-label="Something before the filter" placeholder="Something before">
+    <lfdln-filter id="f" heading="Filter orders"></lfdln-filter>
+  </div>
+  <lfdln-filter-chips id="chips" for="f"></lfdln-filter-chips>
+  <pre id="log" aria-live="polite"></pre>
+
+  <script type="module">
+    const events = [];
+    window.events = events;
+    const f = document.querySelector('#f');
+    const statuses = [
+      ['shipped', 'Shipped', 12], ['pending', 'Pending', 5], ['lost', 'Lost', 0], ['packed', 'Packed', 3],
+      ['on-hold', 'On hold', 2], ['returned', 'Returned', 4], ['refunded', 'Refunded', 1], ['cancelled', 'Cancelled', 6],
+      ['delivered', 'Delivered', 30], ['draft', 'Draft', 7], ['backordered', 'Backordered', 2], ['disputed', 'Disputed', 1],
+    ];
+    f.sections = [
+      { key: 'status', label: 'Status', kind: 'choice', options: statuses.map(([value, label, count]) => ({ value, label, count })) },
+      { key: 'owner', label: 'Owner', kind: 'choice', single: true, options: [
+        { value: 'Smith, Jane', description: 'Front office' }, { value: 'Café Lune' }, { value: 'Ana' },
+      ] },
+      { key: 'price', label: 'Price', kind: 'range', type: 'money', format: { currency: 'EUR', locale: 'en-IE' }, ranges: [
+        { label: 'Under €10', to: '10' }, { label: '€10 to €50', from: '10', to: '50' }, { label: 'Over €50', from: '50' },
+      ] },
+      { key: 'planted', label: 'Planted', kind: 'range', type: 'date', ranges: [{ label: '1900s', from: '1900', to: '1999' }] },
+      { key: 'organic', label: 'Organic', kind: 'bool' },
+    ];
+    f.addEventListener('filter-change', (e) => {
+      events.push(e.detail);
+      document.querySelector('#log').textContent = events.map((x) => JSON.stringify(x)).join('\n');
+    });
+  </script>
+</body>
+</html>
