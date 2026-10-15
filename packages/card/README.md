@@ -100,7 +100,7 @@ type CardParts = {
 ## Where the actions go
 
 - **`actions="wrap"`:** after the primary button, up to `max` buttons that wrap onto more lines
-  when the card is narrow; the rest in a ⋯ menu at the end (named "More for <title>").
+  when the card is narrow; the rest in a ⋯ menu at the end (named `More for <title>`).
 - **`actions="row"`:** one line that never wraps. As many buttons as fit the card's width are
   shown (measured, and again whenever the card changes size, with a `ResizeObserver`), at most
   `max`; the rest go into the row's own More menu at its end, a separate menu from the header ⋯.
