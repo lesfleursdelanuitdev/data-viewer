@@ -87,13 +87,20 @@ function onButtonKey(e: KeyboardEvent): void {
   show((e.currentTarget as HTMLElement).nextElementSibling as HTMLElement, e.key === 'ArrowUp');
 }
 
+// The toggle event comes a task after the list is shown, so the browser may draw it once
+// before place() runs: at the top-left corner. Not drawn until it's placed (one frame at most).
+function onBeforeToggle(e: Event): void {
+  if ((e as ToggleEvent).newState === 'open') (e.currentTarget as HTMLElement).style.visibility = 'hidden';
+}
+
 function onToggle(e: Event): void {
   const list = e.currentTarget as HTMLElement;
   const button = buttonFor(list);
   const open = (e as ToggleEvent).newState === 'open';
   button.setAttribute('aria-expanded', String(open));
+  if (open) place(list, button);
+  list.style.visibility = '';
   if (open) {
-    place(list, button);
     placed = { list, button };
     watchDismiss();
     addEventListener('scroll', replace, { capture: true, passive: true });
@@ -205,7 +212,7 @@ export function renderMenu(
       popovertarget=${id} @keydown=${onButtonKey}>${icon}${text
         ? html`<span class="lfdln-menu-trigger-text">${text}</span>`
         : nothing}</button><div class="lfdln-menu-list" id=${id}
-      role="menu" aria-label=${label} popover="auto" @toggle=${toggled} @keydown=${onListKey}>
+      role="menu" aria-label=${label} popover="auto" @beforetoggle=${onBeforeToggle} @toggle=${toggled} @keydown=${onListKey}>
       ${blocks.map(block)}
     </div></span>`;
 }

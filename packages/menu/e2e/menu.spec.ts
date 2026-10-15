@@ -102,6 +102,32 @@ test.describe('<lfdln-menu>', () => {
       .toEqual([{ type: 'menu-action', id: 'delete', item: 'Delete', on: 'm1' }]);
   });
 
+  test('never drawn anywhere but under its button, not even for the first frame', async ({ page }) => {
+    await open(page);
+    const trigger = page.locator('#m1 .lfdln-menu-button');
+    // Every frame from the click until the menu is placed: either not drawn, or under the button.
+    await page.evaluate(() => {
+      const list = document.querySelector('#m1 .lfdln-menu-list') as HTMLElement;
+      const w = window as unknown as { seen: string[] };
+      w.seen = [];
+      list.addEventListener('beforetoggle', () => {
+        const look = (n: number) => requestAnimationFrame(() => {
+          const r = list.getBoundingClientRect();
+          w.seen.push(getComputedStyle(list).visibility === 'hidden' ? 'hidden' : `${Math.round(r.top)}`);
+          if (n) look(n - 1);
+        });
+        look(3);
+      });
+    });
+    await trigger.click();
+    await expect(page.locator('#m1 .lfdln-menu-list')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { seen: string[] }).seen.length)).toBe(4);
+    const below = Math.round((await trigger.boundingBox())!.y + (await trigger.boundingBox())!.height + 4);
+    for (const s of await page.evaluate(() => (window as unknown as { seen: string[] }).seen)) {
+      expect(s === 'hidden' || Math.abs(Number(s) - below) <= 1, `a frame drew the menu at top ${s}`).toBe(true);
+    }
+  });
+
   test('from script: items, a Node icon and trigger-text', async ({ page }) => {
     await open(page);
     const trigger = page.locator('#m2 .lfdln-menu-button');
