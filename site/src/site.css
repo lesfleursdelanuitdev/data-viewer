@@ -385,8 +385,10 @@ html:has(.l-page) { scroll-behavior: smooth; }
 .toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--color-neutral-300); cursor: pointer; }
 .toggle input { accent-color: var(--color-accent); margin: 0; }
 .busy { font-size: 12.5px; color: var(--color-accent-300); animation: dvpulse 1.2s ease-in-out infinite; }
-.demo { padding: 18px; min-height: 240px; }
-.demo-host {
+.demo { padding: clamp(20px, 3vw, 32px); min-height: 240px; }
+/* Nocturne colours for the parts. Set on the parts themselves, not on the host, so a demo marked
+   data-builtin inherits the packages' own :root defaults (the built-in look) untouched. */
+.demo-host :is(lfdln-data-viewer, lfdln-menu, lfdln-pagination, lfdln-card, lfdln-search, lfdln-filter, lfdln-filter-chips):not([data-builtin] *) {
   --dv-bg: var(--color-bg); --dv-surface: var(--color-surface); --dv-text: var(--color-text); --dv-muted: var(--color-neutral-400);
   --dv-border: var(--color-neutral-800); --dv-accent: var(--color-accent); --dv-danger: oklch(0.74 0.12 22); --dv-radius: var(--radius-md); --dv-font: var(--font-body);
   --menu-bg: var(--color-bg); --menu-surface: var(--color-surface); --menu-text: var(--color-text); --menu-muted: var(--color-neutral-400);
@@ -399,8 +401,8 @@ html:has(.l-page) { scroll-behavior: smooth; }
   --search-border: var(--color-neutral-800); --search-accent: var(--color-accent); --search-radius: var(--radius-md); --search-font: var(--font-body);
   --filter-bg: var(--color-bg); --filter-surface: var(--color-surface); --filter-text: var(--color-text); --filter-muted: var(--color-neutral-400);
   --filter-border: var(--color-neutral-800); --filter-accent: var(--color-accent); --filter-on-accent: var(--color-bg); --filter-radius: var(--radius-md); --filter-font: var(--font-body);
-  color: var(--color-text); font-size: 14px;
 }
+.demo-host { color: var(--color-text); font-size: 14px; }
 .demo-status { font-size: 13px; color: var(--color-neutral-500); animation: dvpulse 1.4s ease-in-out infinite; }
 .demo-missing {
   display: flex; flex-direction: column; gap: 8px; max-width: 520px; padding: 16px;

@@ -39,10 +39,6 @@ const wait = (ms, signal) => new Promise((res, rej) => {
   signal?.addEventListener('abort', () => { clearTimeout(t); rej(new DOMException('Aborted', 'AbortError')); });
 });
 
-// The built-in look: unset every themed variable so the parts fall back to their own colours.
-const VAR_NAMES = ['bg', 'surface', 'text', 'muted', 'border', 'accent', 'danger', 'radius', 'font'];
-const PREFIXES = ['dv', 'menu', 'pagination', 'card', 'search', 'filter'];
-export const BUILTIN = PREFIXES.flatMap((p) => VAR_NAMES.map((v) => `--${p}-${v}:initial`)).join(';') + ';--filter-on-accent:initial';
 
 const PLANT_COLUMNS = [
   { key: 'name', label: 'Plant', sortable: true, searchable: true },
@@ -337,7 +333,7 @@ document.documentElement.style.colorScheme = 'dark';` },
       'Write your own colours with `light-dark()` and they follow the same switch.',
     ],
     mount: (host, ctx) => {
-      host.innerHTML = `<div data-scheme style="${BUILTIN};color-scheme:${ctx.controls.scheme || 'dark'};background:Canvas;color:CanvasText;padding:14px;border-radius:8px">
+      host.innerHTML = `<div data-scheme data-builtin style="color-scheme:${ctx.controls.scheme || 'dark'};background:Canvas;color:CanvasText;padding:14px;border-radius:8px">
         <lfdln-data-viewer label="Plants" page-size="5" card-title="name" card-facts="latin,light" card-value="price">
           <lfdln-dv-column key="name" label="Plant" sortable></lfdln-dv-column>
           <lfdln-dv-column key="light" label="Light"></lfdln-dv-column>
@@ -621,9 +617,9 @@ document.documentElement.style.colorScheme = 'dark';` },
       </style>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
         <figure style="margin:0;display:flex;flex-direction:column;gap:8px"><figcaption style="font-size:12px;opacity:.6">Built-in look</figcaption>
-          <div style="${BUILTIN};color-scheme:dark"><lfdln-data-viewer ${attrs}>${cols}</lfdln-data-viewer></div></figure>
+          <div data-builtin style="color-scheme:dark"><lfdln-data-viewer ${attrs}>${cols}</lfdln-data-viewer></div></figure>
         <figure class="greenhouse" style="margin:0;display:flex;flex-direction:column;gap:8px;color-scheme:dark"><figcaption style="font-size:12px;opacity:.6">Greenhouse look</figcaption>
-          <div style="${BUILTIN}"><lfdln-data-viewer ${attrs}>${cols}</lfdln-data-viewer></div></figure>
+          <div data-builtin><lfdln-data-viewer ${attrs}>${cols}</lfdln-data-viewer></div></figure>
       </div>`;
       for (const l of host.querySelectorAll('lfdln-data-viewer')) l.rows = copy(PLANTS);
     },
