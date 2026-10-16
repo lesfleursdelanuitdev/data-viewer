@@ -482,11 +482,18 @@ define();
       host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>
         `<button type="button" class="tab" role="tab" id="fs-tab-${name}" aria-controls="fs-demo" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''} data-style="${name}">${label}</button>`).join('')}</div>
         <div class="fs-demo" id="fs-demo" role="tabpanel" aria-labelledby="fs-tab-panel">
-          <lfdln-data-viewer label="Plants" filter-style="panel" page-size="8" layout-switch="icons"></lfdln-data-viewer>
+          <lfdln-data-viewer label="Plants" page-size="8" layout-switch="icons"></lfdln-data-viewer>
         </div>`;
-      // Each style is a file of its own; the list switches as soon as one has loaded.
-      for (const name of ['panel', 'bar', 'rail', 'columns']) import(`/js/data-viewer-filter-${name}.js`);
+      // Each style is a file of its own. The list gets its filter-style once they have loaded:
+      // set before, the viewer would rightly warn that the style is not loaded.
       const list = host.querySelector('lfdln-data-viewer');
+      let style = 'panel';
+      let loaded = false;
+      const useStyle = () => { if (loaded) list.setAttribute('filter-style', style); };
+      Promise.all(['panel', 'bar', 'rail', 'columns'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
+        loaded = true;
+        useStyle();
+      });
       list.columns = [
         { key: 'name', label: 'Plant', sortable: true, searchable: true },
         { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true },
@@ -510,7 +517,8 @@ define();
       const pick = (i, focus) => {
         tabs.forEach((t, j) => { t.setAttribute('aria-selected', String(i === j)); t.tabIndex = i === j ? 0 : -1; });
         panel.setAttribute('aria-labelledby', tabs[i].id);
-        list.setAttribute('filter-style', tabs[i].dataset.style);
+        style = tabs[i].dataset.style;
+        useStyle();
         // Columns live in the table's headers (in cards view they are the panel), so show the table.
         if (tabs[i].dataset.style === 'columns') list.layout = 'table';
         if (focus) tabs[i].focus();

@@ -7,10 +7,11 @@ import { ADDRESSES, REFERENCE } from '../reference-map.mjs';
 const PAGES = Object.entries(ADDRESSES) as [string, string][];
 const ALL = ['/', ...PAGES.map(([, a]) => a)];
 
-// Fails the test on console errors, page errors, failed requests and requests to other sites.
+// Fails the test on console errors and warnings, page errors, failed requests and requests to
+// other sites.
 function watch(page: Page) {
   const problems: string[] = [];
-  page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
+  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') problems.push(`console ${m.type()}: ${m.text()}`); });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   page.on('requestfailed', (r) => problems.push(`failed: ${r.url()} ${r.failure()?.errorText}`));
   page.on('response', (r) => { if (r.status() >= 400) problems.push(`${r.status()}: ${r.url()}`); });
@@ -267,10 +268,10 @@ test.describe('filter styles', () => {
     await list.locator('.lfdln-filter-check-row', { hasText: 'Herb' }).click();
     // The on pill: accent-900 behind, accent-200 text (the site's --filter-accent-soft / -text),
     // its key in the accent.
-    const pill = list.locator('.lfdln-filter-pill-on').first();
+    const pill = list.locator('.lfdln-filter-bar-pill-on').first();
     await expect(pill).toHaveCSS('background-color', 'rgb(43, 39, 65)');
     await expect(pill).toHaveCSS('color', 'rgb(231, 229, 254)');
-    await expect(pill.locator('.lfdln-filter-pill-key')).toHaveCSS('color', 'rgb(145, 132, 217)');
+    await expect(pill.locator('.lfdln-filter-bar-pill-key')).toHaveCSS('color', 'rgb(145, 132, 217)');
   });
 
   test("code tabs: HTML loads a style's file, npm imports it", async ({ page }) => {
