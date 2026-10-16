@@ -20,6 +20,8 @@
       { key: 'kind', label: 'Kind', kind: 'choice', options: [{ value: 'Flower', count: 1 }, { value: 'Foliage', count: 1 }, { value: 'Herb', count: 2 }] },
       { key: 'size', label: 'Size', kind: 'choice', single: true, options: [{ value: 's', label: 'Small' }, { value: 'l', label: 'Large' }] },
       { key: 'stock', label: 'In stock', kind: 'bool' },
+      { key: 'colour', label: 'Colour', kind: 'choice', single: true, options: ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Indigo', 'Violet', 'White', 'Black', 'Pink'].map((value) => ({ value })) },
+      { key: 'height', label: 'Height', kind: 'range', type: 'number' },
     ];
     const events = [];
     window.events = events;

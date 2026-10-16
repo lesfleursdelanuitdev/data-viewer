@@ -1,11 +1,20 @@
 // Arrow keys in a group of single-choice check rows (role="radio" inside role="radiogroup"), as
 // radio buttons do: Up/Left and Down/Right (wrapping), Home and End move to a row and pick it.
-// A row already picked is not ticked again, since a tick on it unpicks it. No DOM until called.
+// A row already picked is not ticked again, since a tick on it unpicks it. When an option search
+// sits above the group (a long list in a menu), Up from the first row goes back to it, picking
+// nothing, instead of wrapping. No DOM until called.
 
 /** The radiogroup's keydown handler: moves focus to the next radio and picks it. */
 export function radioKeys(e: KeyboardEvent): void {
-  const all = [...(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role=radio]')];
+  const group = e.currentTarget as HTMLElement;
+  const all = [...group.querySelectorAll<HTMLElement>('[role=radio]')];
   const at = all.indexOf(document.activeElement as HTMLElement);
+  const search = at === 0 && e.key === 'ArrowUp' ? group.parentElement?.querySelector<HTMLElement>(':scope > input[type=search]') : null;
+  if (search) {
+    e.preventDefault();
+    search.focus();
+    return;
+  }
   const step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
   const to = at < 0 ? -1 : e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1
     : step !== undefined ? (at + step + all.length) % all.length : -1;

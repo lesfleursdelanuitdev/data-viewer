@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // demo/bar.html loads only filter-bar.standalone.js. #b: <lfdln-filter-bar> with Kind (Flower 1,
-// Foliage 1, Herb 2), Size (single choice: Small, Large) and In stock. window.events keeps every
-// filter-change detail.
+// Foliage 1, Herb 2), Size (single choice: Small, Large), In stock, Colour (single choice, 10
+// options, so it has the option search) and Height (a number range with no named ranges: the From
+// and To boxes). window.events keeps every filter-change detail.
 const events = (page: Page) => page.evaluate(() => (window as unknown as { events: unknown[] }).events);
 
 test.describe('<lfdln-filter-bar>', () => {
@@ -69,5 +70,28 @@ test.describe('<lfdln-filter-bar>', () => {
     expect(await events(page)).toEqual([{ value: { size: ['l'] } }]);
     // The picked one is now the tab stop.
     expect(await size.getByRole('radio').evaluateAll((els) => els.map((el) => el.getAttribute('tabindex')))).toEqual(['-1', '0']);
+  });
+
+  test('Up from the first radio goes back to the option search, picking nothing', async ({ page }) => {
+    await page.goto('/bar.html');
+    const b = page.locator('#b');
+    await b.locator('.lfdln-filter-bar-pill[data-key="colour"]').click();
+    const search = b.getByRole('searchbox', { name: 'Search colour' });
+    const colour = b.getByRole('radiogroup', { name: 'Colour' });
+    await expect(colour.getByRole('radio')).toHaveCount(10);
+    await search.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(colour.getByRole('radio', { name: 'Red' })).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(search).toBeFocused();
+    await expect(colour.getByRole('radio', { name: 'Pink' })).toHaveAttribute('aria-checked', 'false');
+    expect(await events(page)).toEqual([]);
+    // Elsewhere the arrows still move and pick, and wrap at the end.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('End');
+    await expect(colour.getByRole('radio', { name: 'Pink' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(colour.getByRole('radio', { name: 'Red' })).toBeFocused();
+    expect((await events(page)).at(-1)).toEqual({ value: { colour: ['Red'] } });
   });
 });
