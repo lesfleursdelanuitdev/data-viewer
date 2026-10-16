@@ -108,7 +108,7 @@ export const PAGES = {
     intro: '`<lfdln-data-viewer>` shows rows with search, filters, sorting, pages and a ⋯ menu on each row. It runs on a plain HTML page or inside any framework.',
     features: [
       ['One tag', 'Load one script, write the tag, hand it rows.'],
-      ['No framework', 'About 44 KB gzipped with Lit inside. No React, no build step.'],
+      ['No framework', 'About 42 KB gzipped with Lit inside. No React, no build step.'],
       ['Parts on their own', 'Menu, pages, card, search and filter are tags of their own.'],
       ['Your CSS wins', 'No shadow DOM, zero-specificity rules, `--dv-*` colour variables.'],
       ['Phones and keyboards', 'Cards on small screens, 44 px targets, full keyboard use.'],
@@ -475,8 +475,10 @@ define();
       'A style that isn’t loaded shows the dialog, with one console warning naming the file to add. If the file loads later, the list switches to it.',
       'The rail becomes the panel when the list is narrower than 720 px. Columns become the panel in cards view.',
       'Bar, rail and columns apply each change at once. The panel keeps a draft until “Show N results”.',
-      '`filter-change` still carries `{ value }`, in the same shape for every style.',
+      'The list’s `dv-query` carries `filters` in the same shape for every style.',
     ],
+    // The strip shows dv-query, with its filters only.
+    events: { 'dv-query': (d) => ({ filters: d.filters }) },
     mount: (host) => {
       const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['dialog', 'Dialog']];
       host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>

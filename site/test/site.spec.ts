@@ -274,6 +274,19 @@ test.describe('filter styles', () => {
     await expect(pill.locator('.lfdln-filter-bar-pill-key')).toHaveCSS('color', 'rgb(145, 132, 217)');
   });
 
+  // The viewer fires dv-query (not filter-change); this page's strip shows its filters only.
+  test('the events strip shows dv-query with the filters, the same shape for every style', async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    const events = page.locator('[data-events]');
+    await styleTabs(page).getByRole('tab', { name: 'Bar' }).click();
+    await list.locator('.lfdln-filter-bar-pill', { hasText: 'Kind' }).click();
+    await list.locator('.lfdln-filter-check-row', { hasText: 'Herb' }).click();
+    const first = events.locator('.event').first();
+    await expect(first.locator('.event-name')).toHaveText('dv-query');
+    await expect(first.locator('.event-detail')).toHaveText('{"filters":{"kind":["Herb"]}}');
+  });
+
   test("code tabs: HTML loads a style's file, npm imports it", async ({ page }) => {
     await page.goto('/docs/filter-styles/');
     await page.getByRole('tab', { name: 'HTML', exact: true }).click();

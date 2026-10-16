@@ -81,6 +81,8 @@ async function startDemo(onLoaded) {
   const log = (name, detail) => { rows = [{ name, detail: brief(detail) }, ...rows].slice(0, 6); draw(); };
   clear.addEventListener('click', () => { rows = []; draw(); });
   for (const n of EVENT_NAMES) host.addEventListener(n, (e) => log(n, e.detail));
+  // A page's own events, each with the part of its detail to show (filter styles: dv-query's filters).
+  for (const [n, pick] of Object.entries(P.events || {})) host.addEventListener(n, (e) => log(n, pick(e.detail)));
 
   let mod;
   try {

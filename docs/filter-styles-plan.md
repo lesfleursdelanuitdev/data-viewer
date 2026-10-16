@@ -254,21 +254,39 @@ The READMEs and the docs site describe what was built. Where it differs from the
   and redraws on the next frame (a redraw in the same frame caused "ResizeObserver loop" errors).
 - **Counts follow the draft.** While a style's draft is open, the viewer counts the options over
   the draft (browser mode), so the panel's zero counts react to each tick.
+- **Range counts and the histogram only when a style asks.** `filterSections` builds a range's
+  quick-range counts and the 12-bar histogram only with `rangeCounts`, which the viewer passes
+  when a filter style is set. Today's dialog shows neither, so it makes no extra passes over the
+  rows. The histogram's min and max are found in a loop (`Math.min(...nums)` threw past ~125k rows).
 - **Light in the panel is chips**, not the handoff's segmented control: the segmented control is
   only for a single choice with 5 options or fewer, as decided above.
 - **New pieces:** a column's `hint` (a yes/no section's helper line), the word
   `allResults(m)` ("All 40 results"), `adapter.count` as planned, and `clearKey` in
   `core/draft.ts`.
 - **Build:** the standalone scripts are now really minified (they kept whitespace before), which
-  is what let the viewer stay under 46080 bytes; it is 43 KB gzipped now. The data-viewer build
+  is what let the viewer stay under 46080 bytes; it is about 42 KB gzipped now (1 KB = 1024 bytes). The data-viewer build
   checks that no add-on file contains Lit. The styles' `<style>` elements go right after
   `lfdln-filter-style` rather than first in `<head>`, so the dialog's base rules don't override
   them.
-- **Class names:** the bar's row also has `lfdln-filter-bar-row`, and its rules go through it,
-  because today's dialog uses `lfdln-filter-pills` / `lfdln-filter-pill` for its quick ranges.
+- **Class names:** the styles share no class with today's dialog. The bar's row is
+  `lfdln-filter-bar-row` (not `lfdln-filter-pills`) and its pills are `lfdln-filter-bar-pill`,
+  `-bar-pill-on`, `-bar-pill-key` and so on (not `lfdln-filter-pill*`, which the dialog uses for its
+  quick ranges). The panel's histogram bars are `lfdln-filter-hist-bar` / `-hist-bar-on`. Every
+  style's root also carries `lfdln-filter-style-root`, and the shared parts' `svg` rule is scoped
+  to it and to popovers, not to every `lfdln-filter-root` (the dialog's too).
+- **The panel's placement:** when its trigger's middle is in the right half of the list (in the
+  viewer it sits at the bar's right end), the 400 px panel opens right-aligned to the trigger, as
+  the columns' last two menus do, still 8 px inside the window. Otherwise it opens under the
+  trigger's left edge. Today's dialog is placed as before.
+- **One popover at a time, by keyboard too:** today's dialog closes any other open popover (a
+  bar or columns menu of another list) when it opens, as the styles' popovers do.
 - **Docs site:** a page `/docs/filter-styles/` with one list switched by "Filter style" tabs.
   The site's element rules (`h2 {}`, `p {}`, `button {}`) now skip elements whose class starts
-  with `lfdln-`, so the parts' own headings and buttons keep their sizes.
+  with `lfdln-`, so the parts' own headings and buttons keep their sizes. The page is `wide`: its
+  body gets `is-wide` (site/build.mjs), and from 1180 px the text, the demo panel and the notes
+  stack in one column up to 1100 px wide (site.css), so the rail and columns have room. The
+  list gets its `filter-style` once the four add-on files have loaded (no "not loaded" warning),
+  and its events strip shows `dv-query` with its `filters`.
 
 ## Stage 2 sketch: SearchFilter (1d)
 
