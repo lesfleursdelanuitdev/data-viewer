@@ -544,6 +544,26 @@ test.describe('bar', () => {
     await expect(page.locator('#bar tbody tr')).toHaveCount(12);
   });
 
+  test('a bookmarked "no" shows as set, with the check off as aria-pressed says', async ({ page }) => {
+    await open(page, '?bar.f.stock=no');
+    await expect(page.locator('#bar tbody tr')).toHaveCount(3);
+    const p = pill(page, 'stock');
+    // Set (on colours, "No"), but not pressed: the check is off, as it is announced.
+    await expect(p).toHaveClass(/lfdln-filter-pill-on/);
+    await expect(p.locator('.lfdln-filter-pill-value')).toHaveText('No');
+    await expect(p).toHaveAccessibleName('In stock: No');
+    await expect(p).toHaveAttribute('aria-pressed', 'false');
+    await expect(p.locator('svg').first()).toHaveCSS('opacity', '0.35');
+    // A click clears it; the next sets it to yes.
+    await p.click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(12);
+    await expect(p).not.toHaveClass(/lfdln-filter-pill-on/);
+    await p.click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(9);
+    await expect(p).toHaveAttribute('aria-pressed', 'true');
+    await expect(p.locator('svg').first()).toHaveCSS('opacity', '1');
+  });
+
   test('Clear all shows only when something is applied', async ({ page }) => {
     await open(page);
     const clear = bar(page).getByRole('button', { name: 'Clear all' });

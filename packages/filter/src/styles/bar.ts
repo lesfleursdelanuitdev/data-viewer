@@ -35,7 +35,7 @@ export const barCss = `
 :where(.lfdln-filter-pill-value) { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 :where(.lfdln-filter-pill) > :where(svg) { stroke-width: 22; opacity: 0.7; }
 :where(.lfdln-filter-pill-toggle) > :where(svg) { stroke-width: 20; opacity: 0.35; }
-:where(.lfdln-filter-pill-toggle[aria-pressed=true], .lfdln-filter-pill-toggle.lfdln-filter-pill-on) > :where(svg) { opacity: 1; }
+:where(.lfdln-filter-pill-toggle[aria-pressed=true]) > :where(svg) { opacity: 1; }
 :where(.lfdln-filter-pill, .lfdln-filter-pill-clear, .lfdln-filter-pill-search, .lfdln-filter-pill-range input):where(:focus-visible) {
   outline: 2px solid var(--filter-accent); outline-offset: 2px;
 }
@@ -163,7 +163,9 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
       ? kit.html`<span class="lfdln-filter-pill-value">${summary}</span>` : kit.nothing}${chevron(kit)}</button>${menu}</div>`;
 }
 
-// A yes/no section: one tap sets it to yes, another clears it (a bookmarked "no" shows as on, and clears too).
+// A yes/no section: one tap sets it to yes, another clears it. A bookmarked "no" is set (on
+// colours, "No" after the key, named "In stock: No") but not pressed: its check stays off, as
+// aria-pressed says; a tap clears it.
 function togglePill(kit: FilterKit, s: Extract<FilterSection, { kind: 'bool' }>, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const set = isSet(s, v.value[s.key]);
   const summary = pillSummary(s, v.value, v.words);
