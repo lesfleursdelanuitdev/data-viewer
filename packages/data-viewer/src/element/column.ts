@@ -29,6 +29,8 @@ export function columnFrom<T>(el: Element): Column<T> {
   if (options) col.options = options;
   const ranges = parseRanges(el.getAttribute('ranges'));
   if (ranges) col.ranges = ranges;
+  const hint = el.getAttribute('hint');
+  if (hint) col.hint = hint;
   return col;
 }
 

@@ -6,9 +6,10 @@ export type FilterSection =
   | { key: string; label: string; kind: 'choice'; options: FilterOption[]; single?: boolean }
   | {
     key: string; label: string; kind: 'range'; type?: 'number' | 'money' | 'date';
-    ranges?: { label: string; from?: string; to?: string }[]; format?: { currency?: string; locale?: string };
+    ranges?: { label: string; from?: string; to?: string; count?: number }[];
+    histogram?: { from: number; to: number; buckets: number[] }; format?: { currency?: string; locale?: string };
   }
-  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string };
+  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string; hint?: string };
 
 /** The filters, by section key: picked option values, a range, or yes / no. */
 export type FilterValue = Record<string, string[] | { from?: string; to?: string } | boolean>;
@@ -40,4 +41,17 @@ export type FilterWords = {
   selected: (n: number) => string;
   searchOptions: (label: string) => string; // the option search box's name
   remove: (label: string) => string; // a chip's × button's name
+  showResults: (n: number) => string; // "Show 12 results"
+  showResultsUnknown: string;
+  noResults: string;
+  resultsCount: (n: number) => string; // "12 results"
+  resultsOf: (n: number, m: number) => string; // "12 of 40"
+  columnsFiltered: (k: number) => string; // "2 columns filtered"
+  filterBy: (label: string) => string; // "Filter by Kind"
+  showColumn: (label: string) => string; // "Show kind"
+  clearSection: (label: string) => string; // "Clear kind"
+  clearColumn: string;
+  filters: string;
+  reset: string;
+  allResults: (m: number) => string; // "All 40 results"
 };

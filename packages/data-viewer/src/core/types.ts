@@ -23,6 +23,8 @@ export type Column<T> = {
   /** A choice's options, in this order (labels too). Counts still come from the rows or facets. */
   options?: (string | FilterOption)[];
   /** A range's quick ranges, such as { label: '1900s', from: '1900', to: '1999' }. */
+  /** A bool column's one-line explanation in the filter. */
+  hint?: string;
   ranges?: { label: string; from?: string; to?: string }[];
 };
 

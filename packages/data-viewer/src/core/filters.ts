@@ -164,6 +164,16 @@ export function narrow<T>(
   return out;
 }
 
+/** How many rows a query's view, search and filters leave. */
+export function countMatching<T>(
+  rows: T[],
+  cols: Column<T>[],
+  q: Pick<Query, 'view' | 'search' | 'searchIn' | 'filters'>,
+  opts: { views?: View<T>[]; searchKeys?: string[] },
+): number {
+  return narrow(rows, cols, q, opts).length;
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const optionOf = (o: string | FilterOption): FilterOption => (typeof o === 'string' ? { value: o, label: o } : { label: o.value, ...o });
 
@@ -189,10 +199,33 @@ export function filterSections<T>(cols: Column<T>[], opts: {
     const kind = filterKind(col);
     if (!kind || (equals && kind !== 'choice')) continue;
     if (kind === 'bool') {
-      out.push({ key: col.key, label: col.label, kind });
+      const s: FilterSection = { key: col.key, label: col.label, kind };
+      if (col.hint) s.hint = col.hint;
+      out.push(s);
     } else if (kind === 'range') {
       const s: FilterSection = { key: col.key, label: col.label, kind, type: col.type === 'date' ? 'date' : col.type === 'money' ? 'money' : 'number' };
       if (col.ranges?.length) s.ranges = col.ranges;
+      if (opts.rows) {
+        // Counts and the histogram are over the rows the other filters leave (this one's own is skipped).
+        const pool = narrow(opts.rows, cols, opts.q, { views: opts.views, searchKeys: opts.searchKeys, except: col.key });
+        if (s.ranges) s.ranges = s.ranges.map((r) => {
+          const range: { from?: string; to?: string } = {};
+          if (r.from !== undefined) range.from = r.from;
+          if (r.to !== undefined) range.to = r.to;
+          return { ...r, count: pool.filter((row) => matchesFilters(row, cols, { [col.key]: range })).length };
+        });
+        if (s.type !== 'date') {
+          const nums = pool.map((row) => toNumber(rawValue(col, row))).filter((n): n is number => n !== null);
+          const from = Math.min(...nums);
+          const to = Math.max(...nums);
+          if (to > from) {
+            const buckets = new Array<number>(12).fill(0);
+            const width = (to - from) / 12;
+            for (const v of nums) buckets[Math.min(11, Math.floor((v - from) / width))]!++;
+            s.histogram = { from, to, buckets };
+          }
+        }
+      }
       if (col.format?.currency || col.format?.locale) {
         s.format = {};
         if (col.format.currency) s.format.currency = col.format.currency;

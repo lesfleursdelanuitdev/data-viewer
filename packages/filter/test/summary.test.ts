@@ -80,3 +80,10 @@ test('chipsOf: an option that no longer exists keeps a chip, labelled with its v
 test('chipsOf: keys with no section and unset sections give no chips', () => {
   assert.deepEqual(chipsOf(sections, { colour: ['red'], price: {} }, w), []);
 });
+
+test('the new words say it plainly', () => {
+  assert.equal(w.showResults(1), 'Show 1 result');
+  assert.equal(w.showResults(12), 'Show 12 results');
+  assert.equal(w.columnsFiltered(1), '1 column filtered');
+  assert.equal(w.clearSection('Kind'), 'Clear kind');
+});

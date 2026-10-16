@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cellValues, filterKind, filterSections, matchesFilters, parseOptions, parseRanges, searchColumns } from '../src/core/filters.ts';
+import { cellValues, countMatching, filterKind, filterSections, matchesFilters, parseOptions, parseRanges, searchColumns } from '../src/core/filters.ts';
 import type { Column, Query } from '../src/core/types.ts';
 
 type Row = Record<string, unknown>;
@@ -54,11 +54,15 @@ test('browser mode: choice options are the distinct values with counts, sorted, 
   });
   const tags = sections.find((s) => s.key === 'tags')!;
   assert.deepEqual(tags.kind === 'choice' && tags.options.map((o) => [o.value, o.count]), [['herb', 2], ['shade', 2], ['sun', 1]]);
+  const priceBuckets = new Array(12).fill(0);
+  priceBuckets[0] = 2;
+  priceBuckets[11] = 1;
   assert.deepEqual(sections.find((s) => s.key === 'price'), {
     key: 'price', label: 'Price', kind: 'range', type: 'money', format: { currency: 'EUR' },
+    histogram: { from: 12.5, to: 40, buckets: priceBuckets },
   });
   assert.deepEqual(sections.find((s) => s.key === 'planted'), {
-    key: 'planted', label: 'Planted', kind: 'range', type: 'date', ranges: [{ label: '1950s', from: '1950', to: '1959' }],
+    key: 'planted', label: 'Planted', kind: 'range', type: 'date', ranges: [{ label: '1950s', from: '1950', to: '1959', count: 3 }],
   });
   assert.deepEqual(sections.find((s) => s.key === 'organic'), { key: 'organic', label: 'Organic', kind: 'bool' });
 });
@@ -152,4 +156,45 @@ test('parseOptions and parseRanges read the column attributes', () => {
   ]);
   assert.deepEqual(parseRanges('Cheap:..10, junk, :1..2'), [{ label: 'Cheap', to: '10' }]);
   assert.deepEqual(parseRanges(''), undefined);
+});
+
+test('range sections count each range over the rows the other filters leave', () => {
+  const planted = (qq: Query) => filterSections(cols, { rows, q: qq }).find((s) => s.key === 'planted')!;
+  const a = planted({ ...q, filters: { status: ['growing'] } });
+  assert.equal(a.kind === 'range' && a.ranges?.[0]?.count, 2);
+  const b = planted({ ...q, filters: { status: ['growing'], planted: { from: '1950', to: '1959' } } });
+  assert.equal(b.kind === 'range' && b.ranges?.[0]?.count, 2);
+});
+
+const cheap: Row[] = Array.from({ length: 12 }, (_, i) => ({ name: `P${i + 1}`, price: i + 1 }));
+const priceCols: Column<Row>[] = [{ key: 'price', label: 'Price', type: 'money', filterable: true }];
+const histOf = (r: Row[], c: Column<Row>[], opts: object = {}) => {
+  const s = filterSections(c, { rows: r, q, ...opts })[0]!;
+  return s.kind === 'range' ? s.histogram : undefined;
+};
+
+test('a money range gets a 12-bucket histogram in browser mode', () => {
+  const h = histOf(cheap, priceCols)!;
+  assert.equal(h.from, 1);
+  assert.equal(h.to, 12);
+  assert.equal(h.buckets.length, 12);
+  assert.equal(h.buckets.reduce((a, b) => a + b, 0), 12);
+  assert.equal(h.buckets[11], 1);
+});
+
+test('no histogram for dates, in server mode, or with fewer than 2 distinct values', () => {
+  assert.equal(histOf(rows, cols.filter((c) => c.key === 'planted')), undefined);
+  const s = filterSections(priceCols, { q })[0]!;
+  assert.equal(s.kind === 'range' && s.histogram, undefined);
+  assert.equal(histOf([{ price: 5 }, { price: 5 }], priceCols), undefined);
+});
+
+test('countMatching counts what the query leaves', () => {
+  assert.equal(countMatching(rows, cols, { ...q, filters: { organic: true } }, {}), 1);
+  assert.equal(countMatching(rows, cols, { ...q, search: 'zzz' }, {}), 0);
+});
+
+test('a bool section carries the column hint', () => {
+  const s = filterSections([{ key: 'organic', label: 'Organic', type: 'bool', filterable: true, hint: 'Grown without sprays' }], { rows, q })[0]!;
+  assert.equal(s.kind === 'bool' && s.hint, 'Grown without sprays');
 });

@@ -20,6 +20,19 @@ export const defaultFilterWords: FilterWords = {
   selected: (n) => `${n} selected`,
   searchOptions: (label) => `Search ${label.toLowerCase()}`,
   remove: (label) => `Remove ${label}`,
+  showResults: (n) => `Show ${n} ${n === 1 ? 'result' : 'results'}`,
+  showResultsUnknown: 'Show results',
+  noResults: 'Nothing matches',
+  resultsCount: (n) => `${n} ${n === 1 ? 'result' : 'results'}`,
+  resultsOf: (n, m) => `${n} of ${m}`,
+  columnsFiltered: (k) => `${k} ${k === 1 ? 'column' : 'columns'} filtered`,
+  filterBy: (label) => `Filter by ${label}`,
+  showColumn: (label) => `Show ${label.toLowerCase()}`,
+  clearSection: (label) => `Clear ${label.toLowerCase()}`,
+  clearColumn: 'Clear this column',
+  filters: 'Filters',
+  reset: 'Reset',
+  allResults: (m) => `All ${m} results`,
 };
 
 type One = FilterValue[string] | undefined;
