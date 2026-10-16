@@ -1,2 +1,5 @@
-// @lesfleursdelanuitdev/search-filter. For now the pure core; the element and define() come with SF-2.
+// @lesfleursdelanuitdev/search-filter: <lfdln-search-filter> (Lit left out of the npm build, a
+// peer dependency) and the pure core. Importing registers nothing; call define(), or load the
+// standalone script. The `search` filter style alone, with no Lit, is ./style.
+export { LfdlnSearchFilter, define, type SearchFilterQuery } from './elements/lfdln-search-filter.ts';
 export * from './core/index.ts';

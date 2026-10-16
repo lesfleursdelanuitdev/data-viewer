@@ -5,10 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>search-filter demo</title>
-  <script type="module" src="/search-filter.standalone.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--filter-bg); color: var(--filter-text); }
+    #box { max-width: 620px; }
+    h2 { font-size: 1rem; margin-top: 2rem; }
+    #count { margin: 0.75rem 0 0.25rem; font-size: 13px; color: var(--filter-muted); }
+    #list { margin: 0; padding: 0; list-style: none; font-size: 14px; }
+    #list li { padding: 6px 0; border-bottom: 1px solid var(--filter-border); }
+    #list span { color: var(--filter-muted); }
+    #log { white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+  <script type="module" src="./demo.ts"></script>
 </head>
 <body>
   <h1>&lt;lfdln-search-filter&gt;</h1>
-  <p>The element comes with SF-2.</p>
+  <div id="box">
+    <lfdln-search-filter id="sf" label="Search or filter plants"></lfdln-search-filter>
+    <p id="count" aria-live="polite"></p>
+    <ul id="list"></ul>
+  </div>
+
+  <form id="inform" action="/nowhere" onsubmit="window.submitted = true; return false">
+    <h2>Inside a page's form (Enter must not submit it)</h2>
+    <lfdln-search-filter></lfdln-search-filter>
+  </form>
+
+  <pre id="log" aria-live="polite"></pre>
 </body>
 </html>

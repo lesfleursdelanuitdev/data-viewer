@@ -52,7 +52,7 @@
     "build": "vite build && vite build --mode standalone && npm run types && npm run size",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
     "size": "node ../../scripts/size.mjs dist/search-filter.standalone.js=20480",
-    "e2e": "playwright test --pass-with-no-tests"
+    "e2e": "playwright test"
   },
   "peerDependencies": {
     "lit": "^3.3.3"
