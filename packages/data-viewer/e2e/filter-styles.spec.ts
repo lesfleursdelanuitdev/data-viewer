@@ -2412,6 +2412,38 @@ test.describe('sentence', () => {
     expect(problems).toEqual([]);
   });
 
+  test('Space opens a phrase on release, like a button; held keys do not repeat', async ({ page }) => {
+    const { problems } = await open(page);
+    await phrase(page, 'light').focus();
+    const y = await page.evaluate(() => scrollY);
+    await page.keyboard.down(' ');
+    await expect(menus(page)).toHaveCount(0); // not yet: a button acts when Space comes up
+    expect(await page.evaluate(() => scrollY)).toBe(y); // and Space does not scroll the page
+    await page.keyboard.up(' ');
+    await expect(menus(page)).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(menus(page)).toHaveCount(0);
+    await expect(phrase(page, 'light')).toBeFocused();
+    // A held key's repeats do nothing; Enter acts on keydown, not on keyup.
+    const key = (type: string, k: string, repeat = false) => phrase(page, 'light').evaluate((el, [t, kk, r]) => {
+      el.dispatchEvent(new KeyboardEvent(t as string, { key: kk as string, repeat: r as boolean, bubbles: true, cancelable: true }));
+    }, [type, k, repeat] as const);
+    await key('keydown', 'Enter', true);
+    await key('keydown', ' ', true);
+    await key('keyup', 'Enter');
+    await page.waitForTimeout(100);
+    await expect(menus(page)).toHaveCount(0);
+    await key('keydown', 'Enter');
+    await expect(menus(page)).toHaveCount(1);
+    expect(problems).toEqual([]);
+  });
+
+  test('a phrase that wraps keeps its padding and radius on each line, at any width', async ({ page }) => {
+    await open(page);
+    expect(await phrase(page, 'kind').evaluate((el) => getComputedStyle(el).boxDecorationBreak)).toBe('clone');
+    expect(await phrase(page, 'kind').evaluate((el) => getComputedStyle(el).paddingTop)).toBe('0px'); // 12 px only when narrow
+  });
+
   test('set phrases are accent-underlined; unset are muted', async ({ page }) => {
     const { problems } = await open(page, '?sentence.f.light=Shade');
     const [accent, muted, onText] = await Promise.all([resolved(page, 'var(--filter-accent)'), resolved(page, 'var(--filter-muted)'),

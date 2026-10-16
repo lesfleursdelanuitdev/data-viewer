@@ -26,6 +26,7 @@ export const sentenceCss = `
 :where(.lfdln-filter-sentence-phrase) {
   padding: 0 2px; color: var(--filter-text); border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
   text-decoration: underline 1px var(--filter-muted); text-underline-offset: 6px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 :where(.lfdln-filter-sentence-phrase:hover) { background: ${HOVER}; }
 :where(.lfdln-filter-sentence-on) { font-weight: 500; color: ${ON_TEXT}; text-decoration-color: var(--filter-accent); }
@@ -33,9 +34,7 @@ export const sentenceCss = `
 :where(.lfdln-filter-sentence-phrase):where(:focus-visible) { outline: 2px solid var(--filter-accent); outline-offset: 2px; }
 /* Phones and below 480 px: each line of a phrase is a 44 px target (the line, plus padding). */
 :where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-text) { line-height: 44px; }
-:where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-phrase) {
-  padding-block: 12px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
-}
+:where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-phrase) { padding-block: 12px; }
 :where(.lfdln-filter-sentence) > :where(.lfdln-filter-btn) { height: 26px; padding: 0 8px; font-size: 12px; }
 ${checkMenuCss}
 @media (max-width: 639px) {
@@ -47,11 +46,12 @@ ${checkMenuCss}
 // One phrase: the text before its button, the button and its menu (in an anchor of their own,
 // which the menu is placed against and follows), then the text after it. The button is an inline
 // span with role=button (a <button> is always an inline-block), so a long phrase wraps with the
-// text around it.
+// text around it. Like a <button>: Enter acts on keydown, Space on keyup (its keydown only stops
+// the page scrolling), and a held key does not repeat.
 const press = (e: KeyboardEvent) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   e.preventDefault();
-  (e.currentTarget as HTMLElement).click();
+  if (!e.repeat && (e.key === 'Enter') === (e.type === 'keydown')) (e.currentTarget as HTMLElement).click();
 };
 
 function phrase(kit: FilterKit, s: FilterSection, p: SentencePart, v: FilterStyleView, on: FilterStyleHandlers, w: Words): TemplateResult {
@@ -60,7 +60,7 @@ function phrase(kit: FilterKit, s: FilterSection, p: SentencePart, v: FilterStyl
   return kit.html`${p.before}<span class="lfdln-filter-sentence-anchor" ${kit.ref(followMenu(open && !v.phone, false))}><span role="button" tabindex="0"
     class=${`lfdln-filter-sentence-phrase${isSet(s, v.value[s.key]) ? ' lfdln-filter-sentence-on' : ''}`} data-key=${s.key}
     aria-haspopup="dialog" aria-expanded=${open ? 'true' : 'false'} aria-controls=${open ? mid : kit.nothing} aria-label=${phraseName(s, p)}
-    @keydown=${press} @click=${() => {
+    @keydown=${press} @keyup=${press} @click=${() => {
       if (open) return on.onMenu(null);
       on.onOptionSearch('');
       on.onMenu(s.key);
