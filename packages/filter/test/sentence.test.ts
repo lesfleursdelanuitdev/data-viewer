@@ -95,3 +95,29 @@ test('defaultSentenceWords', () => {
   assert.equal(w.startOver, 'Start over');
   assert.equal(w.anyValue, 'any');
 });
+
+// SN-2: the style and the ./sentence entry (no Lit inside).
+test('phraseName: the section, then what the phrase says', async () => {
+  const { phraseName } = await import('../src/sentence.ts');
+  const owner: FilterSection = { key: 'owner', label: 'Owner', kind: 'choice', options: [{ value: 'ana', label: 'Ana' }] };
+  const [k, l, , s, o] = sentenceParts([kind, light, price, stock, owner], { kind: ['Perennial', 'Fern'], stock: false }, w);
+  assert.equal(phraseName(kind, k!), 'Kind: perennials and ferns');
+  assert.equal(phraseName(light, l!), 'Light: for any light');
+  // A part that already starts with its label is not named twice.
+  assert.equal(phraseName(stock, s!), 'In stock: no');
+  assert.equal(phraseName(owner, o!), 'Owner: any');
+});
+
+test('sentenceStyle: instant, above the bar, the sheet under 480 px, its own empty line', async () => {
+  const { sentenceStyle } = await import('../src/sentence.ts');
+  assert.equal(sentenceStyle.name, 'sentence');
+  assert.equal(sentenceStyle.instant, true);
+  assert.equal(sentenceStyle.showsApplied, true);
+  assert.equal(sentenceStyle.above, true);
+  assert.equal(sentenceStyle.narrowBelow, 480);
+  const view = (value: FilterValue, words: object = {}) => ({ sections: plants, value, words: { ...defaultFilterWords, ...words } }) as never;
+  // Nothing set: the host's own empty line.
+  assert.equal(sentenceStyle.empty!(view({})), null);
+  assert.equal(sentenceStyle.empty!(view({ kind: ['Fern'] })), 'No results match that sentence. Change one of the underlined parts.');
+  assert.equal(sentenceStyle.empty!(view({ kind: ['Fern'] }, { things: 'plants' })), 'No plants match that sentence. Change one of the underlined parts.');
+});

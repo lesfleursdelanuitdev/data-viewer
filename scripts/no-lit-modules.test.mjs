@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const dist = new URL('../packages/filter/dist/', import.meta.url);
-const ENTRIES = ['parts.js', 'panel.js', 'bar.js', 'rail.js', 'columns.js', 'views.js'];
+const ENTRIES = ['parts.js', 'panel.js', 'bar.js', 'rail.js', 'columns.js', 'views.js', 'sentence.js'];
 
 // Every module an entry pulls in, by its relative imports, with the bare imports each one makes.
 function bareImports(entry) {

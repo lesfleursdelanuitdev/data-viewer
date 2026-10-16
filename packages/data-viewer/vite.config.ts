@@ -102,12 +102,14 @@ const standalones: Record<string, { entry: string; file: string; limit: number }
   'standalone-filter-columns': { entry: 'src/filter-styles/columns.ts', file: 'data-viewer-filter-columns.js', limit: STYLE_FALLBACK_LIMIT },
   'standalone-filter-search': { entry: 'src/filter-styles/search.ts', file: 'data-viewer-filter-search.js', limit: STYLE_FALLBACK_LIMIT },
   'standalone-filter-views': { entry: 'src/filter-styles/views.ts', file: 'data-viewer-filter-views.js', limit: STYLE_LIMIT },
+  'standalone-filter-sentence': { entry: 'src/filter-styles/sentence.ts', file: 'data-viewer-filter-sentence.js', limit: STYLE_LIMIT },
 };
 
 // `vite` serves the demo; `vite build` makes the ES modules (Lit and the other packages left
 // out): dist/data-viewer.js, dist/adapters/json.js, dist/adapters/pammy.js and
 // dist/filter-styles/panel.js, dist/filter-styles/bar.js, dist/filter-styles/rail.js and
-// dist/filter-styles/columns.js, dist/filter-styles/search.js and dist/filter-styles/views.js. The
+// dist/filter-styles/columns.js, dist/filter-styles/search.js, dist/filter-styles/views.js and
+// dist/filter-styles/sentence.js. The
 // standalone modes make the one-file scripts.
 export default defineConfig(({ command, mode }) => {
   // The demo also serves dist/ at its root, so the HTML-only demo pages load the built
@@ -118,5 +120,6 @@ export default defineConfig(({ command, mode }) => {
   return library({ 'data-viewer': 'src/index.ts', 'adapters/json': 'src/adapters/json.ts', 'adapters/pammy': 'src/adapters/pammy.ts',
     'filter-styles/panel': 'src/filter-styles/panel.ts', 'filter-styles/bar': 'src/filter-styles/bar.ts',
     'filter-styles/rail': 'src/filter-styles/rail.ts', 'filter-styles/columns': 'src/filter-styles/columns.ts',
-    'filter-styles/search': 'src/filter-styles/search.ts', 'filter-styles/views': 'src/filter-styles/views.ts' });
+    'filter-styles/search': 'src/filter-styles/search.ts', 'filter-styles/views': 'src/filter-styles/views.ts',
+    'filter-styles/sentence': 'src/filter-styles/sentence.ts' });
 });

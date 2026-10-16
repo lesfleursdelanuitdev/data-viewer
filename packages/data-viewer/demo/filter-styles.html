@@ -59,6 +59,10 @@
   <lfdln-data-viewer id="views" label="Plants (views)" url-state="views" remember-as="views-demo" filter-style="views" layout="table"></lfdln-data-viewer>
   <h2>The same with page views (All, Herbs for sun) and no remember-as</h2>
   <lfdln-data-viewer id="views-page" label="Plants (views, page views)" url-state="viewspage" filter-style="views" layout="table"></lfdln-data-viewer>
+  <h2>The filter as a sentence (filter-style="sentence"), the handoff's plants and a climber</h2>
+  <div id="sentence-box"><lfdln-data-viewer id="sentence" label="Plants (sentence)" url-state="sentence" filter-style="sentence" layout="table"></lfdln-data-viewer></div>
+  <h2>The same with an Owner column that has no phrase</h2>
+  <lfdln-data-viewer id="sentence-plain" label="Plants (sentence, plain)" url-state="sentenceplain" filter-style="sentence" layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
   <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
   <script type="module">import "../src/filter-styles/panel.ts";</script>
@@ -72,5 +76,7 @@
   <script type="module">import "../src/filter-styles/search.ts";</script>
   <!-- The views style (and its saved views store), as a page would add data-viewer-filter-views.js. -->
   <script type="module">import "../src/filter-styles/views.ts";</script>
+  <!-- The sentence style, as a page would add data-viewer-filter-sentence.js. -->
+  <script type="module">import "../src/filter-styles/sentence.ts";</script>
 </body>
 </html>

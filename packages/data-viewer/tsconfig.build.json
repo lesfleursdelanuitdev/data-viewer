@@ -45,6 +45,7 @@
     "src/filter-styles/rail.ts",
     "src/filter-styles/columns.ts",
     "src/filter-styles/search.ts",
-    "src/filter-styles/views.ts"
+    "src/filter-styles/views.ts",
+    "src/filter-styles/sentence.ts"
   ]
 }

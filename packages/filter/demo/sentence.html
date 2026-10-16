@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>filter sentence demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--filter-bg); color: var(--filter-text); }
+  </style>
+  <script type="module" src="/filter-sentence.standalone.js"></script>
+</head>
+<body>
+  <h1>&lt;lfdln-filter-sentence&gt;</h1>
+  <div id="box"><lfdln-filter-sentence id="s" label="Filter plants"></lfdln-filter-sentence></div>
+  <pre id="log" aria-live="polite"></pre>
+
+  <script type="module">
+    const sections = [
+      {
+        key: 'kind', label: 'Kind', kind: 'choice', phrase: '{values}', phraseAny: 'all plants',
+        plural: { Perennial: 'perennials', Fern: 'ferns', Herb: 'herbs' },
+        options: [{ value: 'Perennial', count: 6 }, { value: 'Fern', count: 2 }, { value: 'Herb', count: 0 }],
+      },
+      { key: 'light', label: 'Light', kind: 'choice', phrase: 'for {values}', phraseAny: 'in any light', options: [{ value: 'Sun' }, { value: 'Shade' }] },
+      { key: 'price', label: 'Price', kind: 'range', type: 'number', phraseAny: 'at any price' },
+      { key: 'stock', label: 'In stock', kind: 'bool', phrase: 'in stock only', phraseAny: 'including sold out' },
+    ];
+    const events = [];
+    window.events = events;
+    const el = document.querySelector('#s');
+    el.sections = sections;
+    el.addEventListener('filter-change', (e) => {
+      events.push(e.detail);
+      document.querySelector('#log').textContent = events.map((x) => JSON.stringify(x)).join('\n');
+    });
+  </script>
+</body>
+</html>

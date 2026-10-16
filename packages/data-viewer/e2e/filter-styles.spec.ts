@@ -2261,3 +2261,256 @@ test.describe('views', () => {
     });
   });
 });
+
+// #sentence (in #sentence-box, which the width test narrows): filter-style="sentence" on the
+// handoff's 18 plants and a climber (19), words.things "plants", the four phrases: Kind
+// "{values}" / "all plants" (plurals), Light "for {values}" / "in any light", Price "{values}" /
+// "at any price", In stock "in stock only" / "including sold out". #sentence-plain: the same with
+// an Owner column that has no phrase (words.things left as "results").
+test.describe('sentence', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  const text = (page: Page, id = 'sentence') => page.locator(`#${id} .dv-above p.lfdln-filter-sentence-text`);
+  const phrase = (page: Page, key: string, id = 'sentence') => page.locator(`#${id} .lfdln-filter-sentence-phrase[data-key="${key}"]`);
+  const menus = (page: Page, id = 'sentence') => page.locator(`#${id} .lfdln-filter-col-menu`);
+  const rows = (page: Page, id = 'sentence') => page.locator(`#${id} tbody tr`);
+  // The sentence as it reads, without an open menu (drawn inside its phrase's anchor).
+  const said = (page: Page, id = 'sentence') => text(page, id).evaluate((el) => {
+    const p = el.cloneNode(true) as HTMLElement;
+    p.querySelectorAll('.lfdln-filter-popover').forEach((m) => m.remove());
+    return p.textContent!.replace(/\s+/g, ' ').trim();
+  });
+  const startOver = (page: Page, id = 'sentence') => page.locator(`#${id}`).getByRole('button', { name: 'Start over' });
+  // The colour a probe element gets from `value`, as the browser resolves it inside #sentence.
+  const resolved = (page: Page, value: string) => page.locator('#sentence').evaluate((el, v) => {
+    const probe = document.createElement('span');
+    probe.style.color = v;
+    el.append(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  }, value);
+
+  test("the sentence reads as the handoff's", async ({ page }) => {
+    const { problems } = await open(page, '?sentence.f.kind=Perennial,Fern&sentence.f.light=Shade');
+    await expect(text(page)).toHaveText('Show perennials and ferns for shade, at any price, including sold out.');
+    await expect(rows(page)).toHaveCount(5);
+    // Drawn above the bar, full width; the bar keeps the search box; no chips row (the sentence shows them).
+    await expect(page.locator('#sentence .dv-bar .dv-search input')).toBeVisible();
+    await expect(page.locator('#sentence .dv-bar .dv-filter')).toHaveCount(0);
+    await expect(page.locator('#sentence .lfdln-filter-chips, #sentence .lfdln-filter-tag')).toHaveCount(0);
+    // Each phrase is a button named by its section and what it says.
+    await expect(phrase(page, 'kind')).toHaveAccessibleName('Kind: perennials and ferns');
+    await expect(phrase(page, 'light')).toHaveAccessibleName('Light: shade');
+    await expect(phrase(page, 'price')).toHaveAccessibleName('Price: at any price');
+    await expect(phrase(page, 'kind')).toHaveText('perennials and ferns');
+    await expect(phrase(page, 'light')).toHaveText('shade');
+    await expect(phrase(page, 'kind')).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(phrase(page, 'kind')).toHaveAttribute('aria-expanded', 'false');
+    // 22px/1.7.
+    const font = await text(page).evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).lineHeight]);
+    expect(font).toEqual(['22px', `${22 * 1.7}px`]);
+    expect(problems).toEqual([]);
+  });
+
+  test('each phrase opens the 220 px check menu; a tick applies at once and rewrites the phrase', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(text(page)).toHaveText('Show all plants in any light, at any price, including sold out.');
+    await expect(rows(page)).toHaveCount(19);
+    await phrase(page, 'kind').click();
+    const m = menus(page);
+    await expect(m).toBeVisible();
+    await expect(phrase(page, 'kind')).toHaveAttribute('aria-expanded', 'true');
+    await expect(phrase(page, 'kind')).toHaveAttribute('aria-controls', (await m.getAttribute('id'))!);
+    expect(Math.round((await m.boundingBox())!.width)).toBe(220);
+    // Under its phrase, from its left edge.
+    const [mb, pb] = await Promise.all([m.boundingBox(), phrase(page, 'kind').boundingBox()]);
+    expect(Math.abs(mb!.x - pb!.x)).toBeLessThanOrEqual(3);
+    expect(mb!.y).toBeGreaterThan(pb!.y + pb!.height - 1);
+    await expect(m.locator('.lfdln-filter-col-label')).toHaveText('Show kind');
+    await expect(m.locator('.lfdln-filter-check-label')).toHaveText(['Climber', 'Fern', 'Herb', 'Perennial', 'Shrub']);
+    await expect(m.locator('.lfdln-filter-check-count')).toHaveText(['1', '2', '6', '6', '4']);
+    // The phrase's background while open.
+    const soft = await resolved(page, 'var(--filter-accent-soft, color-mix(in srgb, var(--filter-accent) 16%, var(--filter-bg)))');
+    expect(await phrase(page, 'kind').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(soft);
+    await m.getByRole('checkbox', { name: /Perennial/ }).click();
+    await expect(rows(page)).toHaveCount(6);
+    await expect(m).toBeVisible(); // it applies and stays open
+    await expect(phrase(page, 'kind')).toHaveText('perennials');
+    await expect.poll(() => said(page)).toBe('Show perennials in any light, at any price, including sold out.');
+    expect(new URL(page.url()).searchParams.get('sentence.f.kind')).toBe('Perennial');
+    await m.getByRole('checkbox', { name: /Fern/ }).click();
+    await expect(phrase(page, 'kind')).toHaveText('perennials and ferns');
+    await expect(rows(page)).toHaveCount(8);
+    // Still under its phrase after the phrase grew.
+    const [mb2, pb2] = await Promise.all([m.boundingBox(), phrase(page, 'kind').boundingBox()]);
+    expect(Math.abs(mb2!.x - pb2!.x)).toBeLessThanOrEqual(3);
+    // A range lists its ranges one at a time; a bool Yes and No.
+    await phrase(page, 'price').click();
+    await menus(page).getByRole('radio', { name: /Under €5/ }).click();
+    await expect(phrase(page, 'price')).toHaveText('under €5');
+    await phrase(page, 'stock').click();
+    await menus(page).getByRole('radio', { name: 'Yes' }).click();
+    await expect.poll(() => said(page)).toBe('Show perennials and ferns in any light, under €5, in stock only.');
+    await expect(rows(page)).toHaveCount(1); // Sweet woodruff
+    expect(problems).toEqual([]);
+  });
+
+  test('one menu at a time; Esc closes and focus returns to the phrase', async ({ page }) => {
+    const { problems } = await open(page);
+    await phrase(page, 'kind').click();
+    await expect(menus(page)).toHaveCount(1);
+    await phrase(page, 'light').click();
+    await expect(menus(page)).toHaveCount(1);
+    await expect(menus(page).locator('.lfdln-filter-col-label')).toHaveText('Show light');
+    await expect(phrase(page, 'kind')).toHaveAttribute('aria-expanded', 'false');
+    // One open per page: another style's menu closes this one.
+    await page.locator('#bar .lfdln-filter-bar-pill[data-key="kind"]').click();
+    await expect(menus(page)).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await phrase(page, 'light').focus();
+    await page.keyboard.press('Enter');
+    await expect(menus(page)).toHaveCount(1);
+    await page.keyboard.press('ArrowDown');
+    await expect(menus(page).getByRole('checkbox').first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menus(page)).toHaveCount(0);
+    await expect(phrase(page, 'light')).toBeFocused();
+    await expect(phrase(page, 'light')).toHaveAttribute('aria-expanded', 'false');
+    // A click on the open phrase closes its menu.
+    await phrase(page, 'price').click();
+    await expect(menus(page)).toHaveCount(1);
+    await phrase(page, 'price').click();
+    await expect(menus(page)).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test('set phrases are accent-underlined; unset are muted', async ({ page }) => {
+    const { problems } = await open(page, '?sentence.f.light=Shade');
+    const [accent, muted, onText] = await Promise.all([resolved(page, 'var(--filter-accent)'), resolved(page, 'var(--filter-muted)'),
+      resolved(page, 'var(--filter-accent-text, color-mix(in srgb, var(--filter-accent) 70%, var(--filter-text)))')]);
+    const look = (key: string) => phrase(page, key).evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { line: s.textDecorationLine, color: s.textDecorationColor, thick: s.textDecorationThickness, offset: s.textUnderlineOffset, text: s.color };
+    });
+    expect(await look('light')).toEqual({ line: 'underline', color: accent, thick: '1px', offset: '6px', text: onText });
+    const unset = await look('kind');
+    expect(unset).toMatchObject({ line: 'underline', color: muted, thick: '1px', offset: '6px' });
+    expect(unset.text).not.toBe(onText);
+    // The sentence itself is muted.
+    expect(await text(page).evaluate((el) => getComputedStyle(el).color)).toBe(muted);
+    expect(problems).toEqual([]);
+  });
+
+  test('Start over clears the filters, keeps the search, and hides itself', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(startOver(page)).toHaveCount(0);
+    await page.goto('/filter-styles.html?sentence.f.kind=Herb&sentence.f.light=Sun&sentence.search=o');
+    await expect(rows(page)).toHaveCount(2); // herbs for sun with an o: Rosemary, Oregano
+    await expect(startOver(page)).toBeVisible();
+    await expect(startOver(page)).toHaveClass(/lfdln-filter-btn-ghost/);
+    await startOver(page).click();
+    await expect(text(page)).toHaveText('Show all plants in any light, at any price, including sold out.');
+    await expect(startOver(page)).toHaveCount(0);
+    await expect(page.locator('#sentence .dv-search input')).toHaveValue('o');
+    await expect.poll(() => new URL(page.url()).searchParams.get('sentence.search')).toBe('o');
+    expect(new URL(page.url()).searchParams.get('sentence.f.kind')).toBeNull();
+    // Focus goes to the first phrase, which stays.
+    await expect(phrase(page, 'kind')).toBeFocused();
+    expect(problems).toEqual([]);
+  });
+
+  test('nothing left: "No plants match that sentence. Change one of the underlined parts."', async ({ page }) => {
+    const { problems } = await open(page, '?sentence.f.kind=Fern&sentence.f.light=Sun');
+    await expect(rows(page)).toHaveCount(0);
+    await expect(page.locator('#sentence .dv-empty')).toHaveText('No plants match that sentence. Change one of the underlined parts.');
+    // With no filter set, a search that leaves nothing keeps the viewer's own line.
+    await page.goto('/filter-styles.html?sentence.search=zzzz');
+    await expect(page.locator('#sentence .dv-empty')).toBeVisible();
+    await expect(page.locator('#sentence .dv-empty')).not.toContainText('sentence');
+    expect(problems).toEqual([]);
+  });
+
+  test('a column without phrase reads "Owner: any"', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(text(page, 'sentence-plain')).toHaveText('Show all plants in any light, at any price, including sold out, Owner: any.');
+    await expect(phrase(page, 'owner', 'sentence-plain')).toHaveText('Owner: any');
+    await expect(phrase(page, 'owner', 'sentence-plain')).toHaveAccessibleName('Owner: any');
+    await phrase(page, 'owner', 'sentence-plain').click();
+    await menus(page, 'sentence-plain').getByRole('checkbox', { name: /Ana/ }).click();
+    await menus(page, 'sentence-plain').getByRole('checkbox', { name: /Dev/ }).click();
+    await expect.poll(() => said(page, 'sentence-plain')).toBe('Show all plants in any light, at any price, including sold out, Owner: ana and dev.');
+    await expect(phrase(page, 'owner', 'sentence-plain')).toHaveText('ana and dev');
+    await expect(phrase(page, 'owner', 'sentence-plain')).toHaveAccessibleName('Owner: ana and dev');
+    expect(problems).toEqual([]);
+  });
+
+  test('narrower than 480 px it stays a sentence and the menu is the bottom sheet', async ({ page }) => {
+    const { problems } = await open(page);
+    const width = (px: number) => page.locator('#sentence-box').evaluate((el, w) => {
+      (el as HTMLElement).style.width = `${w}px`;
+    }, px);
+    await width(470);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await expect(text(page)).toHaveText('Show all plants in any light, at any price, including sold out.');
+    await phrase(page, 'light').click();
+    const sheet = page.locator('#sentence dialog.lfdln-filter-col-menu[open]');
+    await expect(sheet).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.width)).toBe(1280);
+    expect(Math.round(box.y + box.height)).toBe(900);
+    await sheet.getByRole('checkbox', { name: /^Shade/ }).click();
+    await expect(phrase(page, 'light')).toHaveText('shade');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(phrase(page, 'light')).toBeFocused();
+    await width(900);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await phrase(page, 'light').click();
+    await expect(page.locator('#sentence div.lfdln-filter-col-menu')).toBeVisible();
+    expect(problems).toEqual([]);
+  });
+
+  test('a bookmarked value that no longer exists reads in the sentence and clears from its menu', async ({ page }) => {
+    const { problems } = await open(page, '?sentence.f.kind=Cactus');
+    await expect(text(page)).toHaveText('Show cactus in any light, at any price, including sold out.');
+    await expect(rows(page)).toHaveCount(0);
+    await expect(page.locator('#sentence .dv-empty')).toHaveText('No plants match that sentence. Change one of the underlined parts.');
+    await phrase(page, 'kind').click();
+    const cactus = menus(page).getByRole('checkbox', { name: /Cactus/ });
+    await expect(cactus).toHaveAttribute('aria-checked', 'true');
+    await expect(cactus.locator('.lfdln-filter-check-count')).toHaveText('0');
+    await cactus.click();
+    await expect.poll(() => said(page)).toBe('Show all plants in any light, at any price, including sold out.');
+    await expect(rows(page)).toHaveCount(19);
+    await expect(menus(page).getByRole('checkbox', { name: /Cactus/ })).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test.describe('phone', () => {
+    test.use({ viewport: { width: 390, height: 800 } });
+
+    test('phone 390 px: wraps with no sideways scroll; phrase buttons at least 44 px tall', async ({ page }) => {
+      const { problems } = await open(page, '?sentence.f.kind=Perennial,Shrub,Fern,Herb,Climber&sentence.f.light=Part%20shade');
+      await expect(text(page)).toHaveText('Show perennials, shrubs, ferns, herbs and climbers for part shade, at any price, including sold out.');
+      expect(await text(page).evaluate((el) => getComputedStyle(el).fontSize)).toBe('18px');
+      for (const key of ['kind', 'light', 'price', 'stock']) {
+        const b = (await phrase(page, key).boundingBox())!;
+        expect(Math.round(b.height)).toBeGreaterThanOrEqual(44);
+        expect(b.x + b.width).toBeLessThanOrEqual(390);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      const so = (await startOver(page).boundingBox())!;
+      expect(Math.round(so.height)).toBeGreaterThanOrEqual(44);
+      // Menus are the bottom sheet, with 44 px rows.
+      await phrase(page, 'light').click();
+      const sheet = page.locator('#sentence dialog.lfdln-filter-col-menu[open]');
+      await expect(sheet).toBeVisible();
+      expect(Math.round((await sheet.boundingBox())!.width)).toBe(390);
+      for (const r of await sheet.locator('.lfdln-filter-check-row').all()) expect(Math.round((await r.boundingBox())!.height)).toBeGreaterThanOrEqual(44);
+      await page.keyboard.press('Escape');
+      await expect(phrase(page, 'light')).toBeFocused();
+      expect(problems).toEqual([]);
+    });
+  });
+});

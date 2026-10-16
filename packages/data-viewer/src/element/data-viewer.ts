@@ -13,7 +13,7 @@ import {
 } from '@lesfleursdelanuitdev/filter';
 import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/style';
 import type { ViewsWords } from '@lesfleursdelanuitdev/filter/views';
-import type { SentenceWords } from '@lesfleursdelanuitdev/filter';
+import type { SentenceWords } from '@lesfleursdelanuitdev/filter/sentence';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
 import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';

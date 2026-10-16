@@ -78,3 +78,15 @@ export function sentenceParts(sections: FilterSection[], value: FilterValue, wor
 export function sentenceText(parts: SentencePart[], words: SentenceWords): string {
   return parts.length ? `${words.sentenceStart} ${parts.map((p) => p.before + p.button + p.after).join('')}` : words.sentenceStart + words.sentenceEnd;
 }
+
+/** Narrower than this (the list's own width, or the element's), the menus open as the bottom sheet. */
+export const SENTENCE_NARROW = 480;
+
+/**
+ * A phrase button's accessible name: its section, then what it says ("Kind: perennials and
+ * ferns", "Price: at any price"); a part that already starts with "{label}:" as it reads.
+ */
+export function phraseName(section: FilterSection, part: SentencePart): string {
+  const said = part.before + part.button;
+  return said.startsWith(`${section.label}:`) ? said : `${section.label}: ${part.button}`;
+}

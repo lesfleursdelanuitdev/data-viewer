@@ -87,6 +87,38 @@ for (const id of ['server', 'recipes', 'counting', 'panel-equals', 'panel-server
 const searchList = document.querySelector('#search') as LfdlnDataViewer<Plant & { owner: string }>;
 searchList.columns = [columns[0]!, { key: 'owner', label: 'Owner', searchable: true }, ...columns.slice(1)];
 searchList.rows = plants.map((p, i) => ({ ...p, owner: ['Ana', 'Dev', 'Farah', 'Gus'][i % 4]! }));
+// #sentence and #sentence-plain: the handoff's 18 plants (2c) and a climber, with the four
+// phrases (PLANNER CHOICE 18); #sentence-plain adds an Owner column with no phrase.
+type Garden = { name: string; kind: string; light: string; price: number; stock: boolean; owner: string };
+const garden: Garden[] = ([
+  ['Foxglove', 'Perennial', 'Part shade', 6.5, 14], ['Lavender', 'Shrub', 'Sun', 8, 22], ["Hart's-tongue fern", 'Fern', 'Shade', 9.5, 6],
+  ['Rosemary', 'Herb', 'Sun', 5.5, 18], ['Hosta', 'Perennial', 'Shade', 11, 0], ['Thyme', 'Herb', 'Sun', 3.5, 40],
+  ["Lady's mantle", 'Perennial', 'Part shade', 6, 12], ['Box', 'Shrub', 'Part shade', 14, 9], ['Mint', 'Herb', 'Part shade', 3, 33],
+  ['Hellebore', 'Perennial', 'Shade', 12.5, 4], ['Sage', 'Herb', 'Sun', 4.5, 0], ['Hydrangea', 'Shrub', 'Part shade', 18, 7],
+  ['Sweet woodruff', 'Perennial', 'Shade', 4, 15], ['Chives', 'Herb', 'Sun', 2.5, 27], ['Maidenhair fern', 'Fern', 'Shade', 10, 3],
+  ['Camellia', 'Shrub', 'Part shade', 22, 5], ['Oregano', 'Herb', 'Sun', 3.5, 19], ['Bleeding heart', 'Perennial', 'Part shade', 9, 8],
+  ['Clematis', 'Climber', 'Sun', 15, 6],
+] as const).map(([name, kind, light, price, stock], i) => ({ name, kind, light, price, stock: stock > 0, owner: ['Ana', 'Dev', 'Farah'][i % 3]! }));
+const gardenColumns: Column<Garden>[] = [
+  { key: 'name', label: 'Name', searchable: true },
+  {
+    key: 'kind', label: 'Kind', filterable: true, phrase: '{values}', phraseAny: 'all plants',
+    plural: { Perennial: 'perennials', Shrub: 'shrubs', Fern: 'ferns', Herb: 'herbs', Climber: 'climbers' },
+  },
+  { key: 'light', label: 'Light', filterable: true, phrase: 'for {values}', phraseAny: 'in any light' },
+  {
+    key: 'price', label: 'Price', type: 'money', filterable: true, format: { currency: 'EUR', locale: 'en-IE' }, phrase: '{values}', phraseAny: 'at any price',
+    ranges: [{ label: 'Under €5', to: '5' }, { label: '€5–€10', from: '5', to: '10' }, { label: 'Over €10', from: '10' }],
+  },
+  { key: 'stock', label: 'In stock', type: 'bool', filterable: true, phrase: 'in stock only', phraseAny: 'including sold out' },
+];
+const sentence = document.querySelector('#sentence') as LfdlnDataViewer<Garden>;
+sentence.columns = gardenColumns;
+sentence.rows = garden;
+sentence.words = { things: 'plants' };
+const sentencePlain = document.querySelector('#sentence-plain') as LfdlnDataViewer<Garden>;
+sentencePlain.columns = [...gardenColumns, { key: 'owner', label: 'Owner', filterable: true }];
+sentencePlain.rows = garden;
 define();
 
 // Test scaffolding: a style that shows its draft count (and results and total in data-*), registered after the lists have drawn
