@@ -8,6 +8,9 @@ export const SOFT = 'var(--filter-accent-soft, color-mix(in srgb, var(--filter-a
 /** The "on" text, the count and the key. */
 export const ON_TEXT = 'var(--filter-accent-text, color-mix(in srgb, var(--filter-accent) 70%, var(--filter-text)))';
 
+/** The hover background of rows, chips, pills and buttons. */
+export const HOVER = 'color-mix(in srgb, var(--filter-text) 6%, transparent)';
+
 const PARTS = '.lfdln-filter-toggle, .lfdln-filter-tag, .lfdln-filter-check-row, .lfdln-filter-switch-row, .lfdln-filter-seg, .lfdln-filter-popover, .lfdln-filter-btn';
 
 export const partsCss = `
@@ -50,7 +53,7 @@ export const partsCss = `
   color: var(--filter-text); background: transparent; border: 0; border-radius: 6px;
 }
 :where(.lfdln-filter-check-row:hover, .lfdln-filter-seg-opt:not([aria-checked=true]):hover, .lfdln-filter-toggle:hover, .lfdln-filter-btn:hover) {
-  background: color-mix(in srgb, var(--filter-text) 6%, transparent);
+  background: ${HOVER};
 }
 :where(.lfdln-filter-check-label) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :where(.lfdln-filter-box) {

@@ -1,8 +1,7 @@
 // The bar's pure helpers: no DOM, no Lit, tested with node:test.
-import { matchingOptions, SEARCH_ABOVE } from '../core/options.ts';
+import { choiceOptions, matchingOptions, SEARCH_ABOVE } from '../core/options.ts';
 import { isSet, sectionSummary } from '../core/summary.ts';
 import type { FilterOption, FilterSection, FilterValue, FilterWords } from '../core/types.ts';
-import { choiceOptions } from './panel-logic.ts';
 
 type Choice = Extract<FilterSection, { kind: 'choice' }>;
 

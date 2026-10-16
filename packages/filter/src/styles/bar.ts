@@ -11,13 +11,11 @@ import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } fro
 import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { divider } from '../parts/divider.ts';
-import { addPartsStyles, addStyle, ON_TEXT, SOFT } from '../parts/parts-css.ts';
+import { addPartsStyles, addStyle, HOVER, ON_TEXT, SOFT } from '../parts/parts-css.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
 export { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
-
-const HOVER = 'color-mix(in srgb, var(--filter-text) 6%, transparent)';
 
 export const barCss = `
 :where(.lfdln-filter-pills) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }

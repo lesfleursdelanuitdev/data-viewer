@@ -1,6 +1,9 @@
 // The panel's pure helpers: no DOM, no Lit, tested with node:test.
 import { chipsOf, defaultFilterWords } from '../core/summary.ts';
-import type { FilterOption, FilterRange, FilterSection, FilterValue, FilterWords } from '../core/types.ts';
+import type { FilterRange, FilterSection, FilterValue, FilterWords } from '../core/types.ts';
+
+// Moved to core/options.ts (bar and rail use it too); still exported from here.
+export { choiceOptions } from '../core/options.ts';
 
 /** A single-choice section with 5 options or fewer is a segmented control; any other choice is chips. */
 export function useSeg(section: FilterSection): boolean {
@@ -15,17 +18,6 @@ export function showLabel(count: number | null, words: FilterWords): string {
 /** The number on the button's badge: one per applied chip (a value no longer offered included). */
 export function appliedCount(sections: FilterSection[], value: FilterValue): number {
   return chipsOf(sections, value, defaultFilterWords).length;
-}
-
-/**
- * A choice section's options, then the picked values it no longer offers (a bookmarked
- * "Cactus"), with count 0, so they show as picked and can be unpicked.
- */
-export function choiceOptions(section: Extract<FilterSection, { kind: 'choice' }>, draft: FilterValue): FilterOption[] {
-  const v = draft[section.key];
-  const known = new Set(section.options.map((o) => o.value));
-  const gone = (Array.isArray(v) ? v : []).filter((x) => !known.has(x));
-  return gone.length ? [...section.options, ...gone.map((value) => ({ value, count: 0 }))] : section.options;
 }
 
 const end = (s: string | undefined, missing: number) => {

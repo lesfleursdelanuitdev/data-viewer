@@ -10,5 +10,5 @@ export { seg, type SegOptions } from './parts/seg.ts';
 export { popover, returnFocus, type PopoverOptions } from './parts/popover.ts';
 export { divider } from './parts/divider.ts';
 export { badge } from './parts/badge.ts';
-export { addPartsStyles, addStyle, partsCss, ON_TEXT, SOFT } from './parts/parts-css.ts';
+export { addPartsStyles, addStyle, partsCss, HOVER, ON_TEXT, SOFT } from './parts/parts-css.ts';
 export type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from './core/style-types.ts';

@@ -1,6 +1,6 @@
 // Option lists and their typed search, with no DOM and no Lit: shared by today's dialog
 // (render-sections.ts) and the filter styles.
-import type { FilterOption } from './types.ts';
+import type { FilterOption, FilterSection, FilterValue } from './types.ts';
 
 /** Lists longer than this get a search box above them. */
 export const SEARCH_ABOVE = 8;
@@ -13,4 +13,15 @@ export function matchingOptions(options: FilterOption[], text: string): FilterOp
   const q = fold(text.trim());
   if (!q) return options;
   return options.filter((o) => fold(`${o.label ?? o.value}\n${o.description ?? ''}`).includes(q));
+}
+
+/**
+ * A choice section's options, then the picked values it no longer offers (a bookmarked
+ * "Cactus"), with count 0, so they show as picked and can be unpicked.
+ */
+export function choiceOptions(section: Extract<FilterSection, { kind: 'choice' }>, draft: FilterValue): FilterOption[] {
+  const v = draft[section.key];
+  const known = new Set(section.options.map((o) => o.value));
+  const gone = (Array.isArray(v) ? v : []).filter((x) => !known.has(x));
+  return gone.length ? [...section.options, ...gone.map((value) => ({ value, count: 0 }))] : section.options;
 }

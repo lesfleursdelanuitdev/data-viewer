@@ -13,7 +13,8 @@ import { addPartsStyles, addStyle } from '../parts/parts-css.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { seg } from '../parts/seg.ts';
 import { switchRow } from '../parts/switch.ts';
-import { choiceOptions, histogramBars, showLabel, useSeg } from './panel-logic.ts';
+import { choiceOptions } from '../core/options.ts';
+import { histogramBars, showLabel, useSeg } from './panel-logic.ts';
 
 export { appliedCount, choiceOptions, histogramBars, showLabel, useSeg } from './panel-logic.ts';
 
