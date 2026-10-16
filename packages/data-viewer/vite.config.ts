@@ -8,6 +8,7 @@ const LIMIT = 45 * 1024; // the standalone viewer (menu, pager, card, search and
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 const STYLE_LIMIT = 8 * 1024; // a filter style add-on (it draws with the viewer's Lit) stays under 8 KB
 const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel too (rail, columns, search) under 12 KB
+const SELECT_LIMIT = 8 * 1024; // the select add-on under 8 KB: it draws with the viewer's kit (Lit and renderMenu come from the viewer), so it bundles neither
 
 // --- The demo's fake data source (dev server only), for demo/adapters.html and its e2e tests.
 // 45 recipes: 20 "Spiced …", 20 "Rose …", 5 "Lemon …".
@@ -103,13 +104,14 @@ const standalones: Record<string, { entry: string; file: string; limit: number }
   'standalone-filter-search': { entry: 'src/filter-styles/search.ts', file: 'data-viewer-filter-search.js', limit: STYLE_FALLBACK_LIMIT },
   'standalone-filter-views': { entry: 'src/filter-styles/views.ts', file: 'data-viewer-filter-views.js', limit: STYLE_LIMIT },
   'standalone-filter-sentence': { entry: 'src/filter-styles/sentence.ts', file: 'data-viewer-filter-sentence.js', limit: STYLE_LIMIT },
+  'standalone-select': { entry: 'src/select/index.ts', file: 'data-viewer-select.js', limit: SELECT_LIMIT },
 };
 
 // `vite` serves the demo; `vite build` makes the ES modules (Lit and the other packages left
 // out): dist/data-viewer.js, dist/adapters/json.js, dist/adapters/pammy.js and
-// dist/filter-styles/panel.js, dist/filter-styles/bar.js, dist/filter-styles/rail.js and
-// dist/filter-styles/columns.js, dist/filter-styles/search.js, dist/filter-styles/views.js and
-// dist/filter-styles/sentence.js. The
+// dist/filter-styles/panel.js, dist/filter-styles/bar.js, dist/filter-styles/rail.js,
+// dist/filter-styles/columns.js, dist/filter-styles/search.js, dist/filter-styles/views.js,
+// dist/filter-styles/sentence.js and dist/select.js. The
 // standalone modes make the one-file scripts.
 export default defineConfig(({ command, mode }) => {
   // The demo also serves dist/ at its root, so the HTML-only demo pages load the built
@@ -121,5 +123,5 @@ export default defineConfig(({ command, mode }) => {
     'filter-styles/panel': 'src/filter-styles/panel.ts', 'filter-styles/bar': 'src/filter-styles/bar.ts',
     'filter-styles/rail': 'src/filter-styles/rail.ts', 'filter-styles/columns': 'src/filter-styles/columns.ts',
     'filter-styles/search': 'src/filter-styles/search.ts', 'filter-styles/views': 'src/filter-styles/views.ts',
-    'filter-styles/sentence': 'src/filter-styles/sentence.ts' });
+    'filter-styles/sentence': 'src/filter-styles/sentence.ts', select: 'src/select/index.ts' });
 });

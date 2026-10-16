@@ -1,4 +1,4 @@
-import type { CardActions, CardParts, Column, FilterOption, Query, View } from '../core/types.ts';
+import type { CardActions, CardParts, Column, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
 import type { DataViewerEventMap, LayoutIcons, LayoutSwitch, LfdlnDataViewer, Pager, Words } from './data-viewer.ts';
 import type { CardMount, CardTemplate } from './custom-cards.ts';
 
@@ -16,6 +16,8 @@ export type ListColumn<T> =
 export type ListSetup<T = Record<string, unknown>> = {
   columns?: ListColumn<T>[];
   views?: View<T>[];
+  /** With filter-style="views": the saved views, kept by your page (turns the browser's copy off). */
+  savedViews?: SavedView[];
   cardOf?: (row: T) => CardParts;
   /** Your own card for each row, drawn with Lit (or an element). See "Your own cards". */
   cardTemplate?: CardTemplate<T>;
@@ -41,6 +43,7 @@ export type ListSetup<T = Record<string, unknown>> = {
   pageSizes?: number[];
   pager?: Pager;
   layout?: 'table' | 'cards';
+  phoneLayout?: 'table' | 'cards';
   layoutSwitch?: LayoutSwitch;
   tableLabel?: string;
   cardsLabel?: string;
@@ -48,6 +51,12 @@ export type ListSetup<T = Record<string, unknown>> = {
   cardActions?: CardActions;
   cardActionsMax?: number;
   cardMoreLabel?: string;
+  /** Rows get check boxes (needs the select add-on). */
+  selectable?: boolean;
+  /** What identifies a row: a field name (default 'id') or a function. */
+  rowKey?: string | ((row: T) => string);
+  /** The actions in the selection bar. */
+  batchActions?: MenuItem[];
   rememberAs?: string;
   compact?: boolean;
   urlState?: string;

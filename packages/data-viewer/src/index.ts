@@ -14,6 +14,8 @@ export { registerAdapter } from './adapters/register.ts';
 export { registerFilterStyle } from './core/filter-styles.ts';
 export type { ViewerFilterStyle } from './core/filter-styles.ts';
 export type { ViewsHost, ViewsStore } from './element/views-store.ts';
+export { registerSelect } from './core/select-addon.ts';
+export type { SelectAddon, SelectBox, SelectHandlers, SelectKit, SelectView, SelectWords } from './core/select-types.ts';
 export { configure, defineList } from './element/setup.ts';
 export type { ListColumn, ListConfig, ListSetup } from './element/setup.ts';
 export type { Adapter, AdapterAnswer } from './adapters/types.ts';

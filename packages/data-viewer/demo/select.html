@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, selecting rows</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+    /* The custom cards' own look (the page's, not the viewer's). */
+    .dv-card-custom { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.75rem;
+      border: 1px solid var(--dv-border); border-radius: var(--dv-radius); background: var(--dv-surface); }
+    .dv-card-custom p { margin: 0; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, selecting rows</h1>
+  <p>The select add-on: a box on every row and card, and the selection bar while anything is
+    ticked. Esc in the bar, or ✕, clears it. #table and #server have batch actions; set
+    <code>window.keep = true</code> to make their dv-batch handler call preventDefault().</p>
+  <h2>#table: a table</h2>
+  <lfdln-data-viewer id="table" label="Plants (table)" selectable layout="table" phone-layout="table" page-size="20"></lfdln-data-viewer>
+  <h2>#cards: cards</h2>
+  <lfdln-data-viewer id="cards" label="Plants (cards)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#cardof: cards from cardOf</h2>
+  <lfdln-data-viewer id="cardof" label="Plants (cardOf)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#tpl: custom cards (cardTemplate)</h2>
+  <lfdln-data-viewer id="tpl" label="Plants (template)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#mount: custom cards (cardMount)</h2>
+  <lfdln-data-viewer id="mount" label="Plants (mount)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#compact: a compact list</h2>
+  <lfdln-data-viewer id="compact" label="Plants (compact)" selectable compact></lfdln-data-viewer>
+  <h2>#server: from a server (json adapter, 45 recipes)</h2>
+  <lfdln-data-viewer id="server" label="Recipes" selectable adapter="json" src="/api/recipes" page-size="20" layout="table" phone-layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="cuisine" label="Cuisine"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>#nokey: a row with no id</h2>
+  <lfdln-data-viewer id="nokey" label="Plants (no key)" selectable compact></lfdln-data-viewer>
+  <h2>#views and #sentence: selectable with a filter style drawn above the bar</h2>
+  <lfdln-data-viewer id="views" label="Plants (views)" selectable filter-style="views" layout="table" phone-layout="table"></lfdln-data-viewer>
+  <lfdln-data-viewer id="sentence" label="Plants (sentence)" selectable filter-style="sentence" layout="table" phone-layout="table"></lfdln-data-viewer>
+  <script type="module" src="./select.ts"></script>
+  <script type="module">import "../src/select/index.ts"; import "../src/adapters/json.ts"; import "../src/filter-styles/views.ts"; import "../src/filter-styles/sentence.ts";</script>
+</body>
+</html>

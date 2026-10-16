@@ -13,7 +13,7 @@
 <body>
   <h1>data-viewer, filter styles</h1>
   <h2>Plants with today's dialog</h2>
-  <lfdln-data-viewer id="plants" label="Plants" url-state="plants" layout="table"></lfdln-data-viewer>
+  <lfdln-data-viewer id="plants" label="Plants" url-state="plants" layout="table" phone-layout="table"></lfdln-data-viewer>
   <h2>A test style, registered after the list has drawn</h2>
   <lfdln-data-viewer id="test" label="Plants (test style)" url-state="test" filter-style="probe" layout="table"></lfdln-data-viewer>
   <h2>The test style, with rows from a server the page plays</h2>
@@ -27,24 +27,24 @@
   <h2>A style that is never loaded: the dialog, and one warning</h2>
   <lfdln-data-viewer id="missing" label="Plants (missing style)" filter-style="nope" layout="table"></lfdln-data-viewer>
   <h2>The panel (filter-style="panel")</h2>
-  <lfdln-data-viewer id="panel" label="Plants (panel)" url-state="panel" filter-style="panel" layout="table"></lfdln-data-viewer>
+  <lfdln-data-viewer id="panel" label="Plants (panel)" url-state="panel" filter-style="panel" layout="table" phone-layout="table"></lfdln-data-viewer>
   <h2>The panel on recipes through an adapter that only filters by equality (single choice: a segmented control)</h2>
   <lfdln-data-viewer id="panel-equals" label="Recipes (panel, equals)" adapter="equals" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
   <h2>The panel on recipes from /api/recipes (json adapter, server mode)</h2>
   <lfdln-data-viewer id="panel-server" label="Recipes (panel, server)" adapter="json" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
   <h2>The bar (filter-style="bar"), with 30 people who care for the plants</h2>
-  <lfdln-data-viewer id="bar" label="Plants (bar)" url-state="bar" filter-style="bar" layout="table"></lfdln-data-viewer>
+  <lfdln-data-viewer id="bar" label="Plants (bar)" url-state="bar" filter-style="bar" layout="table" phone-layout="table"></lfdln-data-viewer>
   <h2>The rail (filter-style="rail"): the panel when the list is narrower than 720 px</h2>
   <div id="rail-box"><lfdln-data-viewer id="rail" label="Plants (rail)" url-state="rail" filter-style="rail" layout="table"></lfdln-data-viewer></div>
   <h2>A test style drawn beside the list that leaves the applied filters to the viewer's chips row</h2>
   <lfdln-data-viewer id="side" label="Plants (side probe)" url-state="side" filter-style="probe-side" layout="table"></lfdln-data-viewer>
   <h2>Filters in the column headers (filter-style="columns"), beside a second bar (#bar2)</h2>
   <div id="two" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 24px; align-items: start">
-    <lfdln-data-viewer id="columns" label="Plants (columns)" url-state="columns" filter-style="columns" layout="table"></lfdln-data-viewer>
+    <lfdln-data-viewer id="columns" label="Plants (columns)" url-state="columns" filter-style="columns" layout="table" phone-layout="table"></lfdln-data-viewer>
     <lfdln-data-viewer id="bar2" label="Plants (bar 2)" url-state="bar2" filter-style="bar" layout="table"></lfdln-data-viewer>
   </div>
   <h2>Search and filter in one field (filter-style="search"), Name and Owner searchable, with "Search in"</h2>
-  <div id="search-box"><lfdln-data-viewer id="search" label="Plants (search)" url-state="search" filter-style="search" search-in layout="table"></lfdln-data-viewer></div>
+  <div id="search-box"><lfdln-data-viewer id="search" label="Plants (search)" url-state="search" filter-style="search" search-in layout="table" phone-layout="table"></lfdln-data-viewer></div>
   <h2>The same field on recipes from /api/recipes (json adapter, server mode)</h2>
   <lfdln-data-viewer id="search-server" label="Recipes (search, server)" adapter="json" src="/api/recipes" filter-style="search" layout="table"></lfdln-data-viewer>
   <h2>The same field through an adapter that can't search one column (supports.searchIn false)</h2>

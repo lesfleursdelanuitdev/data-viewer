@@ -30,6 +30,8 @@ export type CardHost<T> = {
   actions: (row: T, id: string) => TemplateResult | typeof nothing;
   open: (row: T) => void;
   action: (row: T, id: string, label: string) => void;
+  box?: (row: T) => TemplateResult | typeof nothing; // the select box, put first in its own slot
+  ticked?: (row: T) => boolean; // dv-selected on the card
 };
 
 // One plan per template element, shared by every list using it; its warnings are said once.
@@ -115,6 +117,20 @@ export class CustomCards<T> {
       const text = (k: string) => this.h.text(row, k);
       render(s.fn(row, { menu: menu === nothing ? '' : menu, actions: actions === nothing ? '' : actions, text }), c.li);
     }
+    // The select box goes in a slot of the viewer's own, first in the card (the template's own
+    // drawing comes after it).
+    const box = this.h.box?.(row) ?? nothing;
+    let slot = c.li.querySelector<HTMLElement>(':scope > .dv-select-slot');
+    if (box === nothing) slot?.remove();
+    else {
+      if (!slot) {
+        slot = document.createElement('div');
+        slot.className = 'dv-select-slot';
+        c.li.prepend(slot);
+      }
+      render(box, slot);
+    }
+    c.li.classList.toggle('dv-selected', Boolean(this.h.ticked?.(row)));
     return c.li;
   }
 

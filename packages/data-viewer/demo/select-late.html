@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, the select add-on loaded later</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, the select add-on loaded later</h1>
+  <p>The add-on is imported 300 ms after the page starts; the list draws its boxes then.</p>
+  <lfdln-data-viewer id="late" label="Plants (late)" selectable page-size="20"></lfdln-data-viewer>
+  <script type="module">
+    import { define } from '../src/index.ts';
+    import { columns, items } from './select-rows.ts';
+    const late = document.querySelector('#late');
+    late.columns = columns;
+    late.rows = items;
+    define();
+    setTimeout(() => import('../src/select/index.ts'), 300);
+  </script>
+</body>
+</html>

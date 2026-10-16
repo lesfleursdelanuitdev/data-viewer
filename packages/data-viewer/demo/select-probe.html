@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, a probe select add-on</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, a probe select add-on</h1>
+  <p>A tiny add-on, registered 200 ms after the page starts, checks the viewer's hooks: the box
+    column, the header box, the card head, and the bar that replaces .dv-bar.</p>
+  <h2>#probe: a table</h2>
+  <lfdln-data-viewer id="probe" label="Plants (probe)" selectable page-size="20"></lfdln-data-viewer>
+  <h2>#probecards: cards</h2>
+  <lfdln-data-viewer id="probecards" label="Plants (probe cards)" selectable layout="cards" page-size="20"></lfdln-data-viewer>
+  <h2>#probetpl: custom cards (cardTemplate)</h2>
+  <lfdln-data-viewer id="probetpl" label="Plants (probe template)" selectable layout="cards" page-size="20"></lfdln-data-viewer>
+  <script type="module" src="./select-probe.ts"></script>
+</body>
+</html>

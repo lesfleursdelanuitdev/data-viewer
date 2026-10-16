@@ -40,7 +40,7 @@ test('splitConfig of something that is not an object gives nothing', () => {
 });
 
 test('the keys are the public properties, without config or busy', () => {
-  for (const k of ['columns', 'views', 'cardOf', 'rows', 'total', 'pageSize', 'pageSizes', 'pager', 'layoutSwitch', 'layoutIcons', 'words']) {
+  for (const k of ['columns', 'views', 'savedViews', 'cardOf', 'rows', 'total', 'pageSize', 'pageSizes', 'pager', 'layoutSwitch', 'layoutIcons', 'words']) {
     assert.ok(CONFIG_KEYS.includes(k as never), k);
   }
   for (const k of ['config', 'busy', 'on', 'load']) assert.ok(!CONFIG_KEYS.includes(k as never), k);
@@ -89,4 +89,16 @@ test('defineList types cardTemplate and cardMount with the row type (checked by 
   });
   // @ts-expect-error a field the row doesn't have
   defineList<Plant>({ cardTemplate: (p) => p.nmae });
+});
+
+test('phoneLayout is a config key, right after layout', () => {
+  assert.equal(CONFIG_KEYS.indexOf('phoneLayout'), CONFIG_KEYS.indexOf('layout') + 1);
+});
+
+test('selectable, rowKey and batchActions are config keys', () => {
+  const at = CONFIG_KEYS.indexOf('cardMoreLabel');
+  assert.deepEqual(CONFIG_KEYS.slice(at + 1, at + 4), ['selectable', 'rowKey', 'batchActions']);
+  const out = splitConfig({ rows: [], selectable: true, rowKey: 'sku', batchActions: [] });
+  assert.deepEqual(out.props.map(([k]) => k), ['selectable', 'rowKey', 'batchActions', 'rows']);
+  assert.deepEqual(out.unknown, []);
 });
