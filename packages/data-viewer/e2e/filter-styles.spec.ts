@@ -1648,3 +1648,292 @@ test.describe('search on a phone', () => {
     expect(problems).toEqual([]);
   });
 });
+
+// #vprobe (plants, remember-as="vprobe", url-state="vprobe"), #vprobe-page (page views All
+// plants / Sunny / Cheap with count 99, no remember-as, url-state="vprobepage") and
+// #vprobe-server (recipes through the json adapter, data-draft Indian): a test style with the
+// saved views store attached. Each tab is an <li data-key data-count data-current data-user>.
+test.describe('saved views store', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  const tabs = (page: Page, id: string) => page.locator(`#${id} .vprobe li`);
+  const userTab = (page: Page, id: string) => page.locator(`#${id} .vprobe li[data-user="true"]`);
+  // Keeps every views-change (and dv-query) detail the list fires, in window.vc[id] (window.dq[id]).
+  const listen = (page: Page, id: string) => page.evaluate((id) => {
+    const w = window as unknown as { vc: Record<string, unknown[]>; dq: Record<string, unknown[]> };
+    w.vc ??= {};
+    w.dq ??= {};
+    w.vc[id] = [];
+    w.dq[id] = [];
+    const el = document.getElementById(id)!;
+    el.addEventListener('views-change', (e) => w.vc[id]!.push((e as CustomEvent).detail));
+    el.addEventListener('dv-query', (e) => w.dq[id]!.push((e as CustomEvent).detail));
+  }, id);
+  const heard = (page: Page, id: string, what: 'vc' | 'dq' = 'vc') =>
+    page.evaluate(([id, what]) => (window as unknown as Record<string, Record<string, unknown[]>>)[what]![id]!, [id, what] as const);
+  const stored = (page: Page, key = 'vprobe.views') => page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    return raw === null ? null : JSON.parse(raw);
+  }, key);
+  const save = async (page: Page, id: string) => {
+    await page.locator(`#${id} .probe-draft`).click();
+    await page.locator(`#${id} .vprobe-save`).click();
+  };
+
+  test('save stores under <remember-as>.views and fires views-change', async ({ page }) => {
+    const { problems } = await open(page);
+    await listen(page, 'vprobe');
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe')).toHaveCount(1);
+    const views = await stored(page);
+    expect(views).toHaveLength(1);
+    expect(views[0]).toEqual({ key: expect.stringMatching(/^u-[0-9a-z]+$/), label: 'Herbs', filter: { kind: ['Herb'] } });
+    expect(await heard(page, 'vprobe')).toEqual([{ views }]);
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'true');
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText('Herbs');
+    await expect(tabs(page, 'vprobe').first()).toHaveAttribute('data-current', 'false');
+    expect(new URL(page.url()).searchParams.get('vprobe.f.kind')).toBe('Herb');
+    await expect(page.locator('#vprobe tbody tr')).toHaveCount(5);
+    // The draft is closed.
+    await expect(page.locator('#vprobe .probe')).toHaveAttribute('data-count', 'null');
+    expect(problems).toEqual([]);
+  });
+
+  test('reload: the view is back and current', async ({ page }) => {
+    await open(page);
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'true');
+    await page.reload();
+    await expect(userTab(page, 'vprobe')).toHaveCount(1);
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText('Herbs');
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'true');
+    // Picking All and the view again: still current, from the state alone.
+    await tabs(page, 'vprobe').first().locator('.vprobe-pick').click();
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'false');
+    await expect(page.locator('#vprobe tbody tr')).toHaveCount(12);
+    await userTab(page, 'vprobe').locator('.vprobe-pick').click();
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'true');
+    await expect(page.locator('#vprobe tbody tr')).toHaveCount(5);
+  });
+
+  test('rename and delete fire views-change; undo restores the old place', async ({ page }) => {
+    await open(page);
+    await listen(page, 'vprobe');
+    await save(page, 'vprobe');
+    await page.locator('#vprobe').evaluate((el) => {
+      el.dataset.draft = '{"light":["Shade"]}';
+      el.dataset.label = 'Shady';
+    });
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe')).toHaveCount(2);
+    const [herbs, shady] = (await stored(page)) as { key: string }[];
+    expect(herbs!.key).not.toBe(shady!.key);
+    await userTab(page, 'vprobe').first().locator('.vprobe-rename').click();
+    await expect(userTab(page, 'vprobe').first().locator('.vprobe-pick')).toHaveText('Leafy');
+    expect((await stored(page)).map((v: { label: string }) => v.label)).toEqual(['Leafy', 'Shady']);
+    expect(await heard(page, 'vprobe')).toHaveLength(3);
+    // Delete (through the kit's ⋯ menu): gone at once, stored, an undo toast; the filters stay.
+    await page.locator('#vprobe').getByRole('button', { name: 'More for Leafy' }).click();
+    await page.locator('#vprobe').getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(userTab(page, 'vprobe')).toHaveCount(1);
+    expect((await stored(page)).map((v: { label: string }) => v.label)).toEqual(['Shady']);
+    await expect(page.locator('#vprobe .vprobe-undo span')).toHaveText('Leafy');
+    expect(await heard(page, 'vprobe')).toHaveLength(4);
+    expect(new URL(page.url()).searchParams.get('vprobe.f.light')).toBe('Shade');
+    await page.locator('#vprobe .vprobe-undo-button').click();
+    await expect(page.locator('#vprobe .vprobe-undo')).toHaveCount(0);
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText(['Leafy', 'Shady']);
+    expect((await stored(page)).map((v: { label: string }) => v.label)).toEqual(['Leafy', 'Shady']);
+    const last = await heard(page, 'vprobe');
+    expect(last).toHaveLength(5);
+    expect(last[4]).toEqual({ views: await stored(page) });
+    // A rename to nothing keeps the name and fires nothing.
+    await page.locator('#vprobe').evaluate((el) => (el.dataset.rename = '   '));
+    await userTab(page, 'vprobe').first().locator('.vprobe-rename').click();
+    await expect(userTab(page, 'vprobe').first().locator('.vprobe-pick')).toHaveText('Leafy');
+    expect(await heard(page, 'vprobe')).toHaveLength(5);
+  });
+
+  test('the undo toast goes after 5 s', async ({ page }) => {
+    await page.clock.install();
+    await open(page);
+    await save(page, 'vprobe');
+    await userTab(page, 'vprobe').locator('.vprobe-delete').click();
+    await expect(page.locator('#vprobe .vprobe-undo')).toHaveCount(1);
+    await page.clock.runFor(4900);
+    await expect(page.locator('#vprobe .vprobe-undo')).toHaveCount(1);
+    await page.clock.runFor(200);
+    await expect(page.locator('#vprobe .vprobe-undo')).toHaveCount(0);
+    expect(await stored(page)).toEqual([]);
+  });
+
+  test('page views stay fixed; "All" is added when the page sets none', async ({ page }) => {
+    await open(page);
+    await expect(tabs(page, 'vprobe')).toHaveCount(1);
+    const all = tabs(page, 'vprobe').first();
+    await expect(all).toHaveAttribute('data-key', '');
+    await expect(all.locator('.vprobe-pick')).toHaveText('All');
+    await expect(all).toHaveAttribute('data-count', '12');
+    await expect(all).toHaveAttribute('data-current', 'true');
+    await expect(all).toHaveAttribute('data-user', 'false');
+    // The page's views: as given, no rename or delete; the viewer's own views nav is not drawn,
+    // the style is drawn above the bar and nothing is in .dv-filter.
+    const pv = tabs(page, 'vprobe-page');
+    await expect(pv.locator('.vprobe-pick')).toHaveText(['All plants', 'Sunny', 'Cheap']);
+    expect(await pv.evaluateAll((li) => li.map((x) => x.getAttribute('data-key')))).toEqual(['', 'sun', 'cheap']);
+    expect(await pv.evaluateAll((li) => li.map((x) => x.getAttribute('data-count')))).toEqual(['12', '7', '99']);
+    expect(await pv.evaluateAll((li) => li.map((x) => x.getAttribute('data-current')))).toEqual(['true', 'false', 'false']);
+    await expect(pv.locator('.vprobe-rename, .vprobe-delete, .lfdln-menu-button')).toHaveCount(0);
+    await expect(page.locator('#vprobe-page .dv-views')).toHaveCount(0);
+    await expect(page.locator('#vprobe-page > .dv-root > .dv-above + .dv-bar')).toHaveCount(1);
+    await expect(page.locator('#vprobe-page .dv-above .vprobe')).toHaveCount(1);
+    await expect(page.locator('#vprobe-page .dv-filter')).toHaveCount(0);
+    // The applied filters show as the viewer's chips (showsApplied false).
+    await save(page, 'vprobe-page');
+    await expect(page.locator('#vprobe-page .lfdln-filter-chips')).toBeVisible();
+  });
+
+  test('picking a page view clears filters and search', async ({ page }) => {
+    await open(page, '?vprobepage.f.kind=Herb&vprobepage.search=mint');
+    await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(1);
+    await tabs(page, 'vprobe-page').nth(1).locator('.vprobe-pick').click();
+    await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(7);
+    const params = new URL(page.url()).searchParams;
+    expect(params.get('vprobepage.view')).toBe('sun');
+    expect(params.get('vprobepage.f.kind')).toBeNull();
+    expect(params.get('vprobepage.search')).toBeNull();
+    await expect(page.locator('#vprobe-page .dv-search input[type="search"]')).toHaveValue('');
+    await expect(tabs(page, 'vprobe-page').nth(1)).toHaveAttribute('data-current', 'true');
+    // A user view saved there applies its filters with view '' (S3-D3), and Back returns.
+    await save(page, 'vprobe-page');
+    expect(new URL(page.url()).searchParams.get('vprobepage.view')).toBeNull();
+    await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(5);
+    await expect(userTab(page, 'vprobe-page')).toHaveAttribute('data-current', 'true');
+    await page.goBack();
+    await expect(tabs(page, 'vprobe-page').nth(1)).toHaveAttribute('data-current', 'true');
+    await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(7);
+  });
+
+  test('savedViews from the page wins and storage is untouched', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('vprobe.views', JSON.stringify([{ key: 'u-old', label: 'Old', filter: {} }])));
+    await open(page);
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText(['Old']);
+    await listen(page, 'vprobe');
+    await page.locator('#vprobe').evaluate((el) => {
+      (el as unknown as { savedViews: unknown }).savedViews = [{ key: 'p-1', label: 'Shady', filter: { light: ['Shade'] } }];
+    });
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText(['Shady']);
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-count', '3');
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe').locator('.vprobe-pick')).toHaveText(['Shady', 'Herbs']);
+    const vc = await heard(page, 'vprobe') as { views: { label: string }[] }[];
+    expect(vc).toHaveLength(1);
+    expect(vc[0]!.views.map((v) => v.label)).toEqual(['Shady', 'Herbs']);
+    expect(await stored(page)).toEqual([{ key: 'u-old', label: 'Old', filter: {} }]);
+    // The page's own array is not changed; setting it again replaces the viewer's copy.
+    expect(await page.locator('#vprobe').evaluate((el) => (el as unknown as { savedViews: unknown[] }).savedViews.length)).toBe(1);
+    await page.locator('#vprobe').evaluate((el) => {
+      (el as unknown as { savedViews: unknown }).savedViews = [];
+    });
+    await expect(userTab(page, 'vprobe')).toHaveCount(0);
+  });
+
+  test('without remember-as views last until reload', async ({ page }) => {
+    await open(page);
+    await save(page, 'vprobe-page');
+    await expect(userTab(page, 'vprobe-page')).toHaveCount(1);
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.endsWith('.views')))).toEqual([]);
+    await page.goto('/filter-styles.html');
+    await expect(tabs(page, 'vprobe-page')).toHaveCount(3);
+    await expect(userTab(page, 'vprobe-page')).toHaveCount(0);
+  });
+
+  test('storage that throws or holds bad JSON', async ({ page }) => {
+    await page.addInitScript(() => {
+      Storage.prototype.getItem = () => {
+        throw new Error('storage blocked');
+      };
+      Storage.prototype.setItem = () => {
+        throw new Error('storage blocked');
+      };
+    });
+    const { problems } = await open(page);
+    await expect(tabs(page, 'vprobe')).toHaveCount(1);
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe')).toHaveCount(1);
+    await expect(userTab(page, 'vprobe')).toHaveAttribute('data-current', 'true');
+    expect(problems).toEqual([]);
+  });
+
+  test('bad JSON in storage: one warning, the list draws', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('vprobe.views', '{'));
+    const { problems, warnings } = await open(page);
+    await expect(tabs(page, 'vprobe')).toHaveCount(1);
+    // Draw again a few times.
+    await page.locator('#vprobe .probe-draft').click();
+    await page.locator('#vprobe .probe-close').click();
+    await save(page, 'vprobe');
+    await expect(userTab(page, 'vprobe')).toHaveCount(1);
+    expect(warnings.filter((w) => w.includes('vprobe.views'))).toHaveLength(1);
+    expect(problems).toEqual([]);
+  });
+
+  test('browser mode previews the draft; server mode doesn\'t', async ({ page }) => {
+    await open(page);
+    const url = page.url();
+    await page.locator('#vprobe .probe-draft').click();
+    await expect(page.locator('#vprobe tbody tr')).toHaveCount(5);
+    await expect(page.locator('#vprobe .probe')).toHaveAttribute('data-count', '5');
+    await expect(page.locator('#vprobe > .dv-root')).not.toHaveAttribute('data-filter-open', '');
+    expect(page.url()).toBe(url);
+    await page.locator('#vprobe .probe-close').click();
+    await expect(page.locator('#vprobe tbody tr')).toHaveCount(12);
+    // Server mode: the rows stay, the count comes from the server after 300 ms.
+    await expect(page.locator('#vprobe-server tbody tr')).toHaveCount(20);
+    await page.locator('#vprobe-server .probe-draft').click();
+    const asked = Date.now();
+    await expect(page.locator('#vprobe-server .probe')).toHaveAttribute('data-count', 'null');
+    await expect(page.locator('#vprobe-server .probe')).toHaveAttribute('data-count', '11');
+    expect(Date.now() - asked).toBeGreaterThanOrEqual(300);
+    await expect(page.locator('#vprobe-server tbody tr')).toHaveCount(20);
+    await expect(page.locator('#vprobe-server tbody tr').first()).toContainText('Spiced tea');
+  });
+
+  test('server mode: a user view sends filters and search, view \'\'', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#vprobe-server tbody tr')).toHaveCount(20);
+    await listen(page, 'vprobe-server');
+    await page.locator('#vprobe-server .dv-search input[type="search"]').fill('Spiced');
+    await expect.poll(async () => (await heard(page, 'vprobe-server', 'dq')).length).toBe(1);
+    await save(page, 'vprobe-server');
+    await expect(userTab(page, 'vprobe-server')).toHaveCount(1);
+    const dq = await heard(page, 'vprobe-server', 'dq') as Record<string, unknown>[];
+    expect(dq).toHaveLength(2);
+    expect(dq[1]).toMatchObject({ view: '', page: 1, search: 'Spiced', filters: { cuisine: ['Indian'] } });
+    const vc = await heard(page, 'vprobe-server') as { views: unknown[] }[];
+    expect(vc[0]!.views).toEqual([{ key: expect.stringMatching(/^u-/), label: 'Herbs', filter: { cuisine: ['Indian'] }, search: 'Spiced' }]);
+    await expect(page.locator('#vprobe-server tbody tr')).toHaveCount(5);
+    await expect(userTab(page, 'vprobe-server')).toHaveAttribute('data-current', 'true');
+  });
+
+  test('tab counts: browser counts all; server mode user views have null', async ({ page }) => {
+    await open(page);
+    await page.locator('#vprobe').evaluate((el) => {
+      (el as unknown as { savedViews: unknown }).savedViews = [
+        { key: 'a', label: 'Herbs', filter: { kind: ['Herb'] } },
+        { key: 'b', label: 'Mint', filter: {}, search: 'mint' },
+        { key: 'c', label: 'Cheap herbs', filter: { kind: ['Herb'], price: { to: '4' } } },
+      ];
+    });
+    expect(await tabs(page, 'vprobe').evaluateAll((li) => li.map((x) => x.getAttribute('data-count')))).toEqual(['12', '5', '1', '3']);
+    await save(page, 'vprobe-server');
+    await expect(userTab(page, 'vprobe-server')).toHaveAttribute('data-count', 'null');
+    await expect(tabs(page, 'vprobe-server').first()).toHaveAttribute('data-count', 'null');
+  });
+
+  test('a style\'s empty() is the empty line', async ({ page }) => {
+    await open(page, '?vprobe.search=zzz&test.search=zzz');
+    await expect(page.locator('#vprobe .dv-empty')).toHaveText('Nothing in this view.');
+    await expect(page.locator('#test .dv-empty')).toHaveText('Nothing to show.'); // a style without empty()
+  });
+});

@@ -5,7 +5,7 @@ import type { FilterOption, FilterValue } from '@lesfleursdelanuitdev/filter';
 // types, come from the menu and card packages; they are re-exported here for the viewer's users.
 export type { Content, MenuEntry, MenuHeading, MenuItem, MenuSeparator } from '@lesfleursdelanuitdev/menu';
 export type { CardActions, CardParts } from '@lesfleursdelanuitdev/card';
-export type { FilterOption, FilterSection, FilterValue } from '@lesfleursdelanuitdev/filter';
+export type { FilterOption, FilterSection, FilterValue, SavedView } from '@lesfleursdelanuitdev/filter';
 
 export type Column<T> = {
   key: string; // also what sorting by it is called

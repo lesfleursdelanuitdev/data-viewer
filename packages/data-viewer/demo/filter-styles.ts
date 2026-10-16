@@ -2,6 +2,7 @@ import { LfdlnDataViewer, define, registerAdapter, registerFilterStyle } from '.
 import { jsonAdapter } from '../src/adapters/json.ts';
 import { applyQuery } from '../src/core/list.ts';
 import type { Column, Query } from '../src/core/types.ts';
+import { viewsStore } from '../src/element/views-store.ts';
 
 // The 12 plants of filter-search.ts, tidied, with a kind, the light they like and whether any
 // are in stock.
@@ -31,7 +32,7 @@ const columns: Column<Plant>[] = [
   { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
 ];
 
-for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side', 'bar2']) {
+for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side', 'bar2', 'vprobe', 'vprobe-page']) {
   const list = document.querySelector(`#${id}`) as LfdlnDataViewer<Plant>;
   list.columns = columns;
   list.rows = plants;
@@ -78,7 +79,7 @@ registerAdapter('counting', { load: jsonAdapter.load, count: async () => 999 });
 // "equals" loads as json does, but says it can only filter by equality, so each choice is single,
 // and that it can't search one column ("Search in").
 registerAdapter('equals', { load: jsonAdapter.load, supports: { filters: 'equals', searchIn: false } });
-for (const id of ['server', 'recipes', 'counting', 'panel-equals', 'panel-server', 'search-server']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
+for (const id of ['server', 'recipes', 'counting', 'panel-equals', 'panel-server', 'search-server', 'vprobe-server']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
 // #search-equals: Name and Cuisine searchable, so "Search in" would have two fields to offer.
 (document.querySelector('#search-equals') as LfdlnDataViewer<Recipe>).columns = recipeColumns.map((c) => (c.key === 'cuisine' ? { ...c, searchable: true } : c));
 
@@ -115,4 +116,47 @@ registerFilterStyle('probe-side', {
   side: true,
   styles() {},
   render: (_view, _on, kit) => kit.html`<button type="button" class="probe-side">side</button>`,
+});
+
+// #vprobe-page: page views, one with a count of its own (99, shown as set even in browser mode).
+(document.querySelector('#vprobe-page') as LfdlnDataViewer<Plant>).views = [
+  { key: '', label: 'All plants' },
+  { key: 'sun', label: 'Sunny', where: (p) => p.light === 'Sun' },
+  { key: 'cheap', label: 'Cheap', count: 99, where: (p) => p.price < 5 },
+];
+
+// #vprobe, #vprobe-page, #vprobe-server: a test style for the saved views store (drawsViews,
+// above, previewsDraft, the store attached). It prints each tab as <li data-key data-count
+// data-current data-user> with a button that picks it, and on a user tab "rename" (to the list's
+// data-rename, else "Leafy"), "delete" and a ⋯ menu (kit.menu) with Delete; the undo toast as
+// <p role="status" class="vprobe-undo">; "draft" opens the draft and sets it as #test's probe
+// does; "save" saves it as the list's data-label (else "Herbs"); "close" closes the draft.
+const hostOf = (e: Event) => (e.target as HTMLElement).closest('lfdln-data-viewer') as HTMLElement;
+registerFilterStyle('vprobe', {
+  name: 'vprobe',
+  instant: false,
+  showsApplied: false,
+  above: true,
+  drawsViews: true,
+  previewsDraft: true,
+  store: viewsStore,
+  styles() {},
+  empty: () => 'Nothing in this view.',
+  render: (view, on, kit) => kit.html`<div class="vprobe" data-renaming=${view.views?.renaming ?? ''}>
+    <ul>${(view.views?.tabs ?? []).map((t, i) => kit.html`<li data-key=${t.key} data-count=${String(t.count)}
+      data-current=${String(t.current)} data-user=${String(t.user)}><button type="button" class="vprobe-pick"
+      @click=${() => on.onView?.(t.key)}>${t.label}</button>${t.user ? kit.html`<button type="button" class="vprobe-rename"
+      @click=${(e: Event) => on.onRename?.(t.key, hostOf(e).dataset.rename ?? 'Leafy')}>rename</button><button type="button"
+      class="vprobe-delete" @click=${() => on.onDeleteView?.(t.key)}>delete</button>${kit.menu?.([{ id: 'delete', label: 'Delete' }],
+      `${view.uid}-vm${i}`, `More for ${t.label}`, (id) => id === 'delete' && on.onDeleteView?.(t.key))}` : kit.nothing}</li>`)}</ul>
+    ${view.views?.undo ? kit.html`<p role="status" class="vprobe-undo"><span>${view.views.undo.label}</span> <button type="button"
+      class="vprobe-undo-button" @click=${() => on.onUndoDelete?.()}>undo</button></p>` : kit.nothing}
+    <p class="probe" data-count=${String(view.countFor)}>${view.countFor}</p>
+    <button type="button" class="probe-draft" @click=${(e: Event) => {
+      const host = hostOf(e);
+      if (!view.open) on.onOpen();
+      on.onDraft(host.dataset.draft ? JSON.parse(host.dataset.draft) : { kind: ['Herb'] });
+    }}>draft</button>
+    <button type="button" class="vprobe-save" @click=${(e: Event) => on.onSaveView?.(hostOf(e).dataset.label ?? 'Herbs')}>save</button>
+    <button type="button" class="probe-close" @click=${() => on.onClose()}>close</button></div>`,
 });

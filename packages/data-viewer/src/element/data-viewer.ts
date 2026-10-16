@@ -8,11 +8,11 @@ import { renderCard, renderCardActions, type CardActions, type CardHooks } from 
 import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
 import {
   defaultFilterWords, isSet, normalise, removeChip, renderFilter, renderFilterChips,
-  type FilterHandlers, type FilterSection, type FilterStyle, type FilterStyleHandlers, type FilterStyleView,
+  type FilterHandlers, type FilterSection, type FilterStyleHandlers, type FilterStyleView,
   type FilterValue, type FilterView, type FilterWords,
 } from '@lesfleursdelanuitdev/filter';
 import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/style';
-import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
+import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
 import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';
 import { DraftCount } from '../core/draft-count.ts';
@@ -24,7 +24,8 @@ import { columnsIn } from './column.ts';
 import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
-import { filterStyle, onFilterStyle, pickFilterStyle, sameFilterStyle } from '../core/filter-styles.ts';
+import { filterStyle, onFilterStyle, pickFilterStyle, sameFilterStyle, type ViewerFilterStyle } from '../core/filter-styles.ts';
+import type { ViewsHost, ViewsStore } from './views-store.ts';
 import { viewerKit } from './filter-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
@@ -117,6 +118,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardTemplate: { attribute: false },
     cardMount: { attribute: false },
     views: { attribute: false },
+    savedViews: { attribute: false },
     pageSize: { type: Number, attribute: 'page-size' },
     pageSizes: { attribute: 'page-sizes', converter: { fromAttribute: (v: string | null) => parsePageSizes(v) } },
     pager: { type: String },
@@ -174,6 +176,13 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   /** Each card mounted into an empty element (React and other frameworks); may return a cleanup. Wins over cardTemplate. */
   declare cardMount: CardMount<T> | undefined;
   declare views: View<T>[] | undefined;
+  /**
+   * filter-style="views": the visitor's saved views, kept by the page (its server, say). Set, the
+   * viewer shows these and never reads or writes localStorage; it still fires views-change on
+   * every change and keeps its own copy until the page sets them again. Unset: localStorage
+   * under `<remember-as>.views`, or memory only without remember-as.
+   */
+  declare savedViews: SavedView[] | undefined;
   declare pageSize: number;
   /** The sizes a visitor may pick from ("Rows per page"); none valid means no picker. */
   declare pageSizes: number[] | undefined;
@@ -249,7 +258,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   };
   // The filter style in use (undefined: the dialog), and the registry listener that draws again
   // when a style is registered (it may be the one asked for, or its fallback).
-  private _fStyle: FilterStyle | undefined;
+  private _fStyle: ViewerFilterStyle | undefined;
+  // The saved views store, made by the first style that draws views and brings one (views add-on).
+  private _vs: ViewsStore | undefined;
   private _unStyle: (() => void) | undefined;
   // The list's width (.dv-root's), for a style's fallback: watched by a ResizeObserver only while
   // the style asked for has a fallback; before its first answer, the element's own width.
@@ -407,6 +418,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._fDraft = null;
     this._countFor.stop();
     this._typedCount.stop();
+    this._vs?.stop();
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
     // A load still running or waiting for its adapter is dropped, and redone on return.
@@ -511,7 +523,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // No filter-style: no lookup, and no width read (it forces a layout). Before the observer's
   // first answer the width is .dv-root's, or before the first drawing the parent's (the element
   // itself is inline, so it has none of its own).
-  private _styleFor(): FilterStyle | undefined {
+  private _styleFor(): ViewerFilterStyle | undefined {
     if (!this.filterStyle) return undefined;
     const width = this._width ?? (this.querySelector(':scope > .dv-root') ?? this.parentElement)?.clientWidth ?? 0;
     return pickFilterStyle(this.filterStyle, { width, layout: this.layout === 'cards' ? 'cards' : 'table' });
@@ -962,9 +974,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // A style that replaces the search gets the search too, with the count of the typed text
   // (counted the same way); "Search in" fields as the search box would offer them.
   private _styled(w: Words, sections: FilterSection[], results: number | null): { view: FilterStyleView; on: FilterStyleHandlers } {
-    const count = (q: Partial<Query>, server: DraftCount) => results === null ? null : this._server ? server.value
+    const count = (q: Partial<Query>, server?: DraftCount) => results === null ? null : this._server ? server!.value
       : countMatching(this.rows ?? [], this.columns, { ...this._q, ...q }, { views: this.views, searchKeys: this.searchKeys });
     const typed = this._typed.trim();
+    // A style that draws views: the tabs and handlers of the saved views store its add-on brings.
+    const style = this._fStyle!;
+    const vs = style.drawsViews ? (this._vs ??= style.store?.(this as unknown as ViewsHost))?.draw(sections, count) : undefined;
     const fields = searchColumns(this.columns, this.searchKeys).map((c) => ({ key: c.key, label: c.label }));
     return {
       view: {
@@ -984,6 +999,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         menu: this._fMenu,
         // The list's box, for a style's popovers (the panel right-aligns against it).
         bounds: () => (this.querySelector(':scope > .dv-root') ?? this).getBoundingClientRect(),
+        ...vs?.view,
       },
       on: {
         ...this._filterHandlers(sections),
@@ -1001,6 +1017,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           this._typed = text;
           this._count(this._typedCount, text.trim() ? { search: text.trim() } : undefined);
         },
+        ...vs?.on,
       },
     };
   }
@@ -1116,12 +1133,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     let rows: T[];
     let total: number;
     let page: number;
+    const sections = this.compact ? [] : this._sections();
+    const style = this._fStyle;
+    // A style that previews its draft (views) shows, in browser mode, the rows the draft leaves.
+    const preview = !this._server && style?.previewsDraft && this._fDraft !== null;
     if (this._server) {
       rows = this.rows ?? [];
       total = Number(this.total) || 0;
       page = this._q.page;
     } else {
-      const out = applyQuery(this.rows ?? [], this.columns, this._query, {
+      const out = applyQuery(this.rows ?? [], this.columns, preview ? { ...this._query, filters: normalise(sections, this._fDraft!), page: 1 } : this._query, {
         views: this.views,
         searchKeys: this.searchKeys,
         pageSize: this._size,
@@ -1135,14 +1156,13 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // A load that failed with no rows to keep shows only the error box.
     const failedEmpty = this._failed && rows.length === 0;
 
-    const sections = this.compact ? [] : this._sections();
     // With a filter style: what it is drawn from, shared by the bar and the table's header hook.
     // results is not known before an adapter's first answer; a host's own total is.
     const styled = this._fStyle && sections.length
       ? this._styled(w, sections, this._adapted && this._mode === 'unknown' ? null : total)
       : undefined;
     // A style's open draft (not one that applies at once) dims the results behind it.
-    const dim = this._fStyle && !this._fStyle.instant && this._fDraft !== null;
+    const dim = style && !style.instant && !preview && this._fDraft !== null;
     // A style drawn beside the list (rail) gets a column of its own; the rest go in .dv-main.
     const side = Boolean(styled && this._fStyle!.side);
     // A style drawn in the table's headers (columns) has nothing in the bar, and keeps the
@@ -1151,8 +1171,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // only applies a fallback a style declares: a header-hook style without one has no headers
     // in cards view, so it is drawn in the bar like any other style.
     const inHead = Boolean(styled && this._fStyle!.header && this.layout !== 'cards');
+    // A style drawn above the bar (views), full width.
+    const above = Boolean(styled && style!.above);
     const main = html`
-      ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead)}
+      ${above ? html`<div class="dv-above">${this._filter(w, sections, styled)}</div>` : nothing}
+      ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead || above)}
       ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
@@ -1163,7 +1186,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ${first || failedEmpty
         ? nothing
         : rows.length === 0
-          ? html`${inHead ? this._table(rows, w, sections, styled) : nothing}<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
+          ? html`${inHead ? this._table(rows, w, sections, styled) : nothing}<p class="dv-empty" aria-hidden="true">${(styled && style!.empty?.(styled.view)) || w.empty}</p>`
           : this.layout === 'cards'
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
@@ -1180,7 +1203,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     return html`<div class="dv-bar">
       <div class=${one ? 'dv-search dv-search-filter' : 'dv-search'}>${one ? this._filter(w, sections, styled) : this._searchBox(w)}</div>
       ${sections.length && !elsewhere && !one ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
-      ${this.views?.length
+      ${this.views?.length && !(styled && this._fStyle!.drawsViews)
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {
               const current = v.key === this._q.view;
@@ -1411,6 +1434,8 @@ export type DataViewerEventMap<T = Record<string, unknown>> = {
   'dv-action': CustomEvent<{ id: string; row: T; item?: { id: string; label: string } }>;
   'dv-query': CustomEvent<Query>;
   'dv-layout': CustomEvent<{ layout: Layout }>;
+  /** filter-style="views": the user views after every save, rename, delete and undo. */
+  'views-change': CustomEvent<{ views: SavedView[] }>;
 };
 
 declare global {

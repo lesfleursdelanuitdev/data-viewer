@@ -7,7 +7,7 @@ export type { DataViewerEventMap, Layout, LayoutIcons, LayoutSwitch, Pager, Word
 export type { CardMount, CardPieces, CardTemplate } from './element/custom-cards.ts';
 export type {
   AdapterSupports, CardActions, CardParts, Column, Content, FilterOption, FilterSection, FilterValue,
-  MenuEntry, MenuHeading, MenuItem, MenuSeparator, Query, View,
+  MenuEntry, MenuHeading, MenuItem, MenuSeparator, Query, SavedView, View,
 } from './core/types.ts';
 export { filterSections, matchesFilters, searchColumns } from './core/filters.ts';
 export { registerAdapter } from './adapters/register.ts';

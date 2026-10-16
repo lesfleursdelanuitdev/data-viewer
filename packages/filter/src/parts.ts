@@ -14,9 +14,11 @@ export { menuKeys } from './parts/menu-keys.ts';
 export { radioKeys, tabStop } from './parts/radios.ts';
 export { rangeBoxes, type RangeBoxesOptions } from './parts/range-boxes.ts';
 export { later } from './place.ts';
-export { clearKey, removeChip, setBool, setRange, toggleOption } from './core/draft.ts';
+export { clearKey, normalise, removeChip, setBool, setRange, toggleOption } from './core/draft.ts';
 export { anySet, chipsOf, defaultFilterWords, filteredCount, isSet, sectionSummary } from './core/summary.ts';
 export { rangeOf, rangePressed } from './core/range.ts';
 export { choiceOptions, matchingOptions, SEARCH_ABOVE } from './core/options.ts';
 export type { Chip, FilterOption, FilterRange, FilterSection, FilterValue, FilterWords } from './core/types.ts';
-export type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView } from './core/style-types.ts';
+export type {
+  FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView, FilterStyleViews, SavedView, ViewTab,
+} from './core/style-types.ts';

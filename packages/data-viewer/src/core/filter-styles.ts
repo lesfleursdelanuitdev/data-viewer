@@ -1,4 +1,11 @@
 import type { FilterStyle } from '@lesfleursdelanuitdev/filter';
+import type { ViewsHost, ViewsStore } from '../element/views-store.ts';
+
+/**
+ * A filter style as the viewer takes it: a style that draws views (drawsViews) brings the saved
+ * views store with it (the views add-on's viewsStore), so the standalone viewer carries none.
+ */
+export type ViewerFilterStyle = FilterStyle & { store?(host: ViewsHost): ViewsStore };
 
 /**
  * The filter style registry. Like the adapter registry it lives on globalThis under this key,
@@ -10,7 +17,7 @@ import type { FilterStyle } from '@lesfleursdelanuitdev/filter';
  */
 export const REGISTRY_KEY = '__lfdlnDataViewerFilterStyles';
 
-type Registry = { styles: Map<string, FilterStyle>; listeners: Set<(name: string) => void> };
+type Registry = { styles: Map<string, ViewerFilterStyle>; listeners: Set<(name: string) => void> };
 
 function registry(): Registry {
   const g = globalThis as unknown as Record<string, Registry | undefined>;
@@ -24,14 +31,14 @@ const keyOf = (name: string | null | undefined) => (name ?? '').trim().toLowerCa
  * Makes a style usable as `filter-style="name"` (read in lower case). A later one under the same
  * name replaces it.
  */
-export function registerFilterStyle(name: string, style: FilterStyle): void {
+export function registerFilterStyle(name: string, style: ViewerFilterStyle): void {
   const r = registry();
   const key = keyOf(name);
   r.styles.set(key, style);
   for (const heard of [...r.listeners]) heard(key);
 }
 
-export function filterStyle(name: string): FilterStyle | undefined {
+export function filterStyle(name: string): ViewerFilterStyle | undefined {
   return registry().styles.get(keyOf(name));
 }
 
@@ -61,7 +68,7 @@ function warnMissing(name: string): void {
 }
 
 // A style by key; none for empty or "dialog", and none (with a warning) when not loaded.
-function find(name: string): FilterStyle | undefined {
+function find(name: string): ViewerFilterStyle | undefined {
   if (!name || name === 'dialog') return undefined;
   const style = filterStyle(name);
   if (!style) warnMissing(name);
@@ -73,7 +80,7 @@ function find(name: string): FilterStyle | undefined {
  * width and layout. None means today's dialog. The fallback is followed one step only, so two
  * styles can't send each other round in a loop.
  */
-export function pickFilterStyle(attr: string | undefined, ctx: { width: number; layout: 'table' | 'cards' }): FilterStyle | undefined {
+export function pickFilterStyle(attr: string | undefined, ctx: { width: number; layout: 'table' | 'cards' }): ViewerFilterStyle | undefined {
   const key = keyOf(attr);
   const style = find(key);
   const next = keyOf(style?.fallback?.(ctx));
