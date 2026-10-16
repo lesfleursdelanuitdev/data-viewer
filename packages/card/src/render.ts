@@ -41,6 +41,8 @@ export type CardHooks = {
   moreText?: string; // row: More's visible words (default "More")
   moreIcon?: Content; // row: an icon before them
   headMenu?: Content; // something of the page's own in the header, such as an <lfdln-menu>
+  headStart?: Content; // drawn first in the header (the data viewer's check box)
+  cls?: string; // more classes on the card element (the data viewer's dv-selected)
   as?: 'li' | 'div'; // the card's own element (a list of cards uses li)
 };
 
@@ -119,7 +121,7 @@ export function renderCard(p: CardParts, h: CardHooks): TemplateResult {
       : html`<button type="button" class="lfdln-card-action" @click=${() => h.onAction(action.id)}>${action.label}</button>`
     : nothing;
   const inner = html`
-    <div class="lfdln-card-head">
+    <div class="lfdln-card-head">${h.headStart ?? nothing}
       ${href
         ? html`<a class="lfdln-card-link" data-lfdln-menu-guard href=${href} title=${p.title}>${title}</a>`
         : h.onOpen
@@ -143,5 +145,6 @@ export function renderCard(p: CardParts, h: CardHooks): TemplateResult {
           ${items.length ? footerActions(p, h, mode === 'row' ? 'row' : 'wrap', items, primary) : primary}
         </div>`
       : nothing}`;
-  return h.as === 'li' ? html`<li class="lfdln-card">${inner}</li>` : html`<div class="lfdln-card">${inner}</div>`;
+  const cls = h.cls ? `lfdln-card ${h.cls}` : 'lfdln-card';
+  return h.as === 'li' ? html`<li class=${cls}>${inner}</li>` : html`<div class=${cls}>${inner}</div>`;
 }

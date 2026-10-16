@@ -9,6 +9,7 @@ export const CONFIG_KEYS = [
   'label', 'columns', 'views', 'cardOf', 'cardTemplate', 'cardMount', 'cardTemplateId', 'searchKeys', 'searchIn', 'searchSubmitLabel', 'filterLabel', 'filterChips', 'words',
   'cardTitle', 'cardPicture', 'cardFacts', 'cardMeta', 'cardValue', 'cardHref', 'openEvent',
   'pageSize', 'pageSizes', 'pager', 'layout', 'phoneLayout', 'layoutSwitch', 'tableLabel', 'cardsLabel', 'layoutIcons', 'cardActions', 'cardActionsMax', 'cardMoreLabel',
+  'selectable', 'rowKey', 'batchActions',
   'rememberAs', 'compact', 'urlState', 'state', 'adapter', 'src', 'facets', 'rows', 'total',
 ] as const;
 

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, selectable without the add-on</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, selectable without the add-on</h1>
+  <p>This page doesn't load data-viewer-select.js: #bare draws no boxes and warns once, but
+    <code>selected</code>, <code>clearSelection()</code> and the clearing rules still work.</p>
+  <h2>#bare: selectable</h2>
+  <lfdln-data-viewer id="bare" label="Plants (bare)" selectable page-size="20" page-sizes="20,50" search-in url-state="bare"></lfdln-data-viewer>
+  <h2>#plain: not selectable</h2>
+  <lfdln-data-viewer id="plain" label="Plants (plain)" page-size="20"></lfdln-data-viewer>
+  <script type="module" src="./select-missing.ts"></script>
+</body>
+</html>

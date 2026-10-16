@@ -80,3 +80,56 @@ test('a stored choice wins over phone-layout for its mode', async ({ page }) => 
   await expect(page.locator('#memkeep .dv-cards')).toBeVisible();
   await expect(page.locator('#memkeep .dv-table')).toHaveCount(0);
 });
+
+test('a list taken off the page and put back still switches once per crossing', async ({ page }) => {
+  // Count the PHONE media listeners that are live, and how often they run.
+  await page.addInitScript(() => {
+    const w = window as unknown as { live: number; calls: number };
+    w.live = 0;
+    w.calls = 0;
+    const wrapped = new WeakMap<object, EventListener>();
+    const add = MediaQueryList.prototype.addEventListener;
+    const remove = MediaQueryList.prototype.removeEventListener;
+    MediaQueryList.prototype.addEventListener = function (this: MediaQueryList, type: string, fn: EventListener) {
+      if (type !== 'change' || this.media !== '(max-width: 640px)') return add.call(this, type, fn);
+      const wrap: EventListener = (e) => { w.calls++; fn(e); };
+      wrapped.set(fn, wrap);
+      w.live++;
+      return add.call(this, type, wrap);
+    } as typeof add;
+    MediaQueryList.prototype.removeEventListener = function (this: MediaQueryList, type: string, fn: EventListener) {
+      const wrap = wrapped.get(fn);
+      if (type === 'change' && wrap && this.media === '(max-width: 640px)') {
+        w.live--;
+        wrapped.delete(fn);
+        return remove.call(this, type, wrap);
+      }
+      return remove.call(this, type, fn);
+    } as typeof remove;
+  });
+  await page.setViewportSize(wide);
+  await open(page);
+  const counts = () => page.evaluate(() => {
+    const w = window as unknown as { live: number; calls: number };
+    return { live: w.live, calls: w.calls };
+  });
+  const before = (await counts()).live;
+  expect(before).toBeGreaterThan(0);
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => {
+      const el = document.getElementById('wide')!;
+      const at = el.nextSibling;
+      el.remove();
+      at!.parentNode!.insertBefore(el, at);
+    });
+  }
+  await expect(page.locator('#wide .dv-table')).toBeVisible();
+  expect((await counts()).live).toBe(before);
+  await page.setViewportSize({ width: 600, height: 900 });
+  await expect(page.locator('#wide .dv-cards')).toBeVisible();
+  expect((await counts()).calls).toBe(before);
+  await page.setViewportSize(wide);
+  await expect(page.locator('#wide .dv-table')).toBeVisible();
+  expect((await counts()).calls).toBe(before * 2);
+  expect(await layouts(page)).toEqual([]);
+});

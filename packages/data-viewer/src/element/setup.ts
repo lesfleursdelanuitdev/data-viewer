@@ -1,4 +1,4 @@
-import type { CardActions, CardParts, Column, FilterOption, Query, View } from '../core/types.ts';
+import type { CardActions, CardParts, Column, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import type { DataViewerEventMap, LayoutIcons, LayoutSwitch, LfdlnDataViewer, Pager, Words } from './data-viewer.ts';
 import type { CardMount, CardTemplate } from './custom-cards.ts';
 
@@ -49,6 +49,12 @@ export type ListSetup<T = Record<string, unknown>> = {
   cardActions?: CardActions;
   cardActionsMax?: number;
   cardMoreLabel?: string;
+  /** Rows get check boxes (needs the select add-on). */
+  selectable?: boolean;
+  /** What identifies a row: a field name (default 'id') or a function. */
+  rowKey?: string | ((row: T) => string);
+  /** The actions in the selection bar. */
+  batchActions?: MenuItem[];
   rememberAs?: string;
   compact?: boolean;
   urlState?: string;

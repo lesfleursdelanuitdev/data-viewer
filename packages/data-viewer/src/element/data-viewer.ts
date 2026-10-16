@@ -13,7 +13,7 @@ import {
 } from '@lesfleursdelanuitdev/filter';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
-import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';
+import { countMatching, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
 import { DraftCount } from '../core/draft-count.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
 import { fieldText, fieldValue } from '../core/card-template.ts';
@@ -24,7 +24,11 @@ import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
 import { filterStyle, onFilterStyle, pickFilterStyle, sameFilterStyle } from '../core/filter-styles.ts';
+import { onSelectAddon, selectAddon, warnNoSelect } from '../core/select-addon.ts';
+import { NONE, countOf, keep, keyOf, pageState, scopeOf, seen, tick, tickAll, tickPage, ticked, type Selection } from '../core/selection.ts';
+import type { SelectAddon, SelectHandlers, SelectView, SelectWords } from '../core/select-types.ts';
 import { viewerKit } from './filter-kit.ts';
+import { selectKit } from './select-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
 
@@ -51,7 +55,8 @@ const cardsIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="non
 // The pager's words (pages, previous, next, empty, showing, pageOf, pageNumbers, pageNumber,
 // rowsPerPage) are the pagination package's; the search box's (search, searchIn, allFields, clear)
 // the search package's; the filter's (filter, apply, clearAll, none, any, …) the filter package's.
-export type Words = PaginationWords & SearchWords & FilterWords & {
+// The selection's words (selectedCount, selectRow, …) have their defaults in the select add-on.
+export type Words = PaginationWords & SearchWords & FilterWords & Partial<SelectWords> & {
   views: string;
   showTable: string;
   showCards: string;
@@ -91,6 +96,7 @@ const FILTER_PHONE = '(max-width: 639px)'; // the filter's bottom sheet, as in t
 const DEBOUNCE_MS = 300;
 const warnedKeys = new Set<string>(); // unknown config keys, warned about once per page
 const warnedIds = new Set<string>(); // card-template ids not found, warned about once per page
+let warnedKey = false; // rows without a key, warned about once per page
 
 // What the built-in confirm dialog is asking about.
 type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
@@ -151,6 +157,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     filterLabel: { type: String, attribute: 'filter-label' },
     filterChips: { type: String, attribute: 'filter-chips' },
     filterStyle: { type: String, attribute: 'filter-style' },
+    selectable: { type: Boolean },
+    rowKey: { attribute: 'row-key' },
+    batchActions: { attribute: false },
+    _sel: { state: true },
     _q: { state: true },
     _fDraft: { state: true },
     _fActive: { state: true },
@@ -239,13 +249,24 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare filterChips: string | undefined;
   /** The filter's design: 'dialog' (the default) or a registered style's name (see registerFilterStyle). */
   declare filterStyle: string | undefined;
+  /** Rows get check boxes and a selection bar while anything is ticked (needs data-viewer-select.js). */
+  declare selectable: boolean;
+  /** What identifies a row, so ticks survive paging: a field name (default 'id') or a function. */
+  declare rowKey: string | ((row: T) => string) | undefined;
+  /** The selection bar's actions, shaped like the row menu's items. */
+  declare batchActions: MenuItem[] | undefined;
+  // The selection; in server mode the rows seen by key; and what this drawing's boxes draw from.
+  declare _sel: Selection;
+  private _seen = new Map<string, T>();
+  private _selNow: { a: SelectAddon; v: SelectView; on: SelectHandlers } | undefined;
+  private _unSel: (() => void) | undefined;
   // The filter's state: its draft (null while closed), its open section, its option search.
   declare _fDraft: FilterValue | null;
   declare _fActive: string | null;
   declare _fMenu: string | null; // an instant style's open menu (its section key)
   declare _fSearch: string;
   declare _fPhone: boolean;
-  // A phone (PHONE matches): only _shown reads it.
+  // A phone (PHONE matches): read by _shown and _setLayout.
   declare _phone: boolean;
   private _media: MediaQueryList | undefined;
   private _onMedia = () => {
@@ -308,6 +329,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     },
     open: (row) => this._open(row),
     action: (row, id, label) => this._action(id, row, { id, label }),
+    box: (row) => this._box(row) ?? nothing,
+    ticked: (row) => this._ticked(row),
   });
 
   private _timer: ReturnType<typeof setTimeout> | undefined;
@@ -372,6 +395,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._fSearch = '';
     this._fPhone = false;
     this._phone = false;
+    this.selectable = false;
+    this._sel = NONE;
   }
 
   // Light DOM, so page CSS reaches in.
@@ -387,6 +412,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._onFMedia();
     this._unStyle = onFilterStyle(() => {
       if (this.filterStyle) this.requestUpdate();
+    });
+    this._unSel = onSelectAddon(() => {
+      if (this.selectable) this.requestUpdate();
     });
     this._media = matchMedia(PHONE);
     this._media.addEventListener('change', this._onMedia);
@@ -412,6 +440,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._media?.removeEventListener('change', this._onMedia);
     this._unStyle?.();
     this._unStyle = undefined;
+    this._unSel?.();
     this._ro?.disconnect();
     this._ro = this._roOn = undefined;
     this._fDraft = null;
@@ -464,6 +493,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (changed.has('state') && this.state) {
       this._q = tidy({ ...this._q, ...this.state });
       this._searchText = this._q.search;
+    }
+    if (this.selectable && !selectAddon()) warnNoSelect();
+    // A new search, "Search in", filters or view clears the selection (sorting and paging don't).
+    const oldQ = changed.get('_q') as AddressQuery | undefined;
+    if (oldQ && this._sel !== NONE && scopeOf(oldQ) !== scopeOf(this._q)) this._setSel(NONE);
+    // New rows: in server mode they join the rows seen (and "all matching" ticks them); in browser
+    // mode keys whose rows are gone are dropped, with no event.
+    if (changed.has('rows')) {
+      if (this._server) this._sel = seen(this._sel, this._keys(this.rows ?? []));
+      else if (this._sel !== NONE) this._setSel(keep(this._sel, new Set(this._keys(this.rows ?? []))), false);
     }
     // rememberAs is often set after the element connects; the stored choices still win.
     if (changed.has('rememberAs')) {
@@ -524,6 +563,88 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (!this.filterStyle) return undefined;
     const width = this._width ?? (this.querySelector(':scope > .dv-root') ?? this.parentElement)?.clientWidth ?? 0;
     return pickFilterStyle(this.filterStyle, { width, layout: this._shown });
+  }
+
+  /**
+   * The ticked keys, in the order they were ticked. Under "all matching" in browser mode, every
+   * matching row's key but the unticked ones; in server mode, the keys on the pages seen. Setting
+   * it replaces the selection (keys become strings; empty and repeated ones go) and fires nothing.
+   */
+  get selected(): string[] {
+    const s = this._sel;
+    if (!s.all || this._server) return [...s.keys];
+    return this._keys(narrow(this.rows ?? [], this.columns, this._q, { views: this.views, searchKeys: this.searchKeys }))
+      .filter((k) => !s.except.includes(k));
+  }
+  set selected(keys: (string | number)[]) {
+    this._setSel({ keys: [...new Set((keys ?? []).filter((k) => k !== '' && k != null).map(String))], all: false, except: [] }, false);
+  }
+
+  /** True after "Select all N matching". */
+  get selectedAll(): boolean {
+    return this._sel.all;
+  }
+
+  /** Clears the selection and fires dv-select. */
+  clearSelection(): void {
+    this._setSel(NONE);
+  }
+
+  // Every change goes through here. A selection that counts 0 is none (and the rows seen go).
+  // The rows matching are the last drawing's (null before an adapter's first answer, and without
+  // the add-on, which is the only way to turn "all matching" on).
+  private _setSel(next: Selection, fire = true): void {
+    if (!countOf(next, this._selNow?.v.matching ?? null)) {
+      next = NONE;
+      this._seen = new Map();
+    }
+    this._sel = next;
+    if (fire) this.dispatchEvent(new CustomEvent('dv-select', { detail: { keys: [...next.keys], all: next.all, except: [...next.except] }, bubbles: true, composed: true }));
+  }
+
+  // The rows' keys (rows without one left out). In server mode a selectable list also keeps
+  // each row by its key, among the rows seen (for dv-batch's rows).
+  private _keys(rows: T[]): string[] {
+    const out: string[] = [];
+    for (const r of rows) {
+      const k = keyOf(r, this.rowKey);
+      if (k === undefined) continue;
+      out.push(k);
+      if (this.selectable && this._server) this._seen.set(k, r);
+    }
+    return out;
+  }
+
+  // What the add-on draws from, for this page's tickable keys.
+  private _selView(keys: string[], matching: number | null): SelectView {
+    const s = this._sel;
+    return {
+      count: countOf(s, matching), all: s.all, page: pageState(s, keys), pageCount: keys.length, matching,
+      offerAll: false, actions: this.batchActions ?? [], words: this.words, num: (n) => this._num(n), uid: `${this._uid}-x`,
+    };
+  }
+
+  private _selOn(keys: string[]): SelectHandlers {
+    return {
+      onPage: (on) => this._setSel(tickPage(this._sel, keys, on)),
+      onAll: () => this._setSel(tickAll(this._sel, keys)),
+      onClear: () => this._setSel(NONE),
+      onAction: () => {},
+    };
+  }
+
+  // One row's box (nothing without the add-on). The row's name is its card title, as its menu's.
+  private _box(row: T): TemplateResult | undefined {
+    const n = this._selNow;
+    if (!n) return undefined;
+    const key = keyOf(row, this.rowKey);
+    return n.a.box({ key, name: this._parts(row).title, ticked: this._ticked(row) }, n.v,
+      (on) => key !== undefined && this._setSel(tick(this._sel, key, on)), selectKit);
+  }
+
+  private _ticked(row: T): boolean {
+    const key = this._selNow ? keyOf(row, this.rowKey) : undefined;
+    return key !== undefined && ticked(this._sel, key);
   }
 
   /** The words in use: the defaults with the page's own on top. */
@@ -1134,8 +1255,24 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // only applies a fallback a style declares: a header-hook style without one has no headers
     // in cards view, so it is drawn in the bar like any other style.
     const inHead = Boolean(styled && this._fStyle!.header && this._shown !== 'cards');
+    // Selectable with the add-on: its boxes, and its bar in .dv-bar's place while anything is
+    // ticked (above the list in a compact one).
+    const addon = this.selectable ? selectAddon() : undefined;
+    this._selNow = undefined;
+    let selBar: TemplateResult | undefined;
+    if (addon) {
+      addon.styles();
+      const keys = this._keys(rows);
+      if (keys.length < rows.length && !warnedKey) {
+        warnedKey = true;
+        console.warn(`lfdln-data-viewer: some rows have no key (row-key="${typeof this.rowKey === 'function' ? 'function' : this.rowKey || 'id'}"), so they can't be ticked.`);
+      }
+      const v = this._selView(keys, this._adapted && this._mode === 'unknown' ? null : total);
+      this._selNow = { a: addon, v, on: this._selOn(keys) };
+      if (v.count) selBar = addon.bar(v, this._selNow.on, selectKit);
+    }
     const main = html`
-      ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead)}
+      ${selBar ?? (this.compact ? nothing : this._bar(w, sections, styled, side || inHead))}
       ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
@@ -1152,7 +1289,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
             : this._table(rows, w, sections, styled)}
       ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}`;
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}
-      data-filter-side=${side ? '' : nothing}>${side
+      data-filter-side=${side ? '' : nothing} data-selecting=${selBar ? '' : nothing}>${side
         ? html`<div class="dv-side">${this._filter(w, sections, styled)}</div><div class="dv-main">${main}</div>`
         : main}${this._confirm(w)}</div>`;
   }
@@ -1242,6 +1379,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   private _table(rows: T[], w: Words, sections: FilterSection[] = [], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
     const cols = this.columns;
+    const sel = this._selNow;
     // A style's header hook, drawn after the sort button in each column that has a section.
     const style = this._fStyle;
     const head = (c: Column<T>, index: number) => {
@@ -1255,6 +1393,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       <table class="dv-table" aria-label=${this.label || nothing}>
         <thead>
           <tr>
+            ${sel ? html`<th scope="col" class="dv-select-cell">${sel.a.pageBox(sel.v, sel.on, selectKit)}</th>` : nothing}
             ${cols.map((c, i) => {
               const sorted = this._q.sort === c.key;
               const ariaSort = sorted ? (this._q.dir === 'desc' ? 'descending' : 'ascending') : nothing;
@@ -1271,7 +1410,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         <tbody>
           ${rows.map((row, r) => {
             const p = this._parts(row);
-            return html`<tr>
+            const t = this._ticked(row);
+            return html`<tr class=${t ? 'dv-selected' : nothing} aria-selected=${t ? 'true' : nothing}>
+              ${sel ? html`<td class="dv-select-cell">${this._box(row)}</td>` : nothing}
               ${cols.map((c, i) => i === 0
                 ? html`<th scope="row" class=${cls(c)}>${this._firstCell(c, row, p)}</th>`
                 : html`<td class=${cls(c)}>${this._cell(c, row)}</td>`)}
@@ -1345,6 +1486,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       moreLabel: w.moreFor(p.title),
       moreText: this.cardMoreLabel || w.more,
       as: 'li',
+      headStart: this._box(row),
+      cls: this._ticked(row) ? 'dv-selected' : undefined,
     };
   }
 
@@ -1393,6 +1536,10 @@ export type DataViewerEventMap<T = Record<string, unknown>> = {
   'dv-action': CustomEvent<{ id: string; row: T; item?: { id: string; label: string } }>;
   'dv-query': CustomEvent<Query>;
   'dv-layout': CustomEvent<{ layout: Layout }>;
+  /** The selection changed: by the visitor, a query change or clearSelection() (not by setting selected). */
+  'dv-select': CustomEvent<{ keys: string[]; all: boolean; except: string[] }>;
+  /** A selection bar action; cancelable (preventDefault() keeps the selection). */
+  'dv-batch': CustomEvent<{ action: string; keys: string[]; rows: T[]; all: boolean; except: string[]; query: Query }>;
 };
 
 declare global {
