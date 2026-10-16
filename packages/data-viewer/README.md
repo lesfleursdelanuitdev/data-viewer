@@ -319,6 +319,9 @@ declare module 'react' {
 }
 ```
 
+In React 18, `selectable={false}` writes the attribute `selectable="false"`, and any `selectable`
+attribute turns selection on. Leave the prop out, or pass `selectable={undefined}`, to turn it off.
+
 ## In Lit
 
 ```ts
@@ -614,9 +617,11 @@ loaded. Each file is 6 to 9 KB gzipped. To show a filter style without the viewe
   If the file loads later, the list switches to the style.
 - **`rail`** shows `panel` while the list itself is narrower than 720 px (it watches the list's
   width, not the window's). So on phones the rail is always the panel.
-- **`columns`** shows `panel` in cards view, which has no headers.
+- **`columns`** shows `panel` in cards view, which has no headers. Phones show cards unless
+  `phone-layout="table"`, so on phones `columns` is usually the panel too.
 - The name is read in lower case. Changing `filter-style`, or a fallback taking over, closes an
-  open filter and drops its draft.
+  open filter and drops its draft. That includes the list crossing 640 px wide (a phone turned
+  sideways, a window resized) when the switch between table and cards changes the style.
 
 ### How each style behaves
 
@@ -757,12 +762,14 @@ the add-on; only the drawing needs it.
   filter, views and the layout switch); in a `compact` list it is drawn above the list. It reads
   "3 selected" (a polite live region), then the first 3 actions as buttons, the rest in a ⋯ menu
   named "More actions", then ✕ ("Clear selection"). `danger` actions are drawn in `--dv-danger`;
-  a `disabled` one stays focusable and does nothing. **To search or filter again, clear the
-  selection** (✕ or Esc): the search box comes back when nothing is ticked. Chips, the rail and a
-  filter style's summary stay.
+  a `disabled` one stays focusable and does nothing. The search box comes back once nothing is
+  ticked (✕ or Esc). Column-header filters (`columns`), the rail, chips and a filter style's
+  summary stay usable while rows are ticked; changing a filter there clears the selection, as a
+  new search would.
 - **The select-all line.** When every row on the page is ticked and more rows match than the page
   holds, a line under the bar reads "All 20 on this page are selected. **Select all 54
-  matching**", and after pressing it "All 54 are selected. **Clear selection**". It needs a known
+  matching**", and after pressing it "All 54 are selected. **Clear selection**". Once a row is
+  unticked again, the line holds only **Clear selection** (the bar has the count). It needs a known
   number of matching rows (in server mode, `total`), and `compact` lists never show it.
 - **Keyboard.** Each box is a real `<input type="checkbox">`, so Tab and Space work. Esc in the
   bar clears the selection (Esc in the open ⋯ menu only closes the menu). After ✕, Esc, "Clear
@@ -777,15 +784,17 @@ the add-on; only the drawing needs it.
 - A selection that reaches 0 (the last box unticked, or every row unticked after "all matching")
   clears: the bar goes and "all matching" turns off.
 - After an action, the selection clears and `dv-select` fires, unless the `dv-batch` handler
-  called `preventDefault()`.
+  called `preventDefault()`. If you prevent it and later call `clearSelection()` yourself (say,
+  once your server answers), focus stays where it is: move it yourself, for example to the
+  list's search box, since the bar it was in is gone.
 
 ### All matching, and `except`
 
 "Select all N matching" turns `all` on. Unticking a row after that keeps `all` on and records its
 key in `except`; the bar then reads "53 selected".
 
-- **Browser mode** (every row is on hand): `selected`, and `dv-batch`'s `keys` and `rows`, are
-  every row that matches the search, filters and view, minus `except`.
+- **Browser mode** (every row is on hand): `selected`, `dv-select`'s `keys`, and `dv-batch`'s
+  `keys` and `rows`, are every row that matches the search, filters and view, minus `except`.
 - **Server mode**: the list only knows the pages it has shown, so `keys` and `rows` are the ticked
   rows from the pages seen. Act on everything that matches `detail.query`, minus `detail.except`,
   on your server.
@@ -1195,7 +1204,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 | `dv-open` | `{ row }` | A card or a first cell was pressed and the row has no `href`. |
 | `dv-action` | `{ id, row }` (and `item`) | A menu item or the footer button was pressed (after its confirm, if any). From a `data-action` element in [your own card](#your-own-cards), `detail` also has `item: { id, label }`. |
 | `dv-layout` | `{ layout }` | The visitor pressed the table-or-cards switch (not when the list crosses 640 px). |
-| `dv-select` | `{ keys, all, except }` | The selection changed: a box, the select-all line, ✕, Esc, a clearing search, filter or view, an action, or `clearSelection()`. Not when `selected` is set from code. See [Selecting rows](#selecting-rows). |
+| `dv-select` | `{ keys, all, except }` | The selection changed: a box, the select-all line, ✕, Esc, a clearing search, filter or view, an action, or `clearSelection()`. Not when `selected` is set from code. `keys` is what `selected` gives: under "all matching" in browser mode, every matching row's key but `except`. See [Selecting rows](#selecting-rows). |
 | `dv-batch` | `{ action, keys, rows, all, except, query }` | A selection bar action was pressed. Cancelable: `preventDefault()` keeps the selection; otherwise it clears. |
 
 ## Address
@@ -1425,7 +1434,7 @@ These are the styling interface.
 | `dv-card-mount` | The empty element `cardMount` draws into |
 | `dv-badge` | A `badge` column's pill |
 | `dv-selected` | A ticked row (`<tr>`) or card |
-| `dv-select-bar` | The selection bar (`role="toolbar"`): `dv-select-count`, `dv-select-action` (a `danger` one has `data-danger`), `dv-select-more` (the ⋯), `dv-select-clear` (✕) |
+| `dv-select-bar` | The selection bar (`role="toolbar"`): `dv-select-count`, `dv-select-action` (a `danger` one has `data-danger`), `dv-select-more` (the ⋯), `dv-select-clear` (✕). The 2nd and 3rd actions and the wide-screen ⋯ have `data-only="wide"`, the phone ⋯ `data-only="phone"`; each is hidden with `display: none !important` on the other kind of screen. |
 | `dv-select-all` | The "Select all N matching" line under the selection bar |
 | `dv-select-box` | A check box (`<input type="checkbox">`), inside its tap target `dv-select-hit` |
 | `dv-select-cell` | The table's box column (header and cells) |
@@ -1446,6 +1455,9 @@ At 640 px wide or less:
 
   **Breaking change:** before this, `layout="table"` also applied to phones. A list that must stay
   a table on phones now needs `phone-layout="table"` (or `phoneLayout: 'table'` in its setup).
+  A choice a visitor stored on a phone before this release sits under `<remember-as>`, so it now
+  counts as their wide-screen choice. And `layout` (the attribute reflects it) can read "table"
+  on a phone while cards show: it is the wide-screen layout, not what is on screen.
 - The "Search in" picker goes under the search box, and the filter opens as a bottom sheet
   (639 px or less).
 - Buttons, inputs, the page-size picker, view links and menu items are at least 44 px tall; the ⋯

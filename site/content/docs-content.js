@@ -581,6 +581,7 @@ define();
       'Up to 3 actions show as buttons, the rest in a ⋯ menu. On phones: the first one and a ⋯.',
       'After an action the selection clears. Call `preventDefault()` on `dv-batch` to keep it, for example when the visitor says no to your own `confirm()`.',
       'Phones now show cards even with `layout="table"`. Add `phone-layout="table"` to keep a table on phones.',
+      'This demo deletes without asking, so you can try it quickly; reload the page to get the rows back. The HTML tab shows how to ask first.',
     ],
     // The strip shows dv-batch's action and keys, and every dv-select.
     events: {
