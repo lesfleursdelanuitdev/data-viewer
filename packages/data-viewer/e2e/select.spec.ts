@@ -560,8 +560,9 @@ test.describe('the phone bar', () => {
     const b = (await bar(page).boundingBox())!;
     expect(Math.round(b.y + b.height)).toBe(844);
     expect(b.height).toBeGreaterThanOrEqual(60);
+    // ✕, the first action and the ⋯.
     const buttons = bar(page).locator('button:not([role=menuitem]):visible');
-    expect(await buttons.count()).toBeGreaterThanOrEqual(3);
+    await expect(buttons).toHaveCount(3);
     for (const box of await buttons.all()) expect((await box.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     // Scrolled to the end of #table: its last row and its pager sit above the bar.
@@ -640,4 +641,34 @@ test.describe('the phone bar', () => {
     expect(await label.evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
     await fits(page, 'cardof');
   });
+
+  test('a long count wraps instead of pushing the bar sideways', async ({ page }) => {
+    await open(page);
+    await page.locator('#table').evaluate((t) => {
+      (t as HTMLElement & { words: object }).words = { selectedCount: (n: string) => `${n} Pflanzen sind ausgewählt worden und warten auf eine Aktion` };
+    });
+    await rowBox(page, 'table', 'Rose 1').check();
+    await expect(bar(page).locator('.dv-select-count')).toContainText('Pflanzen');
+    const [sw, cw] = await bar(page).evaluate((el) => [el.scrollWidth, el.clientWidth]);
+    expect(sw).toBe(cw);
+    await expect(bar(page).locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    await fits(page, 'table');
+  });
+
+  test('a page rule that shows the bar\'s buttons doesn\'t bring back the wide-screen ones', async ({ page }) => {
+    await open(page);
+    await page.addStyleTag({ content: '.dv-select-bar button, .dv-select-bar .dv-select-more { display: inline-flex }' });
+    await rowBox(page, 'table', 'Rose 1').check();
+    await expect(bar(page).locator('button:not([role=menuitem]):visible')).toHaveCount(3);
+    await expect(bar(page).locator('button.dv-select-action:visible')).toHaveText(['Export']);
+  });
+});
+
+test('wide screens: a page rule that shows the bar\'s buttons doesn\'t bring back the phone ⋯', async ({ page }) => {
+  await open(page);
+  await page.addStyleTag({ content: '.dv-select-bar button, .dv-select-bar .dv-select-more { display: inline-flex }' });
+  await rowBox(page, 'table', 'Rose 1').check();
+  // 3 actions, the ⋯ with the rest, and ✕.
+  await expect(bar(page).locator('button:not([role=menuitem]):visible')).toHaveCount(5);
+  await expect(bar(page).getByRole('button', { name: 'More actions', exact: true })).toHaveCount(1);
 });

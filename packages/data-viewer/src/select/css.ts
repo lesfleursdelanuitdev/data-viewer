@@ -33,8 +33,11 @@ export const selectCss: string = `
 :where(.dv-select-action[data-danger]) { color: var(--dv-danger); }
 :where(.dv-select-action[aria-disabled=true]) { opacity: 0.5; cursor: default; }
 :where(.dv-select-more) { display: inline-flex; }
-/* Wide screens: the first 3 actions and a ⋯ with the rest; phones: the first and a ⋯ with the rest. */
-:where(.dv-select-bar) :where([data-only=phone]) { display: none; }
+/* Wide screens: the first 3 actions and a ⋯ with the rest; phones: the first and a ⋯ with the
+   rest. The two queries never both match, and !important keeps a page's own button rules from
+   showing both ⋯ menus (inside :where(), so it still adds no weight to the selector). */
+@media not all and (max-width: 640px) { :where(.dv-select-bar [data-only=phone]) { display: none !important; } }
+@media (max-width: 640px) { :where(.dv-select-bar [data-only=wide]) { display: none !important; } }
 :where(.dv-select-all) {
   display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: center; margin: -0.25rem 0 0.75rem; color: var(--dv-muted);
 }
@@ -54,11 +57,11 @@ export const selectCss: string = `
     position: fixed; inset: auto 0 0 0; z-index: 10; min-height: 60px; padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box; margin: 0; flex-wrap: nowrap; overflow-x: auto; border-width: 1px 0 0; border-radius: 0;
   }
-  :where(.dv-select-count) { white-space: nowrap; }
+  /* A long count (other languages) wraps rather than push the bar sideways. */
+  :where(.dv-select-count) { white-space: normal; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
   /* ✕ first, so it stays on screen when the actions scroll. */
   :where(.dv-select-clear) { order: -1; }
   :where(.dv-select-bar) :where(button:not([role=menuitem])) { min-height: 44px; min-width: 44px; flex: none; }
-  :where(.dv-select-bar) :where([data-only=wide]) { display: none; }
   :where(.dv-select-bar) :where(.dv-select-more[data-only=phone]) { display: inline-flex; }
   :where(.dv-select-action) { max-width: 40vw; }
   :where(.dv-root[data-selecting]) { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
