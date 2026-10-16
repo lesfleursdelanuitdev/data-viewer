@@ -90,3 +90,7 @@ test('defineList types cardTemplate and cardMount with the row type (checked by 
   // @ts-expect-error a field the row doesn't have
   defineList<Plant>({ cardTemplate: (p) => p.nmae });
 });
+
+test('phoneLayout is a config key, right after layout', () => {
+  assert.equal(CONFIG_KEYS.indexOf('phoneLayout'), CONFIG_KEYS.indexOf('layout') + 1);
+});

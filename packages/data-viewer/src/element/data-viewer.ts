@@ -126,6 +126,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     cardActionsMax: { type: Number, attribute: 'card-actions-max' },
     cardMoreLabel: { type: String, attribute: 'card-more-label' },
     layout: { type: String, reflect: true },
+    phoneLayout: { type: String, attribute: 'phone-layout' },
     rememberAs: { type: String, attribute: 'remember-as' },
     compact: { type: Boolean },
     words: { attribute: false },
@@ -156,6 +157,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     _fMenu: { state: true },
     _fSearch: { state: true },
     _fPhone: { state: true },
+    _phone: { state: true },
     _configuring: { state: true },
     _failReason: { state: true },
     _failed: { state: true },
@@ -194,7 +196,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare cardActionsMax: number | undefined;
   /** Row: the words on the More button (default words.more, "More"). */
   declare cardMoreLabel: string | undefined;
+  /** The layout on screens wider than 640 px: 'cards', else a table. */
   declare layout: Layout | undefined;
+  /** The layout on phones (640 px or less): 'table', else cards. Not reflected. */
+  declare phoneLayout: Layout | undefined;
   declare rememberAs: string | undefined;
   declare compact: boolean;
   declare words: Partial<Words>;
@@ -240,6 +245,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare _fMenu: string | null; // an instant style's open menu (its section key)
   declare _fSearch: string;
   declare _fPhone: boolean;
+  // A phone (PHONE matches): only _shown reads it.
+  declare _phone: boolean;
+  private _media: MediaQueryList | undefined;
+  private _onMedia = () => {
+    this._phone = Boolean(this._media?.matches);
+  };
   private _fMedia: MediaQueryList | undefined;
   private _onFMedia = () => {
     this._fPhone = Boolean(this._fMedia?.matches);
@@ -360,6 +371,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._fMenu = null;
     this._fSearch = '';
     this._fPhone = false;
+    this._phone = false;
   }
 
   // Light DOM, so page CSS reaches in.
@@ -376,7 +388,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._unStyle = onFilterStyle(() => {
       if (this.filterStyle) this.requestUpdate();
     });
-    this.layout = this._remembered() ?? this.layout ?? (matchMedia(PHONE).matches ? 'cards' : 'table');
+    this._media = matchMedia(PHONE);
+    this._media.addEventListener('change', this._onMedia);
+    this._onMedia();
+    this.layout = this._remembered('wide') ?? this.layout ?? 'table';
+    this.phoneLayout = this._remembered('phone') ?? this.phoneLayout;
     if (this._prefix) {
       window.addEventListener('popstate', this._onPop);
       this._readAddress(false);
@@ -393,6 +409,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPop);
     this._fMedia?.removeEventListener('change', this._onFMedia);
+    this._media?.removeEventListener('change', this._onMedia);
     this._unStyle?.();
     this._unStyle = undefined;
     this._ro?.disconnect();
@@ -448,10 +465,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._q = tidy({ ...this._q, ...this.state });
       this._searchText = this._q.search;
     }
-    // rememberAs is often set after the element connects; the stored choice still wins.
+    // rememberAs is often set after the element connects; the stored choices still win.
     if (changed.has('rememberAs')) {
-      const remembered = this._remembered();
-      if (remembered) this.layout = remembered;
+      const wide = this._remembered('wide');
+      const phone = this._remembered('phone');
+      if (wide) this.layout = wide;
+      if (phone) this.phoneLayout = phone;
     }
     // A remembered page size, when the address names none (the address wins). It goes into the
     // address too, so Back from a later entry returns to what is on screen now.
@@ -504,7 +523,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _styleFor(): FilterStyle | undefined {
     if (!this.filterStyle) return undefined;
     const width = this._width ?? (this.querySelector(':scope > .dv-root') ?? this.parentElement)?.clientWidth ?? 0;
-    return pickFilterStyle(this.filterStyle, { width, layout: this.layout === 'cards' ? 'cards' : 'table' });
+    return pickFilterStyle(this.filterStyle, { width, layout: this._shown });
   }
 
   /** The words in use: the defaults with the page's own on top. */
@@ -562,10 +581,23 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     return (this.urlState ?? '').trim();
   }
 
-  private _remembered(): Layout | undefined {
-    if (!this.rememberAs) return undefined;
+  // The layout drawn: on a phone, cards unless phone-layout="table"; else a table unless
+  // layout="cards".
+  private get _shown(): Layout {
+    return this._phone ? (this.phoneLayout === 'table' ? 'table' : 'cards') : (this.layout === 'cards' ? 'cards' : 'table');
+  }
+
+  // A stored layout choice for one mode: wide screens under <remember-as>, phones under
+  // <remember-as>.phone.
+  private _layoutKey(mode: 'wide' | 'phone'): string | undefined {
+    return this.rememberAs ? (mode === 'phone' ? `${this.rememberAs}.phone` : this.rememberAs) : undefined;
+  }
+
+  private _remembered(mode: 'wide' | 'phone'): Layout | undefined {
+    const key = this._layoutKey(mode);
+    if (!key) return undefined;
     try {
-      const v = localStorage.getItem(this.rememberAs);
+      const v = localStorage.getItem(key);
       return v === 'table' || v === 'cards' ? v : undefined;
     } catch {
       return undefined; // storage blocked: just don't remember
@@ -1034,12 +1066,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     void this.updateComplete.then(() => focusCurrentPage(this.querySelector(':scope > .dv-root > .lfdln-pagination-nav, :scope > .dv-root > .dv-main > .lfdln-pagination-nav'), number));
   }
 
+  // A switch press sets the layout for the mode on screen (phone or wide) and stores it for that mode.
   private _setLayout(layout: Layout): void {
-    if (layout === this.layout) return;
-    this.layout = layout;
-    if (this.rememberAs) {
+    if (layout === this._shown) return;
+    const mode = this._phone ? 'phone' : 'wide';
+    if (mode === 'phone') this.phoneLayout = layout;
+    else this.layout = layout;
+    const key = this._layoutKey(mode);
+    if (key) {
       try {
-        localStorage.setItem(this.rememberAs, layout);
+        localStorage.setItem(key, layout);
       } catch {
         // storage blocked: the choice lasts until the page closes
       }
@@ -1097,7 +1133,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // test looks like a repeat of columns' own cards fallback, but `_pickStyle` (in willUpdate)
     // only applies a fallback a style declares: a header-hook style without one has no headers
     // in cards view, so it is drawn in the bar like any other style.
-    const inHead = Boolean(styled && this._fStyle!.header && this.layout !== 'cards');
+    const inHead = Boolean(styled && this._fStyle!.header && this._shown !== 'cards');
     const main = html`
       ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead)}
       ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
@@ -1111,7 +1147,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         ? nothing
         : rows.length === 0
           ? html`${inHead ? this._table(rows, w, sections, styled) : nothing}<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
-          : this.layout === 'cards'
+          : this._shown === 'cards'
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
       ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}`;
@@ -1154,7 +1190,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const icon = mine === undefined || mine === null
       ? (which === 'table' ? tableIcon : cardsIcon)
       : copyOf(mine);
-    return html`<button type="button" aria-pressed=${this.layout === which ? 'true' : 'false'}
+    return html`<button type="button" aria-pressed=${this._shown === which ? 'true' : 'false'}
       title=${mode === 'icons' ? label : nothing} @click=${() => this._setLayout(which)}>${mode === 'text'
         ? nothing
         : html`<span class="dv-layout-icon" aria-hidden="true">${icon}</span>`}<span

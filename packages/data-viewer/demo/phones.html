@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, phones</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, phones</h1>
+  <p>Narrow the window to 640 px or less: every list shows cards, unless it says phone-layout="table".</p>
+  <h2>layout="table": a table on wide screens, cards on phones</h2>
+  <lfdln-data-viewer id="wide" label="Plants (wide)" layout="table"></lfdln-data-viewer>
+  <h2>layout="table" phone-layout="table": a table everywhere</h2>
+  <lfdln-data-viewer id="keep" label="Plants (keep)" layout="table" phone-layout="table"></lfdln-data-viewer>
+  <h2>layout="cards" remember-as="mem": a choice kept per mode</h2>
+  <lfdln-data-viewer id="mem" label="Plants (mem)" layout="cards" remember-as="mem"></lfdln-data-viewer>
+  <h2>phone-layout="table" remember-as="memkeep"</h2>
+  <lfdln-data-viewer id="memkeep" label="Plants (memkeep)" phone-layout="table" remember-as="memkeep"></lfdln-data-viewer>
+  <script type="module" src="./phones.ts"></script>
+</body>
+</html>

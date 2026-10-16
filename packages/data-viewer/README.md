@@ -309,7 +309,7 @@ declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
       'lfdln-data-viewer': DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
-        label?: string; 'url-state'?: string; layout?: 'table' | 'cards'; 'remember-as'?: string;
+        label?: string; 'url-state'?: string; layout?: 'table' | 'cards'; 'phone-layout'?: 'table' | 'cards'; 'remember-as'?: string;
         'page-size'?: number; 'page-sizes'?: string; pager?: 'simple' | 'numbers';
         'layout-switch'?: 'none' | 'text' | 'icons' | 'both'; 'table-label'?: string; 'cards-label'?: string;
         config?: string;
@@ -407,8 +407,9 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `pageSize` | `page-size` | number | `20` | Rows per page. With `page-sizes`, the starting choice. |
 | `pageSizes` | `page-sizes` | `number[]` (attribute: `"10,20,50"`) | unset | Shows a "Rows per page" picker beside the paging status. See [Pages](#pages). |
 | `pager` | `pager` | `'simple'` or `'numbers'` | `'simple'` | `simple`: Previous and Next. `numbers`: numbered page buttons between them. See [Pages](#pages). |
-| `layout` | `layout` (reflected) | `'table'` or `'cards'` | table, or cards on a phone | How the rows are drawn. |
-| `rememberAs` | `remember-as` | string | unset | Keeps the visitor's table-or-cards choice in `localStorage` under this key (and a picked page size under `<key>.size`). It doesn't decide whether the switch shows; `layout-switch` does. |
+| `layout` | `layout` (reflected) | `'table'` or `'cards'` | `'table'` | The layout on screens wider than 640 px. Anything but `'cards'` is a table. |
+| `phoneLayout` | `phone-layout` | `'table'` or `'cards'` | unset (cards) | The layout on phones (640 px or less). Anything but `'table'` is cards. Not reflected. See [Phones](#phones). |
+| `rememberAs` | `remember-as` | string | unset | Keeps the visitor's table-or-cards choice in `localStorage`: a wide-screen choice under this key, a phone choice under `<key>.phone` (and a picked page size under `<key>.size`). It doesn't decide whether the switch shows; `layout-switch` does. |
 | `layoutSwitch` | `layout-switch` | `'none'`, `'text'`, `'icons'` or `'both'` | `'text'` | The table-or-cards switch: words, icons only, an icon before the words, or no switch. Anything else is `'text'`. See [The layout switch](#the-layout-switch). |
 | `tableLabel` | `table-label` | string | `words.showTable` | What the table button says (its name and, with icons only, its `title`). |
 | `cardsLabel` | `cards-label` | string | `words.showCards` | What the cards button says. |
@@ -745,9 +746,13 @@ the address (see [Address](#address)); with `remember-as` it is kept in `localSt
 ## The layout switch
 
 Every list (except a `compact` one) has a switch between the table and the cards, unless
-`layout-switch="none"`: then `layout` (or the phone default) decides, and a choice saved under
-`remember-as` still applies. `remember-as` only decides whether the visitor's choice is kept in
-`localStorage`; without it the choice lasts until the page closes. The buttons say "Show a table" and
+`layout-switch="none"`: then `layout` (wide screens) or `phone-layout` (phones) decides, and a
+choice saved under `remember-as` still applies. A press on a wide screen sets `layout`, and a press
+on a phone sets `phoneLayout`, so each mode keeps its own choice. `remember-as` only decides whether
+the visitor's choice is kept in `localStorage`: a wide-screen choice under `<remember-as>`, a phone
+choice under `<remember-as>.phone`, and a stored choice wins over the attribute for its mode.
+Without it the choice lasts until the page closes. Crossing 640 px (turning a tablet, say) redraws
+the list in that mode's layout and fires no `dv-layout`. The buttons say "Show a table" and
 "Show cards" (`words.showTable` and `words.showCards`), or what `table-label` and `cards-label`
 say. `layout-switch="icons"` shows built-in icons (a table and a grid of cards, drawn in
 `currentColor`) instead: the words stay as each button's name for screen readers, in hidden text,
@@ -1277,7 +1282,11 @@ These are the styling interface.
 
 At 640 px wide or less:
 
-- The list starts as cards, unless `layout` is set or a remembered choice exists.
+- The list shows cards, even when `layout` is set; set `phone-layout="table"` to keep a table.
+  A phone choice the visitor made (kept under `<remember-as>.phone`) wins.
+
+  **Breaking change:** before this, `layout="table"` also applied to phones. A list that must stay
+  a table on phones now needs `phone-layout="table"` (or `phoneLayout: 'table'` in its setup).
 - The "Search in" picker goes under the search box, and the filter opens as a bottom sheet
   (639 px or less).
 - Buttons, inputs, the page-size picker, view links and menu items are at least 44 px tall; the ⋯

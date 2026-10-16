@@ -41,6 +41,7 @@ export type ListSetup<T = Record<string, unknown>> = {
   pageSizes?: number[];
   pager?: Pager;
   layout?: 'table' | 'cards';
+  phoneLayout?: 'table' | 'cards';
   layoutSwitch?: LayoutSwitch;
   tableLabel?: string;
   cardsLabel?: string;
