@@ -43,3 +43,13 @@ test('typedEnds: as typed while drafting, trimmed when applied at once', () => {
   assert.deepEqual(typedEnds(' 5', '10 ', 'change'), ['5', '10']);
   assert.deepEqual(typedEnds('', '  ', 'change'), ['', '']);
 });
+
+test('typedEnds: applied at once, a number range drops an end that is not a number', () => {
+  assert.deepEqual(typedEnds('abc', ' 5 ', 'change', 'number'), ['', '5']);
+  assert.deepEqual(typedEnds('2', '1e', 'change', 'money'), ['2', '']);
+  assert.deepEqual(typedEnds('-1.5', '1e3', 'change', 'number'), ['-1.5', '1e3']);
+  assert.deepEqual(typedEnds('abc', '', 'change', undefined), ['', '']);
+  // Dates are kept as typed (trimmed); a draft keeps every key as typed.
+  assert.deepEqual(typedEnds(' 1950-06 ', 'x', 'change', 'date'), ['1950-06', 'x']);
+  assert.deepEqual(typedEnds('ab', '-', 'input', 'number'), ['ab', '-']);
+});

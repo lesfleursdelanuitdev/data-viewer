@@ -658,6 +658,8 @@ test.describe('bar', () => {
     await expect(page.locator('#bar tbody tr')).toHaveCount(12);
     await expect(clear).toHaveCount(0);
     await expect(menuOf(page)).toHaveCount(0);
+    // Clear all leaves the row; focus goes to the first pill, which stays.
+    await expect(pill(page, 'kind')).toBeFocused();
     expect([...new URL(page.url()).searchParams.keys()].filter((k) => k.startsWith('bar.f.'))).toEqual([]);
   });
 

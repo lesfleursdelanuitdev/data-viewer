@@ -94,4 +94,53 @@ test.describe('<lfdln-filter-bar>', () => {
     await expect(colour.getByRole('radio', { name: 'Red' })).toBeFocused();
     expect((await events(page)).at(-1)).toEqual({ value: { colour: ['Red'] } });
   });
+
+  test('a range with no named ranges has From and To boxes: a change applies, empty or junk clears', async ({ page }) => {
+    await page.goto('/bar.html');
+    const b = page.locator('#b');
+    const p = b.locator('.lfdln-filter-bar-pill[data-key="height"]');
+    await p.click();
+    const boxes = b.getByRole('group', { name: 'Height' });
+    const from = boxes.getByRole('textbox', { name: 'From' });
+    const to = boxes.getByRole('textbox', { name: 'To' });
+    // Not on every key: when a box is left, or Enter is pressed.
+    await from.fill(' 2 ');
+    expect(await events(page)).toEqual([]);
+    await from.press('Tab');
+    expect(await events(page)).toEqual([{ value: { height: { from: '2' } } }]);
+    await to.fill('5');
+    await to.press('Enter');
+    expect((await events(page)).at(-1)).toEqual({ value: { height: { from: '2', to: '5' } } });
+    await expect(p).toHaveAccessibleName('Height: 2–5');
+    await expect(from).toHaveValue('2');
+    // Emptying one end keeps the other; emptying both clears the section.
+    await from.fill('');
+    await from.press('Enter');
+    expect((await events(page)).at(-1)).toEqual({ value: { height: { to: '5' } } });
+    await to.fill('');
+    await to.press('Enter');
+    expect((await events(page)).at(-1)).toEqual({ value: {} });
+    await expect(p).toHaveAccessibleName('Height');
+    // An end that is not a number is dropped, so on its own it clears, and its box empties.
+    await from.fill('abc');
+    await from.press('Enter');
+    expect((await events(page)).at(-1)).toEqual({ value: {} });
+    await expect(from).toHaveValue('');
+    await to.fill('5');
+    await to.press('Enter');
+    await from.fill('tall');
+    await from.press('Enter');
+    expect((await events(page)).at(-1)).toEqual({ value: { height: { to: '5' } } });
+    await expect(from).toHaveValue('');
+  });
+
+  test('Clear all moves focus to the first pill', async ({ page }) => {
+    await page.goto('/bar.html');
+    const b = page.locator('#b');
+    await b.getByRole('button', { name: 'In stock' }).click();
+    await b.getByRole('button', { name: 'Clear all' }).click();
+    await expect(b.getByRole('button', { name: 'Clear all' })).toHaveCount(0);
+    await expect(b.locator('.lfdln-filter-bar-pill').first()).toBeFocused();
+    await expect(b.locator('.lfdln-filter-bar-pill').first()).toHaveAttribute('data-key', 'kind');
+  });
 });

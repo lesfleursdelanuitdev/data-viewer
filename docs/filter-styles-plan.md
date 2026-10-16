@@ -247,9 +247,16 @@ The READMEs and the docs site describe what was built. Where it differs from the
   the funnel button, opens above it near the window's bottom edge and follows it on scroll. The
   funnel is its own 24 px button (44 px on phones) beside the sorting header text, with the
   column's setting as its description.
-- **Radios.** In the rail and the columns' menus, single choices, named ranges and Yes/No are
-  `role="radio"` rows in a `role="radiogroup"` (one tab stop; arrow keys move and pick).
-  Several-at-once rows are `role="checkbox"` in a group.
+- **Radios.** In the rail, the bar's menus and the columns' menus, single choices, named ranges
+  and Yes/No are `role="radio"` rows in a `role="radiogroup"` (one tab stop; arrow keys move and
+  pick). Several-at-once rows are `role="checkbox"` in a group. Up from the first radio goes back
+  to the option search when the menu has one, picking nothing.
+- **A `./parts` subpath** (Lit-free) holds what the styles are drawn from: the parts, their
+  look, the menu and radio keys, the From and To boxes and the value functions, so a style can be
+  written outside the package. `./panel` re-exports it; the style subpaths export only the style,
+  its CSS and its fallback.
+- **From and To boxes that apply at once** (bar, rail, columns) drop an end that is not a number
+  in a number range, so junk on its own clears the section rather than showing as set.
 - **The rail's fallback** watches the width of the list's own `.dv-root` with a ResizeObserver
   and redraws on the next frame (a redraw in the same frame caused "ResizeObserver loop" errors).
 - **Counts follow the draft.** While a style's draft is open, the viewer counts the options over
@@ -274,8 +281,9 @@ The READMEs and the docs site describe what was built. Where it differs from the
   quick ranges). The panel's histogram bars are `lfdln-filter-hist-bar` / `-hist-bar-on`. Every
   style's root also carries `lfdln-filter-style-root`, and the shared parts' `svg` rule is scoped
   to it and to popovers, not to every `lfdln-filter-root` (the dialog's too).
-- **The panel's placement:** when its trigger's middle is in the right half of the list (in the
-  viewer it sits at the bar's right end), the 400 px panel opens right-aligned to the trigger, as
+- **The panel's placement:** when its trigger's middle is in the right half of the list (the
+  host passes the list's box as `view.bounds`; the window without it; in the viewer the trigger
+  sits at the bar's right end), the 400 px panel opens right-aligned to the trigger, as
   the columns' last two menus do, still 8 px inside the window. Otherwise it opens under the
   trigger's left edge. Today's dialog is placed as before.
 - **One popover at a time, by keyboard too:** today's dialog closes any other open popover (a
