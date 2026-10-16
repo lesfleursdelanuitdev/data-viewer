@@ -690,7 +690,13 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // (browser mode counts in _styled).
   private _askCount(): void {
     const sections = this._fDraft !== null ? this._sections() : [];
-    this._count(this._countFor, sections.length ? { filters: normalise(sections, this._fDraft!) } : undefined);
+    this._count(this._countFor, sections.length ? { ...this._draftQ, filters: normalise(sections, this._fDraft!) } : undefined);
+  }
+
+  // A style that draws views saves a draft as filters + search with view '' (views-store), so while
+  // its builder is open the preview and the counts drop the page view too: what you see is saved.
+  private get _draftQ(): Partial<Query> {
+    return this._fStyle?.drawsViews ? { view: '' } : {};
   }
 
   // Asks `into` for the count of the query with `over` on top, as _askCount says; none: stops it.
@@ -991,7 +997,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       view: {
         ...this._filterView(w, sections),
         phone: this._fPhone || this._narrow(),
-        countFor: this._fDraft === null ? null : count({ filters: normalise(sections, this._fDraft) }, this._countFor),
+        countFor: this._fDraft === null ? null : count({ ...this._draftQ, filters: normalise(sections, this._fDraft) }, this._countFor),
         search: {
           text: this._q.search,
           in: this._q.searchIn ?? '',
@@ -1077,7 +1083,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       rows: this._server ? undefined : this.rows ?? [],
       facets: this.facets,
       supports: this._supports,
-      q: this._fStyle && this._fDraft ? { ...this._q, filters: this._fDraft } : this._q,
+      q: this._fStyle && this._fDraft ? { ...this._q, ...this._draftQ, filters: this._fDraft } : this._q,
       views: this.views,
       searchKeys: this.searchKeys,
       rangeCounts: Boolean(this._fStyle),
@@ -1148,7 +1154,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       total = Number(this.total) || 0;
       page = this._q.page;
     } else {
-      const out = applyQuery(this.rows ?? [], this.columns, preview ? { ...this._query, filters: normalise(sections, this._fDraft!), page: 1 } : this._query, {
+      const out = applyQuery(this.rows ?? [], this.columns, preview ? { ...this._query, ...this._draftQ, filters: normalise(sections, this._fDraft!), page: 1 } : this._query, {
         views: this.views,
         searchKeys: this.searchKeys,
         pageSize: this._size,

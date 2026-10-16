@@ -2185,6 +2185,23 @@ test.describe('views', () => {
     await expect(tab(page, 'Sunny', 'views-page')).toBeFocused();
   });
 
+  test('from a page view, the preview, "Save · N", the saved list and the new tab agree', async ({ page }) => {
+    await open(page);
+    await tab(page, 'Herbs for sun', 'views-page').click();
+    await expect(page.locator('#views-page tbody tr')).toHaveCount(4);
+    await newView(page, 'views-page').click();
+    await chip(page, 'kind', 'Herb', 'views-page').click();
+    // What you see is what you save: a saved view keeps filters + search, never the page view.
+    await expect(page.locator('#views-page tbody tr')).toHaveCount(5);
+    await expect(saveButton(page, 'views-page')).toHaveText('Save · 5 results');
+    await expect(builder(page, 'views-page').locator('.lfdln-filter-views-row[data-key="kind"] .lfdln-filter-toggle[data-value="Herb"] .lfdln-filter-toggle-count')).toHaveText('5');
+    await builder(page, 'views-page').getByRole('textbox', { name: 'Name this view' }).fill('Herbs');
+    await saveButton(page, 'views-page').click();
+    await expect(page.locator('#views-page tbody tr')).toHaveCount(5);
+    await expect(tab(page, 'Herbs', 'views-page').locator('.lfdln-filter-views-count')).toHaveText('5');
+    await expect(tab(page, 'Herbs', 'views-page')).toHaveAttribute('aria-current', 'true');
+  });
+
   test('page views have no ⋯ menu', async ({ page }) => {
     await open(page);
     await expect(labels(page, 'views-page')).toHaveText(['All', 'Herbs for sun']);
