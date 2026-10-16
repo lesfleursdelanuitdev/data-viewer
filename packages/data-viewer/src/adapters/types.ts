@@ -16,6 +16,11 @@ export type Adapter = {
   supports?: AdapterSupports;
   /** `facets` (server mode): each filterable column's options with counts, for the filter. */
   load(q: Query, opts: { signal: AbortSignal; src: string; pageSize?: number }): Promise<AdapterAnswer>;
+  /**
+   * Server mode: how many rows `q` (an open filter draft) would leave. Without it the viewer
+   * loads `q` with a page size of 1 and uses the answer's `total`.
+   */
+  count?(q: Query, opts: { signal: AbortSignal; src: string }): Promise<number>;
 };
 
 export type AdapterAnswer = { rows: unknown[]; total?: number; facets?: Record<string, FilterOption[]> };

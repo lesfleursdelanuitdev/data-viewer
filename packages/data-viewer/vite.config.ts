@@ -20,7 +20,8 @@ function pageOf(p: URLSearchParams, perKey: string, per = 20) {
   const search = (p.get('search') ?? '').toLowerCase();
   const sort = p.get('sort') as keyof Recipe | null;
   const sign = p.get('dir') === 'desc' ? -1 : 1;
-  let rows = recipes.filter((r) => r.name.toLowerCase().includes(search));
+  const cuisine = p.get('f.cuisine')?.split(',').map(decodeURIComponent);
+  let rows = recipes.filter((r) => r.name.toLowerCase().includes(search) && (!cuisine || cuisine.includes(r.cuisine)));
   if (sort && sort in recipes[0]!) {
     rows = [...rows].sort((a, b) => sign * String(a[sort]).localeCompare(String(b[sort]), 'en', { numeric: true }));
   }
@@ -30,7 +31,8 @@ function pageOf(p: URLSearchParams, perKey: string, per = 20) {
 }
 
 // /api/recipes: ?all=1 answers a plain array; ?slow=<text> answers a search for <text> after
-// 800 ms (anything else after 50 ms), so a newer query can overtake an older one; the dv-fail
+// 800 ms (anything else after 50 ms), so a newer query can overtake an older one; so does
+// ?slowcount=1 with size=1 (a draft count); f.cuisine=<a>,<b> keeps those cuisines; the dv-fail
 // cookie makes it fail with a 500. /_pammy/api/data/postgres/demo/recipes answers as the gate does.
 function fakeApi(): Plugin {
   const send = (res: ServerResponse, status: number, body: unknown) => {
@@ -48,7 +50,8 @@ function fakeApi(): Plugin {
           if (/(^|;\s*)dv-fail=1/.test(req.headers.cookie ?? '')) return send(res, 500, { message: 'Made to fail.' });
           if (p.has('all')) return send(res, 200, recipes);
           const slow = p.get('slow');
-          const wait = slow && (p.get('search') ?? '').includes(slow) ? 800 : 50;
+          const slowCount = p.get('slowcount') === '1' && p.get('size') === '1';
+          const wait = slowCount || (slow && (p.get('search') ?? '').includes(slow)) ? 800 : 50;
           const out = pageOf(p, 'size');
           setTimeout(() => send(res, 200, { rows: out.rows, total: out.total }), wait);
           return;

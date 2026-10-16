@@ -13,7 +13,8 @@ import {
 } from '@lesfleursdelanuitdev/filter';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
-import { filterKind, filterSections, searchColumns } from '../core/filters.ts';
+import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';
+import { DraftCount } from '../core/draft-count.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
 import { fieldText, fieldValue } from '../core/card-template.ts';
 import { readQuery, writeQuery, type AddressQuery, type FilterKinds } from '../core/address.ts';
@@ -304,6 +305,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _unwait: (() => void) | undefined;
   private _mode: LoadMode = 'unknown';
   private _stale = false; // a load was cut off by leaving the page
+  // Server mode: the open filter draft's count, asked of the adapter (see _askCount).
+  private _countFor = new DraftCount(() => this.requestUpdate());
   // The page size the host was last told about (undefined: none yet), and the page last drawn.
   private _toldSize: number | undefined;
   private _page = 1;
@@ -384,6 +387,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._unStyle?.();
     this._unStyle = undefined;
     this._fDraft = null;
+    this._countFor.stop();
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
     // A load still running or waiting for its adapter is dropped, and redone on return.
@@ -465,6 +469,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (this._answered && this._server) this.busy = false;
     this._answered = false;
     this._pickStyle();
+    // After the style, which may drop the draft (Lit adds that change to `changed`).
+    if (changed.has('_fDraft')) this._askCount();
   }
 
   // The filter style for this drawing, after its fallback for the list's width and layout.
@@ -631,6 +637,19 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     } finally {
       if (this._ctrl === ctrl) this._ctrl = undefined;
     }
+  }
+
+  // Server mode with an adapter: ask for the open draft's count (adapter.count, else a load of
+  // one row and its total), 300 ms after the draft last changed. Otherwise, or once the draft
+  // is closed, there is none (browser mode counts in _styled).
+  private _askCount(): void {
+    const adapter = this._adapted && this._server && this._fDraft !== null ? adapterNamed(this.adapter!.trim()) : undefined;
+    if (!adapter) return this._countFor.stop();
+    const q: Query = { ...this._query, page: 1, filters: normalise(this._sections(), this._fDraft!) };
+    const src = (this.src ?? '').trim();
+    this._countFor.ask((signal) => adapter.count
+      ? adapter.count(q, { signal, src })
+      : adapter.load({ ...q, size: 1 }, { signal, src, pageSize: 1 }).then((a) => a.total));
   }
 
   /**
@@ -879,12 +898,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   // The style's view and handlers. results: the rows the applied filters leave; total: all rows
-  // in browser mode (null in server mode). countFor is filled in later (null: not known).
+  // in browser mode (null in server mode). countFor: the rows the open draft would leave, at
+  // once in browser mode, from the server in server mode (null: no draft, or not known yet).
   private _styled(w: Words, sections: FilterSection[], results: number | null): { view: FilterStyleView; on: FilterStyleHandlers } {
     return {
       view: {
         ...this._filterView(w, sections),
-        countFor: null,
+        countFor: this._fDraft === null || results === null ? null
+          : this._server ? this._countFor.value
+          : countMatching(this.rows ?? [], this.columns, { ...this._q, filters: normalise(sections, this._fDraft) }, { views: this.views, searchKeys: this.searchKeys }),
         results,
         total: this._server ? null : (this.rows ?? []).length,
         menu: this._fMenu,

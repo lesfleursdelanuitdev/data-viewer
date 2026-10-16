@@ -1,4 +1,5 @@
-import { LfdlnDataViewer, define, registerFilterStyle } from '../src/index.ts';
+import { LfdlnDataViewer, define, registerAdapter, registerFilterStyle } from '../src/index.ts';
+import { jsonAdapter } from '../src/adapters/json.ts';
 import { applyQuery } from '../src/core/list.ts';
 import type { Column, Query } from '../src/core/types.ts';
 
@@ -48,15 +49,33 @@ const answer = (q: Query) => {
 };
 answer({ page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 });
 served.addEventListener('dv-query', (e) => answer(e.detail));
+
+// #server and #counting: 45 recipes from the fake API, filtered by cuisine on the server.
+// "counting" loads as json does but counts every draft as 999 (adapter.count wins over load).
+type Recipe = { id: number; name: string; cuisine: string; minutes: number };
+const recipeColumns: Column<Recipe>[] = [
+  { key: 'name', label: 'Name', searchable: true },
+  { key: 'cuisine', label: 'Cuisine', filterable: true, options: ['Persian', 'Indian', 'French', 'Turkish'] },
+  { key: 'minutes', label: 'Minutes', type: 'number' },
+];
+registerAdapter('counting', { load: jsonAdapter.load, count: async () => 999 });
+for (const id of ['server', 'counting']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
 define();
 
 // Test scaffolding: a style that shows its draft count (and results and total in data-*), registered after the lists have drawn
-// (as an add-on script that loads late would be).
+// (as an add-on script that loads late would be). Its "draft" button opens the draft (once)
+// and sets it to the list's data-draft (JSON; { kind: ['Herb'] } without one); "close" closes it.
 setTimeout(() => registerFilterStyle('probe', {
   name: 'probe',
   instant: false,
   showsApplied: true,
   styles() {},
-  render: (view, _on, kit) => kit.html`<p class="probe" data-results=${String(view.results)}
-    data-total=${String(view.total)}>${view.countFor}</p>`,
+  render: (view, on, kit) => kit.html`<p class="probe" data-count=${String(view.countFor)} data-results=${String(view.results)}
+    data-total=${String(view.total)}>${view.countFor}</p>
+    <button type="button" class="probe-draft" @click=${(e: Event) => {
+      const host = (e.target as HTMLElement).closest('lfdln-data-viewer') as HTMLElement;
+      if (!view.open) on.onOpen();
+      on.onDraft(host.dataset.draft ? JSON.parse(host.dataset.draft) : { kind: ['Herb'] });
+    }}>draft</button>
+    <button type="button" class="probe-close" @click=${() => on.onClose()}>close</button>`,
 }), 200);

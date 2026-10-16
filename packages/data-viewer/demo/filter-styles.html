@@ -18,6 +18,10 @@
   <lfdln-data-viewer id="test" label="Plants (test style)" url-state="test" filter-style="probe" layout="table"></lfdln-data-viewer>
   <h2>The test style, with rows from a server the page plays</h2>
   <lfdln-data-viewer id="served" label="Plants (served)" url-state="served" filter-style="probe" layout="table"></lfdln-data-viewer>
+  <h2>The test style, with recipes from /api/recipes (json adapter, server mode)</h2>
+  <lfdln-data-viewer id="server" label="Recipes" adapter="json" src="/api/recipes" filter-style="probe" layout="table"></lfdln-data-viewer>
+  <h2>The same, through an adapter that counts drafts itself (always 999)</h2>
+  <lfdln-data-viewer id="counting" label="Recipes (counting)" adapter="counting" src="/api/recipes" filter-style="probe" layout="table"></lfdln-data-viewer>
   <h2>A style that is never loaded: the dialog, and one warning</h2>
   <lfdln-data-viewer id="missing" label="Plants (missing style)" filter-style="nope" layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
