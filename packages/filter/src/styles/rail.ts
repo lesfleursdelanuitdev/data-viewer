@@ -13,6 +13,7 @@ import type { Chip, FilterRange, FilterSection, FilterValue } from '../core/type
 import { checkRow } from '../parts/check-row.ts';
 import { tag } from '../parts/chip.ts';
 import { addPartsStyles, addStyle, HOVER } from '../parts/parts-css.ts';
+import { radioKeys, tabStop } from '../parts/radios.ts';
 import { switchRow } from '../parts/switch.ts';
 import { anySet, railFallback, railRows } from './rail-logic.ts';
 
@@ -78,15 +79,18 @@ function group(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterS
   }
   const lid = `${v.uid}-rail-${s.key}-label`;
   const rows = railRows(s, v.value);
-  // The rows are check boxes (a tick on a picked single choice unpicks it, as a check box does).
+  // Several at once: check boxes in a group. One at a time (round boxes): radios in a radiogroup,
+  // one tab stop, arrow keys move and pick; a tick on the picked one unpicks it.
+  const one = rows.length > 0 && rows[0]!.round;
   const body = rows.length || s.kind === 'choice'
-    ? rows.map((r) => checkRow(kit, {
-      label: r.label, value: r.value, count: r.count, on: r.on, round: r.round, role: 'checkbox',
+    ? rows.map((r, i) => checkRow(kit, {
+      label: r.label, value: r.value, count: r.count, on: r.on, round: r.round, role: one ? 'radio' : 'checkbox',
+      tabIndex: one ? tabStop(rows.map((x) => x.on), i) : undefined,
       onToggle: () => on.onApplyNow(r.next),
     }))
     : rangeBoxes(kit, s, v, on, lid);
-  return kit.html`<div class="lfdln-filter-rail-group" role="group" aria-labelledby=${lid}><div class="lfdln-filter-rail-label"
-    id=${lid}>${s.label}</div>${body}</div>`;
+  return kit.html`<div class="lfdln-filter-rail-group" role=${one ? 'radiogroup' : 'group'} aria-labelledby=${lid}
+    @keydown=${one ? radioKeys : kit.nothing}><div class="lfdln-filter-rail-label" id=${lid}>${s.label}</div>${body}</div>`;
 }
 
 function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult {

@@ -21,8 +21,8 @@ test.describe('<lfdln-filter-rail>', () => {
     expect(await events(page)).toEqual([{ value: { kind: ['Herb'] } }]);
     await expect(r.getByRole('checkbox', { name: /Herb/ })).toHaveAttribute('aria-checked', 'true');
     // A single choice replaces.
-    await r.getByRole('checkbox', { name: 'Small' }).click();
-    await r.getByRole('checkbox', { name: 'Large' }).click();
+    await r.getByRole('radiogroup', { name: 'Size' }).getByRole('radio', { name: 'Small' }).click();
+    await r.getByRole('radiogroup', { name: 'Size' }).getByRole('radio', { name: 'Large' }).click();
     expect((await events(page)).at(-1)).toEqual({ value: { kind: ['Herb'], size: ['l'] } });
     // The From/To boxes apply when left.
     const from = r.getByRole('group', { name: 'Height' }).getByLabel('From');

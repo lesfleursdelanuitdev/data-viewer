@@ -73,6 +73,24 @@ test.describe('filter-style', () => {
   });
 });
 
+// #side: a test style drawn beside the list (side) that leaves the applied filters to the
+// viewer's chips row, which then sits in .dv-main.
+test.describe('the chips row beside a side style', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('removing a chip moves focus to the next ×, then to the style', async ({ page }) => {
+    await open(page, `?side.f.kind=${encodeURIComponent('Herb,Flower')}`);
+    const chips = page.locator('#side .dv-main > .lfdln-filter-chips');
+    await expect(chips.locator('.lfdln-filter-chip-x')).toHaveCount(2);
+    await chips.locator('.lfdln-filter-chip-x').first().click();
+    await expect(chips.locator('.lfdln-filter-chip-x')).toHaveCount(1);
+    await expect(chips.locator('.lfdln-filter-chip-x').first()).toBeFocused();
+    await chips.locator('.lfdln-filter-chip-x').first().click();
+    await expect(page.locator('#side .lfdln-filter-chips')).toHaveCount(0);
+    await expect(page.locator('#side .dv-side .probe-side')).toBeFocused();
+  });
+});
+
 // The draft count requests (size=1) that reach /api/recipes, as their f.cuisine.
 function countRequests(page: Page): string[] {
   const asked: string[] = [];
@@ -821,6 +839,68 @@ test.describe('rail', () => {
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     expect(problems).toEqual([]);
     expect(await page.evaluate(() => (window as unknown as { errors: string[] }).errors)).toEqual([]);
+  });
+});
+
+test.describe('rail radios and widths', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('a named range is a radio group named by its heading; arrows move and pick, a tick again unpicks', async ({ page }) => {
+    const { problems } = await open(page);
+    const price = rail(page).getByRole('radiogroup', { name: 'Price' });
+    await expect(price.getByRole('radio')).toHaveCount(3);
+    // Several at once stay check boxes, in a group named by the heading.
+    await expect(rail(page).getByRole('group', { name: 'Kind' }).getByRole('checkbox')).toHaveCount(4);
+    // One stop in the tab order: the first radio while none is picked.
+    const under = price.getByRole('radio', { name: /Under €5/ });
+    const mid = price.getByRole('radio', { name: /€5–€10/ });
+    const over = price.getByRole('radio', { name: /Over €10/ });
+    await expect(under).toHaveAttribute('tabindex', '0');
+    await expect(mid).toHaveAttribute('tabindex', '-1');
+    await under.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(mid).toBeFocused();
+    await expect(mid).toHaveAttribute('aria-checked', 'true');
+    await expect(mid).toHaveAttribute('tabindex', '0');
+    await expect(under).toHaveAttribute('tabindex', '-1');
+    expect(new URL(page.url()).searchParams.get('rail.f.price')).toBeTruthy();
+    await page.keyboard.press('End');
+    await expect(over).toBeFocused();
+    await expect(over).toHaveAttribute('aria-checked', 'true');
+    await expect(mid).toHaveAttribute('aria-checked', 'false');
+    await page.keyboard.press('ArrowDown'); // wraps
+    await expect(under).toBeFocused();
+    await expect(under).toHaveAttribute('aria-checked', 'true');
+    // A tick on the picked one unpicks it.
+    await page.keyboard.press('Space');
+    await expect(under).toHaveAttribute('aria-checked', 'false');
+    await expect(page.locator('#rail tbody tr')).toHaveCount(12);
+    expect(new URL(page.url()).searchParams.get('rail.f.price')).toBeNull();
+    expect(problems).toEqual([]);
+  });
+
+  test('back from another style, the rail never draws at the width it had before', async ({ page }) => {
+    await open(page);
+    const width = (px: number) => page.locator('#rail-box').evaluate((el, w) => {
+      (el as HTMLElement).style.width = `${w}px`;
+    }, px);
+    await width(700);
+    await expect(page.locator('#rail .lfdln-filter-trigger')).toBeVisible();
+    await page.locator('#rail').evaluate((el) => el.setAttribute('filter-style', 'bar'));
+    await expect(page.locator('#rail .lfdln-filter-pills')).toBeVisible();
+    await width(900);
+    // Watch for the panel's trigger, even for one frame, while switching back.
+    await page.locator('#rail').evaluate((el) => {
+      const w = window as unknown as { sawTrigger: boolean };
+      w.sawTrigger = false;
+      new MutationObserver(() => {
+        if (el.querySelector('.lfdln-filter-trigger')) w.sawTrigger = true;
+      }).observe(el, { childList: true, subtree: true });
+      el.setAttribute('filter-style', 'rail');
+    });
+    await expect(rail(page)).toBeVisible();
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    expect(await page.evaluate(() => (window as unknown as { sawTrigger: boolean }).sawTrigger)).toBe(false);
   });
 });
 

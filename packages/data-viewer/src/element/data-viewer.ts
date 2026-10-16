@@ -34,6 +34,10 @@ export type LayoutSwitch = 'none' | 'text' | 'icons' | 'both';
 /** Icons for the layout switch. A string is shown as text (never HTML); a Node is copied per drawing. */
 export type LayoutIcons = { table?: Content; cards?: Content };
 
+// The ×s of the viewer's chips row: the root's child, or .dv-main's beside a side style (not the
+// draft chips inside today's dialog).
+const CHIP_XS = ':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x, :scope > .dv-root > .dv-main > .lfdln-filter-chips .lfdln-filter-chip-x';
+
 // The built-in switch icons: a table (rows under a header) and cards (four tiles), in currentColor.
 const tableIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor"
   stroke-width="1.5" focusable="false"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path
@@ -784,6 +788,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (root === this._roOn) return;
     this._ro?.disconnect();
     this._roOn = root;
+    // A width from a root no longer watched is stale: the next pick reads the root afresh.
+    this._width = undefined;
     // A new width draws again only when it changes the style (every pixel would redraw the list),
     // and on the next frame: drawing inside the callback resizes .dv-root again in the same frame,
     // which the browser reports as a "ResizeObserver loop" error.
@@ -964,13 +970,17 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // ×, or to the filter button when none is left.
   private _chips(w: Words, sections: FilterSection[]): TemplateResult | typeof nothing {
     if ((this.filterChips ?? '').trim().toLowerCase() === 'off' || this._fStyle?.showsApplied) return nothing;
+    // The row is the root's child, or .dv-main's beside a side style; with none left, focus goes
+    // to today's filter button, or else to the style's first control.
+    const xsOf = () => [...this.querySelectorAll<HTMLElement>(CHIP_XS)];
     const refocus = (index: number) => void this.updateComplete.then(() => {
-      const xs = this.querySelectorAll<HTMLElement>(':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x');
-      (xs[Math.min(index, xs.length - 1)] ?? this.querySelector<HTMLElement>(':scope > .dv-root .lfdln-filter-button'))?.focus();
+      const xs = xsOf();
+      (xs[Math.min(index, xs.length - 1)] ?? this.querySelector<HTMLElement>(':scope > .dv-root .lfdln-filter-button')
+        ?? this.querySelector<HTMLElement>(':scope > .dv-root :is(.dv-filter, .dv-side) :is(button, input)'))?.focus();
     });
     return renderFilterChips(sections, this._q.filters ?? {}, w, (chip) => {
-      const xs = [...this.querySelectorAll(':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x')];
-      const at = Math.max(0, xs.indexOf(document.activeElement as Element));
+      const xs = xsOf();
+      const at = Math.max(0, xs.indexOf(document.activeElement as HTMLElement));
       this._applyFilters(removeChip(this._q.filters ?? {}, chip), sections);
       refocus(at);
     }, () => {
@@ -1079,7 +1089,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // A style drawn beside the list (rail) gets a column of its own; the rest go in .dv-main.
     const side = Boolean(styled && this._fStyle!.side);
     const main = html`
-      ${this.compact ? nothing : this._bar(w, sections, side ? undefined : styled, side)}
+      ${this.compact ? nothing : this._bar(w, sections, styled, side)}
       ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">

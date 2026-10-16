@@ -31,7 +31,7 @@ const columns: Column<Plant>[] = [
   { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
 ];
 
-for (const id of ['plants', 'test', 'missing', 'panel', 'rail']) {
+for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side']) {
   const list = document.querySelector(`#${id}`) as LfdlnDataViewer<Plant>;
   list.columns = columns;
   list.rows = plants;
@@ -92,3 +92,14 @@ setTimeout(() => registerFilterStyle('probe', {
     }}>draft</button>
     <button type="button" class="probe-close" @click=${() => on.onClose()}>close</button>`,
 }), 200);
+
+// #side: a test style drawn in a column of its own (side) that leaves the applied filters to the
+// viewer's chips row (showsApplied false): it draws one button, "side".
+registerFilterStyle('probe-side', {
+  name: 'probe-side',
+  instant: true,
+  showsApplied: false,
+  side: true,
+  styles() {},
+  render: (_view, _on, kit) => kit.html`<button type="button" class="probe-side">side</button>`,
+});
