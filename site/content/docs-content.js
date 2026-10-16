@@ -432,7 +432,7 @@ export function Plants() {
   filterStyles: {
     nav: 'Filter styles', kicker: 'The list', title: 'Filter styles',
     wide: true,
-    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, or menus in the column headers. Each style is one more script. Without one you get today’s dialog.',
+    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, menus in the column headers, or one field that searches and filters. Each style is one more script. Without one you get today’s dialog.',
     tabs: [
       { label: 'HTML', code: `<!-- The viewer, then the file for your style. -->
 <script type="module" src="/js/data-viewer.standalone.js"></script>
@@ -469,9 +469,47 @@ import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar';
 define();
 
 // <lfdln-data-viewer label="Plants" filter-style="bar" …> as in the HTML tab.` },
+      { label: 'Search style', code: `<!-- One field for the search and the filters: it takes the search box's place. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-search.js"></script>
+
+<lfdln-data-viewer label="Plants" filter-style="search" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.."></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  // With npm instead of the script tags:
+  // import '@lesfleursdelanuitdev/data-viewer/filter-styles/search';
+</script>` },
+      { label: 'Field alone', code: `<!-- The same field without the viewer: your page does the searching and filtering. -->
+<script type="module" src="/js/search-filter.standalone.js"></script>
+
+<lfdln-search-filter id="find" label="Search plants"></lfdln-search-filter>
+
+<script type="module">
+  const field = document.querySelector('#find');
+  field.fields = [{ key: 'name', label: 'Name' }, { key: 'owner', label: 'Owner' }];
+  field.sections = [
+    { key: 'kind', label: 'Kind', kind: 'choice',
+      options: [{ value: 'Herb', count: 5 }, { value: 'Tree', count: 1 }] },
+    { key: 'stock', label: 'In stock', kind: 'bool' },
+  ];
+  // One event for both: the search, its "Search in" and the filters.
+  field.addEventListener('search-filter-change', (e) => {
+    const { search, value } = e.detail;
+    showMatches(search, field.in, value); // your page's own searching
+  });
+</script>` },
     ],
     notes: [
-      'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js` or `-columns.js`. The rail and columns files hold the panel too, for their fallback.',
+      'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js`, `-columns.js` or `-search.js`. The rail, columns and search files hold the panel too.',
+      'Search puts the search and the filters in one field, in place of the search box. Type “her” and press Enter for Kind is Herb; Backspace removes the last token. Below 480 px of list width the suggestions open as a bottom sheet.',
       'A style that isn’t loaded shows the dialog, with one console warning naming the file to add. If the file loads later, the list switches to it.',
       'The rail becomes the panel when the list is narrower than 720 px. Columns become the panel in cards view.',
       'Bar, rail and columns apply each change at once. The panel keeps a draft until “Show N results”.',
@@ -480,7 +518,7 @@ define();
     // The strip shows dv-query, with its filters only.
     events: { 'dv-query': (d) => ({ filters: d.filters }) },
     mount: (host) => {
-      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['dialog', 'Dialog']];
+      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['search', 'Search'], ['dialog', 'Dialog']];
       host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>
         `<button type="button" class="tab" role="tab" id="fs-tab-${name}" aria-controls="fs-demo" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''} data-style="${name}">${label}</button>`).join('')}</div>
         <div class="fs-demo" id="fs-demo" role="tabpanel" aria-labelledby="fs-tab-panel">
@@ -492,7 +530,7 @@ define();
       let style = 'panel';
       let loaded = false;
       const useStyle = () => { if (loaded) list.setAttribute('filter-style', style); };
-      Promise.all(['panel', 'bar', 'rail', 'columns'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
+      Promise.all(['panel', 'bar', 'rail', 'columns', 'search'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
         loaded = true;
         useStyle();
       });
@@ -533,6 +571,9 @@ define();
           else if (step) { e.preventDefault(); pick((i + step + tabs.length) % tabs.length, true); }
         });
       });
+      // An address ending in a style's name (#search) opens on that tab.
+      const asked = STYLES.findIndex(([name]) => `#${name}` === location.hash);
+      if (asked > 0) pick(asked, false);
     },
   },
 

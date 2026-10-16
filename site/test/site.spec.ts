@@ -214,6 +214,7 @@ const STYLES: [string, string, string][] = [
   ['Bar', 'bar', '.lfdln-filter-bar-row'],
   ['Rail', 'rail', '.lfdln-filter-rail'],
   ['Columns', 'columns', '.lfdln-filter-col-btn'],
+  ['Search', 'search', '.lfdln-search-filter-field'],
   ['Dialog', 'dialog', '.lfdln-filter-button'],
 ];
 const styleTabs = (page: Page) => page.getByRole('tablist', { name: 'Filter style' });
@@ -237,8 +238,8 @@ test.describe('filter styles', () => {
     }
     // Arrow keys move between the style tabs, and pick.
     await styleTabs(page).getByRole('tab', { name: 'Dialog' }).press('ArrowLeft');
-    await expect(styleTabs(page).getByRole('tab', { name: 'Columns' })).toBeFocused();
-    await expect(list).toHaveAttribute('filter-style', 'columns');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Search' })).toBeFocused();
+    await expect(list).toHaveAttribute('filter-style', 'search');
     await page.waitForLoadState('networkidle');
     expect(problems).toEqual([]);
   });
@@ -294,6 +295,64 @@ test.describe('filter styles', () => {
     await expect(page.locator('pre.code-view:visible')).toContainText('filter-style="bar"');
     await page.getByRole('tab', { name: 'npm', exact: true }).click();
     await expect(page.locator('pre.code-view:visible')).toContainText("import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar'");
+  });
+
+  // The search style: one field instead of the search box and the filter (search-filter).
+  test('the Search tab: one field searches and filters, and #search opens it', async ({ page }) => {
+    const problems = watch(page);
+    await page.goto('/docs/filter-styles/#search');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Search', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(list).toHaveAttribute('filter-style', 'search');
+    const input = list.locator('.lfdln-search-filter-field input[role=combobox]');
+    await expect(input).toHaveAccessibleName('Search or filter');
+    // It replaces the search box.
+    await expect(list.locator('.lfdln-search-root')).toHaveCount(0);
+    await input.click();
+    await input.pressSequentially('her');
+    // Focus shows as the field's ring, not the site's outline round the input inside it.
+    await expect(input).toHaveCSS('outline-style', 'none');
+    await expect(list.getByRole('listbox', { name: 'Suggestions' }).getByRole('option', { name: /Herb/ })).toBeVisible();
+    await input.press('Enter');
+    await expect(list.locator('.lfdln-search-filter-token')).toHaveText(['Kind is Herb']);
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(6);
+    const first = page.locator('[data-events] .event').first();
+    await expect(first.locator('.event-detail')).toHaveText('{"filters":{"kind":["Herb"]}}');
+    // Text with Done is the search, in the one searchable column.
+    await input.pressSequentially('mint');
+    await list.getByRole('button', { name: 'Done' }).click();
+    await expect(list.locator('.lfdln-search-filter-token')).toHaveText(['Plant has mint', 'Kind is Herb']);
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(1);
+    await page.waitForLoadState('networkidle');
+    expect(problems).toEqual([]);
+  });
+
+  test("code tabs: Search style loads the search file, Field alone uses <lfdln-search-filter>", async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    await page.getByRole('tab', { name: 'Search style', exact: true }).click();
+    const code = page.locator('pre.code-view:visible');
+    await expect(code).toContainText('data-viewer-filter-search.js');
+    await expect(code).toContainText('filter-style="search"');
+    await expect(code).toContainText("import '@lesfleursdelanuitdev/data-viewer/filter-styles/search'");
+    await page.getByRole('tab', { name: 'Field alone', exact: true }).click();
+    await expect(code).toContainText('search-filter.standalone.js');
+    await expect(code).toContainText('<lfdln-search-filter');
+    await expect(code).toContainText('search-filter-change');
+  });
+
+  test('at 390px the Search tab opens the bottom sheet, nothing wider than the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/docs/filter-styles/#search');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await list.locator('.lfdln-search-filter-field input[role=combobox]').click();
+    const sheet = list.locator('dialog.lfdln-search-filter-pop[open]');
+    await expect(sheet).toBeVisible();
+    await sheet.locator('input[role=combobox]').pressSequentially('su');
+    await expect(sheet.getByRole('option').first()).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(box.width).toBeLessThanOrEqual(390);
+    const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(scroll).toBeLessThanOrEqual(inner);
   });
 
   test('at 390px no style is wider than the screen', async ({ page }) => {
@@ -376,12 +435,16 @@ function readmeHeadings(pkg: string): { section: string; titles: string[] }[] {
 }
 
 test.describe('reference', () => {
-  for (const [page, spec] of Object.entries(REFERENCE) as [string, { pkg: string; sections?: string[]; from?: string; skip?: string[] }][]) {
+  type Spec = { pkg: string; sections?: string[]; from?: string; skip?: string[] };
+  for (const [page, specs] of Object.entries(REFERENCE) as [string, Spec | Spec[]][]) {
     test(`${ADDRESSES[page as keyof typeof ADDRESSES]} has every mapped README heading`, async ({ page: p }) => {
-      const all = readmeHeadings(spec.pkg);
-      const wanted = spec.sections
-        ? spec.sections.map((t) => all.find((s) => s.section === t)!)
-        : all.slice(all.findIndex((s) => s.section === spec.from)).filter((s) => !spec.skip?.includes(s.section));
+      // A page's Reference can be several packages' sections, one after the other.
+      const wanted = [specs].flat().flatMap((spec) => {
+        const all = readmeHeadings(spec.pkg);
+        return spec.sections
+          ? spec.sections.map((t) => all.find((s) => s.section === t)!)
+          : all.slice(all.findIndex((s) => s.section === spec.from)).filter((s) => !spec.skip?.includes(s.section));
+      });
       expect(wanted.every(Boolean)).toBe(true);
       await p.goto(ADDRESSES[page as keyof typeof ADDRESSES]);
       const shown = await p.locator('.ref :is(h2, h3, h4)').allTextContents();

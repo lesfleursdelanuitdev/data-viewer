@@ -29,13 +29,15 @@ export const PACKAGE_PAGES = {
   card: 'card',
   search: 'search',
   filter: 'filter',
+  'search-filter': 'filterStyles', // it has no page of its own: its Reference follows the styles'
 };
 
 // Viewer README sections that no page shows.
 export const VIEWER_UNCLAIMED = ['Licence'];
 
 // page id -> { pkg, sections } (named sections, in this order) or { pkg, from, skip } (every
-// section from `from` to the end, without those in `skip`). Pages left out have no Reference.
+// section from `from` to the end, without those in `skip`), or a list of these, shown one after
+// the other. Pages left out have no Reference.
 export const REFERENCE = {
   install: { pkg: 'data-viewer', sections: ['Install', 'Two ways to load it', 'define, configure and defineList'] },
   basics: {
@@ -47,7 +49,10 @@ export const REFERENCE = {
   },
   config: { pkg: 'data-viewer', sections: ['Setup in its own file', 'Menus', 'Words', 'In React', 'In Lit'] },
   custom: { pkg: 'data-viewer', sections: ['Your own cards'] },
-  filterStyles: { pkg: 'data-viewer', sections: ['Filter styles'] },
+  filterStyles: [
+    { pkg: 'data-viewer', sections: ['Filter styles'] },
+    { pkg: 'search-filter', from: 'In HTML', skip: ['Install', 'Licence'] },
+  ],
   server: { pkg: 'data-viewer', sections: ['Pages', 'Search and filter', 'Address', 'Adapters'] },
   styling: { pkg: 'data-viewer', sections: ['Styling'] },
   menu: { pkg: 'menu', from: 'In HTML', skip: ['Install', 'Licence'] },

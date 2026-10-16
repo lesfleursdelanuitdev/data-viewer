@@ -15,6 +15,9 @@ which work on any page without the viewer: [`@lesfleursdelanuitdev/menu`](https:
 [`@lesfleursdelanuitdev/search`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search#readme) (`<lfdln-search>`) and
 [`@lesfleursdelanuitdev/filter`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#readme) (`<lfdln-filter>`, `<lfdln-filter-chips>`). The viewer draws with their
 code, so it installs them with it; nothing about the viewer's own attributes or events changes.
+`filter-style="search"` draws with a sixth,
+[`@lesfleursdelanuitdev/search-filter`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
+(`<lfdln-search-filter>`, the search and the filter in one field).
 
 ## Install
 
@@ -421,7 +424,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `searchSubmitLabel` | `search-submit-label` | string | unset | A button after the search box with these words; then typing alone doesn't search, only Enter or the button. |
 | `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. |
 | `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
-| `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'` or `'columns'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
+| `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'`, `'columns'` or `'search'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
@@ -560,8 +563,9 @@ attribute doesn't change. Each other style is a file of its own, and only pages 
 | `bar` | One pill per section in the bar. A pill opens a 240 px menu (a bottom sheet on phones); a yes/no pill just toggles | At once | In the pills, and a "Clear all" at the end |
 | `rail` | A 190 px column beside the list with every section open | At once | "12 results" and chips above the list |
 | `columns` | A funnel button in each filterable column's header. It opens a 220 px menu | At once | A dot on the header, accent-coloured cells, and "5 of 12 · 1 column filtered" with "Clear all" above the table |
+| `search` | One field for the search and the filters, in the search box's place. Typing suggests filters (a bottom sheet below 480 px) | At once | As tokens in the field: "Any column has mint", "Kind is Herb" |
 
-With any of the four new styles the viewer's own chips row is off, even with `filter-chips="on"`:
+With any of the five new styles the viewer's own chips row is off, even with `filter-chips="on"`:
 the style shows what is applied itself.
 
 ### Which file to add
@@ -572,6 +576,7 @@ the style shows what is applied itself.
 | `bar` | `dist/data-viewer-filter-bar.js` | `@lesfleursdelanuitdev/data-viewer/filter-styles/bar` |
 | `rail` | `dist/data-viewer-filter-rail.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/rail` |
 | `columns` | `dist/data-viewer-filter-columns.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/columns` |
+| `search` | `dist/data-viewer-filter-search.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/search` |
 
 ```html
 <script type="module" src="/js/data-viewer.standalone.js"></script>
@@ -597,7 +602,7 @@ define();
 
 The add-on files hold no Lit: they draw with the viewer's own copy. Each one registers its style
 when it loads, and the order doesn't matter. A list draws the style as soon as its file has
-loaded. Each file is 6 to 9 KB gzipped. To show a filter style without the viewer, see the filter package's
+loaded. Each file is 6 to 11 KB gzipped. To show a filter style without the viewer, see the filter package's
 [filter styles on their own](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#filter-styles-on-their-own).
 
 ### Fallbacks
@@ -609,6 +614,8 @@ loaded. Each file is 6 to 9 KB gzipped. To show a filter style without the viewe
 - **`rail`** shows `panel` while the list itself is narrower than 720 px (it watches the list's
   width, not the window's). So on phones the rail is always the panel.
 - **`columns`** shows `panel` in cards view, which has no headers.
+- **`search`** has no fallback: below 480 px of list width (it watches the list, as the rail
+  does), and on phones, its suggestions open as a bottom sheet instead.
 - The name is read in lower case. Changing `filter-style`, or a fallback taking over, closes an
   open filter and drops its draft.
 
@@ -640,6 +647,30 @@ loaded. Each file is 6 to 9 KB gzipped. To show a filter style without the viewe
   window's bottom edge, and follows the header when the page scrolls. With no rows left, the
   headers stay, so you can undo the pick.
 
+- **`search`:** one field takes the place of the search box (there is no separate search box,
+  "Search in" picker or Filter button). The search is the field's first token, "Any column has
+  mint"; it reads "Plant has mint" when one column is `searchable`, or "Owner has mint" with
+  that column picked in "Search in". The filters follow as tokens: "Kind is Herb",
+  "Price · Under €5", "In stock · Yes".
+  - Typing lists "Search for “q”" with how many rows the text would leave, then, with
+    `search-in` and two or more searchable columns, a "Plant has “q”" row for each (picking one
+    sets "Search in"; with `supports.searchIn: false` there are none), then the filters the text
+    finds, by section: options, named ranges, "≤ 7" / "≥ 7" for a number typed into a number or
+    money column, and Yes / No.
+  - Enter picks the active row: the first filter that leaves something (one at 0 dims to 0.45
+    and can be clicked, but Enter never picks it), else "Search for". Backspace in the empty
+    field removes the last token, Esc closes, Done searches the typed text.
+  - Every token added or removed applies at once, and the address keeps the same keys as
+    before: `<prefix>.search`, `<prefix>.in` and `<prefix>.f.<key>`. So bookmarks made with the
+    search box still work, and a value that has gone shows as a token you can remove.
+  - Below 480 px of list width, or on a phone, the suggestions are a bottom sheet with its own
+    copy of the field at the top; rows are 44 px. If the list widens past 480 px while the sheet
+    is open, the suggestions move under the field and focus goes back to it, with the text kept.
+  - `dv-query` carries `search`, `searchIn` and `filters` as with the search box. To use the
+    field without the viewer, see the
+    [search-filter](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
+    package.
+
 ### Counts from a server
 
 In server mode the list can't count a draft itself, so the panel's "Show 12 results" asks the
@@ -651,6 +682,9 @@ older answer never replaces a newer one.
 - While the answer is coming, if it fails, or when the page serves its own rows with no adapter,
   the button says "Show results" with no number. A failed count shows no error.
 - Today's dialog never asks: it shows no count.
+- `search` counts the typed text the same way for its "Search for" row: at once in browser
+  mode, 300 ms after typing stops in server mode (the text as the search, with the applied
+  filters and "Search in"). Enter doesn't wait for it.
 
 ```ts
 const mine: Adapter = {
@@ -683,6 +717,11 @@ These join the list's [words](#words) and are set the same way, through `words`:
 | `filters` | `Filters` (the rail's title, unless `filter-label`) |
 | `reset` | `Reset` (the panel) |
 
+`search` adds its own words (`searchOrFilter`, `addFilter`, `searchFor(q)`, `anyColumn`, `has`,
+`is`, `atMost(n)`, `atLeast(n)`, `noSuggestions`, `done`, `enterHint`, `suggestions`), set the
+same way; see the search-filter package's
+[words](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#words).
+
 To make them say "plants":
 
 ```js
@@ -709,6 +748,7 @@ The viewer adds these hooks:
 | `.dv-root[data-filter-open]` | While the panel's draft is open (the list dims) |
 | `.dv-root[data-filter-side]`, `.dv-side`, `.dv-main` | With `rail`: the rail's column and the list's column |
 | `.dv-filtered` | With `columns`: a filtered column's header and body cells |
+| `.dv-search.dv-search-filter` | With `search`: the bar's box that holds the field (the search box's place) |
 
 ## The table
 

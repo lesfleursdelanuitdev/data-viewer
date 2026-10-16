@@ -1,6 +1,6 @@
 # Filter styles: the redesigned filters as choices (plan)
 
-Status: BUILT (stage 1) 2026-10-16 on branch `filter-styles` (not merged, deployed or pushed). Proposed 2026-10-15. Source: monadelanuit's handoff
+Status: BUILT (stage 1) 2026-10-16 on branch `filter-styles`; BUILT (stage 2) 2026-10-16 on branch `search-filter` (off `filter-styles`). Neither is merged, deployed or pushed. Proposed 2026-10-15. Source: monadelanuit's handoff
 `Data Viewer redesign (1).zip` → `design_handoff_filter_redesign/` (README + `Filter Redesign.dc.html`).
 
 ## What we're doing and why
@@ -307,7 +307,63 @@ The READMEs and the docs site describe what was built. Where it differs from the
 - **In the viewer:** `filter-style="search"` replaces both the search box and the filter. It
   uses an add-on file like the others.
 - **Open for stage 2:** whether the "Name has …" token is the same as the search text, or a
-  search in one column.
+  search in one column. (Decided: it is the search text, S2-D1 in
+  `docs/filter-styles-stages-2-3-decisions.md`.)
+
+### What changed from the spec (stage 2)
+
+Stage 2 was built from `docs/plan-filter-styles-stage2.md` and the decisions S2-D1..S2-D4. The
+plan's PLANNER CHOICES were all kept:
+
+- **Address keys** stay `<prefix>.search`, `<prefix>.in` and `<prefix>.f.*`, not S2-D1's `q=`,
+  so bookmarks made with the search box still work (choice 1).
+- **The text token's key** is the "Search in" column's label, else the one searchable
+  column's ("Plant has mint"), else "Any column" (choice 2).
+- **"Search in" is picked from the suggestions:** one "Name has “q”" row per field, only with
+  `search-in`, two or more searchable columns and `supports.searchIn !== false` (choice 3).
+- **Counts:** suggestions show the section counts the filter already has. The "Search for" row's
+  count is new (`search.typedCount`): at once in browser mode, 300 ms after typing in server
+  mode, through its own `DraftCount`, so it never cancels a draft's count (choice 4).
+- At most 8 suggestions per section (choice 5). `≤ n` / `≥ n` only for number and money
+  ranges, and only for a plain number (`7`, `7.5`, `7,5`; not `1e3` or `0x10`) (choice 6).
+- **The sheet has its own copy of the field** (choice 7). Colours are `--filter-*` (choice 8).
+  The words live in the search-filter package; the viewer's `Words` type only gains them as a
+  type (choice 9). `narrowBelow` is a general `FilterStyle` member (choice 10).
+
+What differs from the spec, the decisions or the handoff:
+
+- **No `applySuggestion`.** The host applies a filter row's `next` through `onApplyNow` and a text
+  row through `onSearch(text, searchIn)`.
+- **Removing the text token clears "Search in" too** (`search-change { search: '', in: '' }`), so
+  no hidden "Search in" is left for the next search. **Done**, and Enter with nothing listed,
+  search in the "Search in" already applied; the "Search for" row always searches every column.
+- **The Enter default skips zero counts.** The active row starts on the first filter suggestion
+  with a count above 0 (or no count); with none, on the first row ("Search for"). Zero-count rows
+  stay pickable at 0.45. The handoff's 1d shows Enter on a row counting 0 ("Kind is Shrub 0");
+  that is the one place we differ from it on purpose.
+- **Crossing 480 px while open:** the element closes its suggestions. The viewer redraws them
+  (sheet ↔ listbox); when the sheet goes, focus moves to the page field and the typed text stays.
+- **Picking keeps the suggestions open** with the input cleared, as the handoff does. Only Done,
+  Esc and a click outside close them.
+- **Filter package:** the style imports from `@lesfleursdelanuitdev/filter/parts` (not
+  `/panel`). `FilterStyle` gained `replacesSearch` and `narrowBelow`, the view `search`, the
+  handlers `onSearch` and `onTyped`, all optional. The desktop popover's own focus-on-open is
+  turned off inside the style's `place` hook, so focus stays in the combobox; a `keepFocus`
+  option on `popover()` would be cleaner (left for the branch review).
+- **The style's root also carries `lfdln-filter-root`**, so the viewer's bar rules (buttons, and
+  the phone `input { min-height: 44px }`) skip the field, as they skip the other styles.
+- **The element** passes no "one column" (`only: null`), so its text token reads "Any column"
+  unless `in` names a field. `apply()` with the value already applied fires nothing.
+- **Unit tests** reach the sibling packages through a small resolve hook (`test/siblings.mjs`,
+  Node 22.18 or later), mirroring `vite.shared.ts`'s aliases.
+- **Docs site:** a "Search" tab on `/docs/filter-styles/` (`#search` opens on it), code tabs
+  "Search style" and "Field alone", and the search-filter README as part of that page's
+  Reference (a page's Reference in `reference-map.mjs` may now list several packages). The
+  site's global `:focus-visible` outline skips the field's input, which shows focus with the
+  field's own ring.
+- **Sizes (gzipped):** `data-viewer.standalone.js` 43427 bytes (+270 for stage 2, limit 46080),
+  `data-viewer-filter-search.js` 10833 (limit 12288), `search-filter.standalone.js` 18569
+  (limit 20480).
 
 ## Stage 3 sketch: saved views (2b) and the sentence (2c)
 

@@ -175,20 +175,23 @@ for (const pkg of Object.keys(PACKAGE_PAGES)) {
 
 // page id -> [{ pkg, section }], in the order the page shows them.
 const pageSections = {};
-for (const [page, spec] of Object.entries(REFERENCE)) {
+for (const [page, specs] of Object.entries(REFERENCE)) {
   if (!ADDRESSES[page]) fail(`reference-map.mjs names page ${page}, which has no address`);
-  const all = readmes[spec.pkg];
-  if (!all) fail(`reference-map.mjs: no README for package ${spec.pkg}`);
-  const find = (title) => all.find((sec) => sec.title === title)
-    ?? fail(`packages/${spec.pkg}/README.md has no "## ${title}" section (named for ${ADDRESSES[page]} in reference-map.mjs)`);
-  let list;
-  if (spec.sections) list = spec.sections.map(find);
-  else {
-    const start = all.indexOf(find(spec.from));
-    for (const t of spec.skip || []) find(t);
-    list = all.slice(start).filter((sec) => !(spec.skip || []).includes(sec.title));
+  pageSections[page] = [];
+  for (const spec of [specs].flat()) {
+    const all = readmes[spec.pkg];
+    if (!all) fail(`reference-map.mjs: no README for package ${spec.pkg}`);
+    const find = (title) => all.find((sec) => sec.title === title)
+      ?? fail(`packages/${spec.pkg}/README.md has no "## ${title}" section (named for ${ADDRESSES[page]} in reference-map.mjs)`);
+    let list;
+    if (spec.sections) list = spec.sections.map(find);
+    else {
+      const start = all.indexOf(find(spec.from));
+      for (const t of spec.skip || []) find(t);
+      list = all.slice(start).filter((sec) => !(spec.skip || []).includes(sec.title));
+    }
+    pageSections[page].push(...list.map((section) => ({ pkg: spec.pkg, section })));
   }
-  pageSections[page] = list.map((section) => ({ pkg: spec.pkg, section }));
 }
 
 // Every `##` section of the viewer README is on exactly one page (Licence is left out on purpose).
@@ -304,9 +307,9 @@ async function checkNoOtherSites() {
 
 // ── build ──
 const pkgDist = join(root, 'packages', 'data-viewer', 'dist');
-// The viewer, the json adapter and the four filter styles' add-on files.
+// The viewer, the json adapter and the five filter styles' add-on files.
 const PKG_FILES = ['data-viewer.standalone.js', 'data-viewer-json.js',
-  ...['panel', 'bar', 'rail', 'columns'].map((n) => `data-viewer-filter-${n}.js`)];
+  ...['panel', 'bar', 'rail', 'columns', 'search'].map((n) => `data-viewer-filter-${n}.js`)];
 for (const f of PKG_FILES) {
   if (!existsSync(join(pkgDist, f))) fail(`missing ${join(pkgDist, f)}: run \`npm run build\` first`);
 }
