@@ -13,6 +13,7 @@ export { addPartsStyles, addStyle, partsCss, HOVER, ON_TEXT, SOFT } from './part
 export { menuKeys } from './parts/menu-keys.ts';
 export { radioKeys, tabStop } from './parts/radios.ts';
 export { rangeBoxes, type RangeBoxesOptions } from './parts/range-boxes.ts';
+export { checkMenu, checkMenuCss, type CheckMenuOptions } from './parts/check-menu.ts';
 export { later } from './place.ts';
 export { clearKey, normalise, removeChip, setBool, setRange, toggleOption } from './core/draft.ts';
 export { anySet, chipsOf, defaultFilterWords, filteredCount, isSet, sectionSummary } from './core/summary.ts';

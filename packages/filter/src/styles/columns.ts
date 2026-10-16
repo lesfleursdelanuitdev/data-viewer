@@ -5,23 +5,17 @@
 // set. Every change applies at once. A filtered column's header gets a 6 px accent dot, and the
 // host tints its header and body cells (they carry dv-filtered). Above the table, the summary
 // says "5 of 12 · 1 column filtered", with a ghost "Clear all". In cards view (no headers) it
-// falls back to `panel`. Drawn with the host's Lit (the kit), so the add-on file carries no Lit.
+// falls back to `panel`. The menu is the shared check menu (parts/check-menu.ts). Drawn with the
+// host's Lit (the kit), so the add-on file carries no Lit.
 import type { TemplateResult } from 'lit';
-import { clearKey, setRange } from '../core/draft.ts';
 import { filteredCount, isSet } from '../core/summary.ts';
-import { rangeOf } from '../core/range.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
 import type { FilterSection } from '../core/types.ts';
 import { later } from '../place.ts';
-import { checkRow } from '../parts/check-row.ts';
-import { divider } from '../parts/divider.ts';
-import { menuKeys } from '../parts/menu-keys.ts';
+import { checkMenu, checkMenuCss } from '../parts/check-menu.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT } from '../parts/parts-css.ts';
-import { popover, returnFocus } from '../parts/popover.ts';
-import { radioKeys, tabStop } from '../parts/radios.ts';
-import { rangeBoxes } from '../parts/range-boxes.ts';
-import { pillName, searchable } from './bar-logic.ts';
-import { columnRows, columnsFallback, columnsSummary, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
+import { pillName } from './bar-logic.ts';
+import { columnsFallback, columnsSummary, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
 
 
 export const columnsCss = `
@@ -32,34 +26,14 @@ export const columnsCss = `
   -webkit-tap-highlight-color: transparent;
 }
 :where(.lfdln-filter-col-btn:hover, .lfdln-filter-col-btn[aria-expanded=true]) { background: ${HOVER}; }
-:where(.lfdln-filter-col-btn, .lfdln-filter-col-search, .lfdln-filter-col-range input, .lfdln-filter-col-clear, .lfdln-filter-col-summary-text):where(:focus-visible) {
+:where(.lfdln-filter-col-btn, .lfdln-filter-col-summary-text):where(:focus-visible) {
   outline: 2px solid var(--filter-accent); outline-offset: 2px;
 }
 :where(.lfdln-filter-col-btn) > :where(svg) { stroke-width: 20; opacity: 0.5; }
 :where(.lfdln-filter-col-on > .lfdln-filter-col-btn, .lfdln-filter-col-btn[aria-expanded=true]) > :where(svg) { opacity: 1; }
 :where(.lfdln-filter-col-dot) { flex: none; width: 6px; height: 6px; background: var(--filter-accent); border-radius: 3px; }
 :where(.dv-table th.dv-filtered, .dv-table td.dv-filtered) { color: ${ON_TEXT}; }
-:where(.lfdln-filter-col-menu) {
-  display: flex; flex-direction: column; gap: 1px; padding: 6px; font-size: 13px; font-weight: 400; line-height: normal;
-  letter-spacing: normal; text-align: left; text-transform: none; white-space: normal; color: var(--filter-text);
-}
-:where(div.lfdln-filter-col-menu) { position: fixed; top: 0; width: 220px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
-:where(.lfdln-filter-col-label) { padding: 6px 8px 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--filter-muted); }
-:where(.lfdln-filter-col-list) { display: flex; flex-direction: column; gap: 1px; }
-:where(.lfdln-filter-col-list) > :where(*) { flex: none; }
-:where(.lfdln-filter-col-search, .lfdln-filter-col-range input) {
-  box-sizing: border-box; flex: none; width: 100%; min-width: 0; height: 30px; margin: 0; padding: 0 8px; font: inherit; font-size: 13px;
-  color: var(--filter-text); background: var(--filter-bg); border: 1px solid var(--filter-border); border-radius: var(--filter-radius);
-}
-:where(.lfdln-filter-col-search) { margin-bottom: 4px; }
-:where(.lfdln-filter-col-empty) { margin: 0; padding: 8px; color: var(--filter-muted); }
-:where(.lfdln-filter-col-range) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 2px; }
-:where(.lfdln-filter-col-range label) { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--filter-muted); }
-:where(.lfdln-filter-col-clear) {
-  flex: none; height: 30px; margin: 0; padding: 0 8px; font: inherit; font-size: 12.5px; text-align: left; color: var(--filter-muted);
-  background: transparent; border: 0; border-radius: 6px; cursor: pointer;
-}
-:where(.lfdln-filter-col-clear:hover) { background: ${HOVER}; }
+${checkMenuCss}
 :where(.lfdln-filter-col-summary) {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 28px; margin-bottom: 10px;
   font-family: var(--filter-font); font-size: 12.5px; color: var(--filter-muted);
@@ -68,14 +42,9 @@ export const columnsCss = `
 :where(.lfdln-filter-col-summary) > :where(.lfdln-filter-btn) { height: 26px; padding: 0 8px; font-size: 12px; }
 @media (max-width: 639px) {
   :where(.lfdln-filter-col-btn) { min-width: 44px; height: 44px; }
-  :where(dialog.lfdln-filter-col-menu) { padding: 0 10px 14px; }
-  :where(dialog.lfdln-filter-col-menu) :where(.lfdln-filter-col-label) { padding: 6px 8px 10px; font-size: 15px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--filter-text); }
-  :where(.lfdln-filter-col-search, .lfdln-filter-col-range input) { height: 44px; font-size: 16px; }
-  :where(.lfdln-filter-col-clear, .lfdln-filter-col-summary > .lfdln-filter-btn) { height: 44px; font-size: 14px; }
+  :where(.lfdln-filter-col-summary > .lfdln-filter-btn) { height: 44px; font-size: 14px; }
 }
 `;
-
-type Range = Extract<FilterSection, { kind: 'range' }>;
 
 // The menu is position: fixed, so the table's scrolling box never cuts it off. It goes under its
 // anchor (the funnel's wrapper), or above it near the window's bottom edge, from the anchor's
@@ -111,33 +80,6 @@ function placeMenu(pop: HTMLElement, end: boolean): void {
   p.lfdlnAt();
 }
 
-// No named ranges: the From and To boxes, applied when one is left or Enter is pressed, and read
-// together so a change in one never loses the other.
-function boxes(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers, lid: string): TemplateResult {
-  return rangeBoxes(kit, {
-    cls: 'lfdln-filter-col-range', section: s, range: rangeOf(v.value[s.key]), words: v.words, labelledBy: lid, on: 'change',
-    onRange: (a, b) => on.onApplyNow(setRange(v.value, s.key, a, b)),
-  });
-}
-
-// Several at once: check boxes in a group. One at a time (round boxes): radios in a radiogroup,
-// one tab stop, arrow keys move and pick; a tick on the picked one unpicks it.
-function rows(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterStyleHandlers, lid: string): TemplateResult {
-  const list = columnRows(s, v.value, v.words, searchable(s) ? v.optionSearch : '');
-  if (!list.length) {
-    return s.kind === 'range' && !s.ranges?.length
-      ? boxes(kit, s, v, on, lid)
-      : kit.html`<p class="lfdln-filter-col-empty">${v.words.nothingMatches}</p>`;
-  }
-  const one = list[0]!.round;
-  const picked = list.map((r) => r.on);
-  return kit.html`<div class="lfdln-filter-col-list" role=${one ? 'radiogroup' : 'group'} aria-labelledby=${lid}
-    @keydown=${one ? radioKeys : kit.nothing}>${list.map((r, i) => checkRow(kit, {
-    label: r.label, value: r.value, count: r.count, on: r.on, round: r.round, role: one ? 'radio' : 'checkbox',
-    tabIndex: one ? tabStop(picked, i) : undefined, onToggle: () => on.onApplyNow(r.next),
-  }))}</div>`;
-}
-
 const funnel = (kit: FilterKit) => kit.svg`<svg viewBox="0 0 256 256" width="12" height="12" aria-hidden="true"><path d="M40 64h176l-64 80v56l-48 24v-80Z"/></svg>`;
 
 // The funnel (and the menu it opens), drawn by the host in each filterable column's header.
@@ -147,25 +89,8 @@ function header(s: FilterSection, place: { index: number; of: number }, v: Filte
   const set = isSet(s, v.value[s.key]);
   const end = menuAtEnd(place);
   const mid = `${v.uid}-col-${s.key}`;
-  const lid = `${mid}-label`;
-  const clear = (e: Event) => {
-    returnFocus(e.currentTarget as Element);
-    on.onMenu(null);
-    on.onApplyNow(clearKey(v.value, s.key));
-  };
   const menu = open
-    ? popover(kit, {
-      phone: v.phone, id: mid, cls: 'lfdln-filter-col-menu', labelledBy: lid, onClose: () => on.onMenu(null), onKey: menuKeys,
-      place: (el) => placeMenu(el, end),
-      content: kit.html`${v.phone ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div>` : kit.nothing}<div
-        class="lfdln-filter-col-label" id=${lid}>${w.showColumn(s.label)}</div>${searchable(s)
-        ? kit.html`<input class="lfdln-filter-col-search" type="search" autocomplete="off" aria-label=${w.searchOptions(s.label)}
-            placeholder=${w.searchOptions(s.label)} .value=${kit.live(v.optionSearch)}
-            @input=${(e: Event) => on.onOptionSearch((e.target as HTMLInputElement).value)}>`
-        : kit.nothing}${rows(kit, s, v, on, lid)}${set
-        ? kit.html`${divider(kit)}<button type="button" class="lfdln-filter-col-clear" @click=${clear}>${w.clearColumn}</button>`
-        : kit.nothing}`,
-    })
+    ? checkMenu(kit, s, v, on, { id: mid, place: (el) => placeMenu(el, end), onClose: () => on.onMenu(null) })
     : kit.nothing;
   // Rows coming and going move the header; an open menu follows it after each drawing. Once the
   // menu is closed (a drawing with it shut) or the header is gone (the ref is let go), the
