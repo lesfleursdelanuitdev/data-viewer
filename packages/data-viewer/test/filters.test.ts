@@ -45,7 +45,7 @@ test('cellValues: no empty or null values; tags split from an array or a comma s
 });
 
 test('browser mode: choice options are the distinct values with counts, sorted, no empty or null', () => {
-  const sections = filterSections(cols, { rows, q });
+  const sections = filterSections(cols, { rows, q, rangeCounts: true });
   assert.deepEqual(sections.map((s) => s.key), ['status', 'price', 'planted', 'tags', 'organic']);
   const status = sections.find((s) => s.key === 'status')!;
   assert.deepEqual(status, {
@@ -159,7 +159,7 @@ test('parseOptions and parseRanges read the column attributes', () => {
 });
 
 test('range sections count each range over the rows the other filters leave', () => {
-  const planted = (qq: Query) => filterSections(cols, { rows, q: qq }).find((s) => s.key === 'planted')!;
+  const planted = (qq: Query) => filterSections(cols, { rows, q: qq, rangeCounts: true }).find((s) => s.key === 'planted')!;
   const a = planted({ ...q, filters: { status: ['growing'] } });
   assert.equal(a.kind === 'range' && a.ranges?.[0]?.count, 2);
   const b = planted({ ...q, filters: { status: ['growing'], planted: { from: '1950', to: '1959' } } });
@@ -169,7 +169,7 @@ test('range sections count each range over the rows the other filters leave', ()
 const cheap: Row[] = Array.from({ length: 12 }, (_, i) => ({ name: `P${i + 1}`, price: i + 1 }));
 const priceCols: Column<Row>[] = [{ key: 'price', label: 'Price', type: 'money', filterable: true }];
 const histOf = (r: Row[], c: Column<Row>[], opts: object = {}) => {
-  const s = filterSections(c, { rows: r, q, ...opts })[0]!;
+  const s = filterSections(c, { rows: r, q, rangeCounts: true, ...opts })[0]!;
   return s.kind === 'range' ? s.histogram : undefined;
 };
 
@@ -187,6 +187,26 @@ test('no histogram for dates, in server mode, or with fewer than 2 distinct valu
   const s = filterSections(priceCols, { q })[0]!;
   assert.equal(s.kind === 'range' && s.histogram, undefined);
   assert.equal(histOf([{ price: 5 }, { price: 5 }], priceCols), undefined);
+});
+
+// Today's dialog shows neither, so without `rangeCounts` it makes no extra passes over the rows.
+test('without rangeCounts no range counts or histogram are built', () => {
+  const sections = filterSections(cols, { rows, q });
+  assert.deepEqual(sections.find((s) => s.key === 'price'), {
+    key: 'price', label: 'Price', kind: 'range', type: 'money', format: { currency: 'EUR' },
+  });
+  assert.deepEqual(sections.find((s) => s.key === 'planted'), {
+    key: 'planted', label: 'Planted', kind: 'range', type: 'date', ranges: [{ label: '1950s', from: '1950', to: '1959' }],
+  });
+});
+
+// Math.min(...nums) throws RangeError past ~125k arguments.
+test('200 000 rows with a filterable number column do not throw', () => {
+  const many: Row[] = Array.from({ length: 200_000 }, (_, i) => ({ price: i }));
+  for (const rangeCounts of [false, true]) {
+    const s = filterSections(priceCols, { rows: many, q, rangeCounts })[0]!;
+    if (rangeCounts) assert.deepEqual(s.kind === 'range' && [s.histogram?.from, s.histogram?.to], [0, 199_999]);
+  }
 });
 
 test('countMatching counts what the query leaves', () => {

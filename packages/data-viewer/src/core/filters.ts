@@ -182,7 +182,9 @@ const optionOf = (o: string | FilterOption): FilterOption => (typeof o === 'stri
  * given): a choice lists the values in the view's rows (or the column's own options first, in
  * their order), each counted over the rows the view, the search and the other filters leave.
  * Server mode: a choice takes `facets`, else the column's options without counts, else is left
- * out. With `supports.filters === 'equals'` only choices are made, each single.
+ * out. With `supports.filters === 'equals'` only choices are made, each single. Range counts and
+ * the histogram are built only with `rangeCounts` (a filter style asks for them; today's dialog
+ * shows neither, so it makes no extra passes over the rows).
  */
 export function filterSections<T>(cols: Column<T>[], opts: {
   rows?: T[];
@@ -191,6 +193,7 @@ export function filterSections<T>(cols: Column<T>[], opts: {
   q: Pick<Query, 'view' | 'search' | 'searchIn' | 'filters'>;
   views?: View<T>[];
   searchKeys?: string[];
+  rangeCounts?: boolean;
 }): FilterSection[] {
   const equals = opts.supports?.filters === 'equals';
   const out: FilterSection[] = [];
@@ -205,7 +208,7 @@ export function filterSections<T>(cols: Column<T>[], opts: {
     } else if (kind === 'range') {
       const s: FilterSection = { key: col.key, label: col.label, kind, type: col.type === 'date' ? 'date' : col.type === 'money' ? 'money' : 'number' };
       if (col.ranges?.length) s.ranges = col.ranges;
-      if (opts.rows) {
+      if (opts.rows && opts.rangeCounts) {
         // Counts and the histogram are over the rows the other filters leave (this one's own is skipped).
         const pool = narrow(opts.rows, cols, opts.q, { views: opts.views, searchKeys: opts.searchKeys, except: col.key });
         if (s.ranges) s.ranges = s.ranges.map((r) => {
@@ -216,8 +219,13 @@ export function filterSections<T>(cols: Column<T>[], opts: {
         });
         if (s.type !== 'date') {
           const nums = pool.map((row) => toNumber(rawValue(col, row))).filter((n): n is number => n !== null);
-          const from = Math.min(...nums);
-          const to = Math.max(...nums);
+          // A loop, not Math.min(...nums): spreading throws RangeError past ~125k rows.
+          let from = Infinity;
+          let to = -Infinity;
+          for (const n of nums) {
+            if (n < from) from = n;
+            if (n > to) to = n;
+          }
           if (to > from) {
             const buckets = new Array<number>(12).fill(0);
             const width = (to - from) / 12;

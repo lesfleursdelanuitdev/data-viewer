@@ -1001,6 +1001,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       q: this._fStyle && this._fDraft ? { ...this._q, filters: this._fDraft } : this._q,
       views: this.views,
       searchKeys: this.searchKeys,
+      rangeCounts: Boolean(this._fStyle),
     });
   }
 
