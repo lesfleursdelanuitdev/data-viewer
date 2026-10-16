@@ -20,5 +20,5 @@ export { rangeOf, rangePressed } from './core/range.ts';
 export { choiceOptions, matchingOptions, SEARCH_ABOVE } from './core/options.ts';
 export type { Chip, FilterOption, FilterRange, FilterSection, FilterValue, FilterWords } from './core/types.ts';
 export type {
-  FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView, FilterStyleViews, SavedView, ViewTab,
+  FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView, FilterStyleViews, SavedView, ViewTab, ViewsFilterStyle,
 } from './core/style-types.ts';

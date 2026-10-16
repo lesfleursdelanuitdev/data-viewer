@@ -1925,7 +1925,7 @@ test.describe('saved views store', () => {
         { key: 'c', label: 'Cheap herbs', filter: { kind: ['Herb'], price: { to: '4' } } },
       ];
     });
-    expect(await tabs(page, 'vprobe').evaluateAll((li) => li.map((x) => x.getAttribute('data-count')))).toEqual(['12', '5', '1', '3']);
+    await expect.poll(() => tabs(page, 'vprobe').evaluateAll((li) => li.map((x) => x.getAttribute('data-count')))).toEqual(['12', '5', '1', '3']);
     await save(page, 'vprobe-server');
     await expect(userTab(page, 'vprobe-server')).toHaveAttribute('data-count', 'null');
     await expect(tabs(page, 'vprobe-server').first()).toHaveAttribute('data-count', 'null');

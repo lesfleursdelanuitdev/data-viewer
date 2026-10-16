@@ -85,8 +85,8 @@ export type FilterStyle = {
   narrowBelow?: number;
   // Drawn above the bar, full width (in .dv-above), not in the bar's filter slot.
   above?: boolean;
-  // Draws the views itself: the host leaves out its views nav and passes view.views.
-  drawsViews?: boolean;
+  // Not for a style that draws views: that is a ViewsFilterStyle (the host must bring their store).
+  drawsViews?: false;
   // In browser mode the list shows the rows the open draft leaves (page 1, not dimmed); the
   // address and dv-query wait until it is applied.
   previewsDraft?: boolean;
@@ -97,3 +97,9 @@ export type FilterStyle = {
   summary?(view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
   header?(section: FilterSection, place: { index: number; of: number }, view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
 };
+
+/**
+ * A style that draws the views itself (views): the host leaves out its views nav and passes
+ * view.views and the views handlers. A host takes one only with the views store that fills them.
+ */
+export type ViewsFilterStyle = Omit<FilterStyle, 'drawsViews'> & { drawsViews: true };

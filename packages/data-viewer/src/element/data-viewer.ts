@@ -25,7 +25,7 @@ import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
 import { filterStyle, onFilterStyle, pickFilterStyle, sameFilterStyle, type ViewerFilterStyle } from '../core/filter-styles.ts';
-import type { ViewsHost, ViewsStore } from './views-store.ts';
+import type { ViewsStore } from './views-store.ts';
 import { viewerKit } from './filter-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
@@ -67,6 +67,7 @@ export type Words = PaginationWords & SearchWords & FilterWords & Partial<Search
   moreFor: (title: string) => string;
   more: string;
   configFailed: (file: string) => string;
+  allViews?: string; // the views style's added "All" tab
 };
 
 export const defaultWords: Words = {
@@ -775,7 +776,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   // One change to what is shown: store it, put it in the address, tell the host. "Search in" and
   // the filters are left out of the query when unset, so hosts see them only when they matter.
-  private _change(over: Partial<AddressQuery>, replace = false): void {
+  /** @internal views add-on contract (ViewsHost): keep its name and signature. */
+  _change(over: Partial<AddressQuery>, replace = false): void {
     this._q = tidy({ ...this._q, ...over });
     this._writeAddress(replace);
     this._announce();
@@ -979,7 +981,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const typed = this._typed.trim();
     // A style that draws views: the tabs and handlers of the saved views store its add-on brings.
     const style = this._fStyle!;
-    const vs = style.drawsViews ? (this._vs ??= style.store?.(this as unknown as ViewsHost))?.draw(sections, count) : undefined;
+    // One store per viewer for its lifetime: a later views style (or a style switch) keeps it.
+    const vs = style.drawsViews ? (this._vs ??= style.store(this)).draw(sections, count) : undefined;
     const fields = searchColumns(this.columns, this.searchKeys).map((c) => ({ key: c.key, label: c.label }));
     return {
       view: {

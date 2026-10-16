@@ -1,11 +1,12 @@
-import type { FilterStyle } from '@lesfleursdelanuitdev/filter';
+import type { FilterStyle, ViewsFilterStyle } from '@lesfleursdelanuitdev/filter';
 import type { ViewsHost, ViewsStore } from '../element/views-store.ts';
 
 /**
- * A filter style as the viewer takes it: a style that draws views (drawsViews) brings the saved
- * views store with it (the views add-on's viewsStore), so the standalone viewer carries none.
+ * A filter style as the viewer takes it: a style that draws views (drawsViews) must bring the
+ * saved views store with it (the views add-on's viewsStore), so the standalone viewer carries
+ * none; one without a store can't be registered.
  */
-export type ViewerFilterStyle = FilterStyle & { store?(host: ViewsHost): ViewsStore };
+export type ViewerFilterStyle = (FilterStyle & { store?: undefined }) | (ViewsFilterStyle & { store(host: ViewsHost): ViewsStore });
 
 /**
  * The filter style registry. Like the adapter registry it lives on globalThis under this key,
@@ -91,6 +92,6 @@ export function pickFilterStyle(attr: string | undefined, ctx: { width: number; 
  * Whether two picks are the same style. By name, not object: rail.js and columns.js each bundle
  * their own panel, so loading both registers a second "panel" object that is the same style.
  */
-export function sameFilterStyle(a: FilterStyle | undefined, b: FilterStyle | undefined): boolean {
+export function sameFilterStyle(a: ViewerFilterStyle | undefined, b: ViewerFilterStyle | undefined): boolean {
   return a === b || (a !== undefined && b !== undefined && keyOf(a.name) === keyOf(b.name));
 }
