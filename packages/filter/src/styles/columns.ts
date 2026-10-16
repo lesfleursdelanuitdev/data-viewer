@@ -11,11 +11,11 @@ import type { TemplateResult } from 'lit';
 import { filteredCount, isSet } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
 import type { FilterSection } from '../core/types.ts';
-import { later } from '../place.ts';
 import { checkMenu, checkMenuCss } from '../parts/check-menu.ts';
+import { followMenu, placeMenu } from '../parts/place-menu.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT } from '../parts/parts-css.ts';
 import { pillName } from './bar-logic.ts';
-import { columnsFallback, columnsSummary, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
+import { columnsFallback, columnsSummary, menuAtEnd } from './columns-logic.ts';
 
 
 export const columnsCss = `
@@ -46,40 +46,6 @@ ${checkMenuCss}
 }
 `;
 
-// The menu is position: fixed, so the table's scrolling box never cuts it off. It goes under its
-// anchor (the funnel's wrapper), or above it near the window's bottom edge, from the anchor's
-// left edge or, for the last two columns, ending at its right edge. It follows the anchor when
-// anything scrolls or the window resizes. The anchor keeps `lfdlnMenuOff`, which takes the
-// listeners away; `header` calls it as soon as the menu is closed or the header goes away.
-type Anchor = HTMLElement & { lfdlnMenuOff?: () => void };
-
-function placeMenu(pop: HTMLElement, end: boolean): void {
-  const anchor = pop.parentElement as Anchor;
-  const p = pop as HTMLElement & { lfdlnAt?: () => void };
-  if (!p.lfdlnAt) {
-    const at = () => {
-      if (!pop.isConnected) return off();
-      const a = anchor.getBoundingClientRect();
-      const room = menuRoom(a, innerHeight);
-      pop.style.maxHeight = `${room.max}px`;
-      pop.style.top = `${room.up ? a.top - 6 - pop.offsetHeight : a.bottom + 6}px`;
-      pop.style.left = `${menuLeft(a, pop.offsetWidth, document.documentElement.clientWidth, end)}px`;
-    };
-    const off = () => {
-      removeEventListener('scroll', at, true);
-      removeEventListener('resize', at);
-      delete p.lfdlnAt;
-      if (anchor.lfdlnMenuOff === off) delete anchor.lfdlnMenuOff;
-    };
-    anchor.lfdlnMenuOff?.();
-    p.lfdlnAt = at;
-    anchor.lfdlnMenuOff = off;
-    addEventListener('scroll', at, { capture: true, passive: true });
-    addEventListener('resize', at);
-  }
-  p.lfdlnAt();
-}
-
 const funnel = (kit: FilterKit) => kit.svg`<svg viewBox="0 0 256 256" width="12" height="12" aria-hidden="true"><path d="M40 64h176l-64 80v56l-48 24v-80Z"/></svg>`;
 
 // The funnel (and the menu it opens), drawn by the host in each filterable column's header.
@@ -92,24 +58,7 @@ function header(s: FilterSection, place: { index: number; of: number }, v: Filte
   const menu = open
     ? checkMenu(kit, s, v, on, { id: mid, place: (el) => placeMenu(el, end), onClose: () => on.onMenu(null) })
     : kit.nothing;
-  // Rows coming and going move the header; an open menu follows it after each drawing. Once the
-  // menu is closed (a drawing with it shut) or the header is gone (the ref is let go), the
-  // listeners go too.
-  let mine: Anchor | undefined;
-  const follow = (el?: Element) => {
-    if (!el) {
-      const a = mine;
-      if (a) later(() => { if (!a.isConnected) a.lfdlnMenuOff?.(); });
-      return;
-    }
-    mine = el as Anchor;
-    if (!open || v.phone) return mine.lfdlnMenuOff?.();
-    later(() => {
-      const pop = el.querySelector<HTMLElement>(':scope > div.lfdln-filter-popover');
-      if (pop) placeMenu(pop, end);
-    });
-  };
-  return kit.html`<span class=${`lfdln-filter-root lfdln-filter-col lfdln-filter-style-root${set ? ' lfdln-filter-col-on' : ''}`} ${kit.ref(follow)}><button
+  return kit.html`<span class=${`lfdln-filter-root lfdln-filter-col lfdln-filter-style-root${set ? ' lfdln-filter-col-on' : ''}`} ${kit.ref(followMenu(open && !v.phone, end))}><button
     type="button" class="lfdln-filter-col-btn" data-key=${s.key} aria-haspopup="dialog" aria-expanded=${open ? 'true' : 'false'}
     aria-controls=${open ? mid : kit.nothing} aria-label=${w.filterBy(s.label)} title=${set ? pillName(s, v.value, w) : kit.nothing}
     @click=${() => {

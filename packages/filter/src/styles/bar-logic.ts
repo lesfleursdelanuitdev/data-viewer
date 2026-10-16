@@ -1,5 +1,5 @@
 // The bar's pure helpers: no DOM, no Lit, tested with node:test.
-import { choiceOptions, matchingOptions, SEARCH_ABOVE } from '../core/options.ts';
+import { choiceOptions, matchingOptions } from '../core/options.ts';
 import { isSet, sectionSummary } from '../core/summary.ts';
 import type { FilterOption, FilterSection, FilterValue, FilterWords } from '../core/types.ts';
 
@@ -32,10 +32,8 @@ export function pillName(section: FilterSection, value: FilterValue, words: Filt
   return all ? `${section.label}: ${all}` : section.label;
 }
 
-/** A choice with more than SEARCH_ABOVE options gets a search box at the top of its menu. */
-export function searchable(section: FilterSection): boolean {
-  return section.kind === 'choice' && section.options.length > SEARCH_ABOVE;
-}
+// Moved to core/options.ts (the shared check menu uses it too); still exported from here.
+export { searchable } from '../core/options.ts';
 
 /** A choice menu's rows: its options and any picked value it no longer offers, then the typed search. */
 export function menuOptions(section: Choice, value: FilterValue, search: string): FilterOption[] {

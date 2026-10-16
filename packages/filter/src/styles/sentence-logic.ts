@@ -41,6 +41,8 @@ export function joinValues(values: string[], words: SentenceWords): string {
   return `${values.slice(0, -1).join(`${words.comma} `)} ${words.and} ${values[values.length - 1]}`;
 }
 
+const VALUES = '{values}';
+
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 // A set section's values as words: a choice's plural or its label in lower case (a value no
@@ -65,10 +67,10 @@ export function sentenceParts(sections: FilterSection[], value: FilterValue, wor
     const set = isSet(s, v);
     const join = i === last ? words.sentenceEnd : i === 0 ? ' ' : i === last - 1 ? `${words.listComma} ` : `${words.comma} `;
     if (!set) return { key: s.key, before: '', button: s.phraseAny ?? `${s.label}: ${words.anyValue}`, after: join, set };
-    const phrase = (s.kind !== 'bool' || v === true) && s.phrase ? s.phrase : `${s.label}: {values}`;
-    const at = phrase.indexOf('{values}');
+    const phrase = (s.kind !== 'bool' || v === true) && s.phrase ? s.phrase : `${s.label}: ${VALUES}`;
+    const at = phrase.indexOf(VALUES);
     if (at < 0) return { key: s.key, before: '', button: phrase, after: join, set };
-    return { key: s.key, before: phrase.slice(0, at), button: valuesOf(s, v, words), after: phrase.slice(at + 8) + join, set };
+    return { key: s.key, before: phrase.slice(0, at), button: valuesOf(s, v, words), after: phrase.slice(at + VALUES.length) + join, set };
   });
 }
 

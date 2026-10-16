@@ -25,3 +25,8 @@ export function choiceOptions(section: Extract<FilterSection, { kind: 'choice' }
   const gone = (Array.isArray(v) ? v : []).filter((x) => !known.has(x));
   return gone.length ? [...section.options, ...gone.map((value) => ({ value, count: 0 }))] : section.options;
 }
+
+/** A choice with more than SEARCH_ABOVE options gets a search box at the top of its menu. */
+export function searchable(section: FilterSection): boolean {
+  return section.kind === 'choice' && section.options.length > SEARCH_ABOVE;
+}
