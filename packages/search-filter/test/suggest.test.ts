@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FilterSection } from '@lesfleursdelanuitdev/filter/parts';
 import { suggest, type Suggestion } from '../src/core/index.ts';
+import { activeRow } from '../src/core/suggest.ts';
 import { search, sections, words } from './fixture.ts';
 
 type FilterSuggestion = Extract<Suggestion, { kind: 'filter' }>;
@@ -119,4 +120,16 @@ test('≤ n and ≥ n keep the other end, and are not offered for the end alread
   const set = group(suggest(sections, { price: { to: '7' } }, search(), '7', words), 'Price') ?? [];
   assert.deepEqual(set.map((s) => s.label), ['≥ 7']);
   assert.deepEqual(set[0]?.next.price, { from: '7', to: '7' });
+});
+
+test('the active row by default: the first filter with a count above 0 or unknown, else the first row', () => {
+  const text: Suggestion = { kind: 'text', searchIn: '', label: 'Search for “s”', count: 3 };
+  const f = (label: string, count?: number): Suggestion => ({ kind: 'filter', section: 'light', group: 'Light', op: 'Light is', label, count, next: {} });
+  assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Part shade', 2)] }]), 2);
+  assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Sun')] }]), 2); // an unknown count is fine
+  assert.equal(activeRow([text], [{ items: [f('Sun', 4)] }]), 1);
+  assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Part shade', 0)] }]), 0); // all zero: "Search for"
+  assert.equal(activeRow([], [{ items: [f('Shade', 0), f('Part shade', 0)] }]), 0); // no text rows: the first row
+  assert.equal(activeRow([text], []), 0);
+  assert.equal(activeRow([], []), 0);
 });

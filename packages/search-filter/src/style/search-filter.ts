@@ -9,7 +9,7 @@ import type { TemplateResult } from 'lit';
 import { addPartsStyles, addStyle, defaultFilterWords, HOVER, ON_TEXT, popover, SOFT } from '@lesfleursdelanuitdev/filter/parts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView, FilterWords } from '@lesfleursdelanuitdev/filter/parts';
 import { removeToken, tokensOf, type Token } from '../core/tokens.ts';
-import { suggest, type Suggestion } from '../core/suggest.ts';
+import { activeRow, suggest, type Suggestion } from '../core/suggest.ts';
 import { defaultSearchFilterWords, type SearchFilterWords } from '../core/words.ts';
 
 const ACTIVE = 'color-mix(in srgb, var(--filter-accent) 10%, transparent)';
@@ -140,7 +140,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
   const tokens = tokensOf(v.sections, v.value, search, w);
   const { text, groups } = suggest(v.sections, v.value, search, typed, w);
   const rows: Suggestion[] = [...text, ...groups.flatMap((g) => g.items)];
-  const first = rows.length > text.length ? text.length : 0; // the first filter, else "Search for"
+  const first = activeRow(text, groups); // the first filter that leaves something, else "Search for"
   const id = `${v.uid}-sf`;
   const listId = `${id}-list`;
   const popId = `${id}-pop`;
@@ -299,6 +299,10 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
         el.style.left = '0px';
         el.style.right = '0px';
         (el as { focus: () => void }).focus = () => {};
+        // The list widened past narrowBelow with the sheet open: the sheet's field is gone with
+        // the sheet, so focus (and the typed text, which is the host's) moves to the page field.
+        const now = el.ownerDocument.activeElement;
+        if (!now || now === el.ownerDocument.body) quietFocus(byId<Input>(mainId));
       },
     })
     : kit.nothing;

@@ -295,6 +295,22 @@ test.describe('<lfdln-search-filter>', () => {
     await expect(input).toBeFocused();
   });
 
+  test('a zero-count row is never the Enter default: the first row with a count is', async ({ page }) => {
+    await open(page);
+    const input = field(page);
+    await input.click();
+    await input.pressSequentially('her');
+    await input.press('Enter');
+    await input.pressSequentially('shade');
+    const shade = listbox(page).getByRole('option', { name: /^Light is\s*Shade\s*0$/ });
+    const part = listbox(page).getByRole('option', { name: /Part shade/ });
+    await expect(shade).toHaveAttribute('aria-selected', 'false');
+    await expect(part).toHaveAttribute('aria-selected', 'true');
+    await expect(input).toHaveAttribute('aria-activedescendant', (await part.getAttribute('id'))!);
+    await input.press('Enter');
+    await expect(tokens(page)).toHaveText(['Kind is Herb', 'Light is Part shade']);
+  });
+
   test('the "Search for" row shows how many the typed text would leave', async ({ page }) => {
     await open(page);
     const input = field(page);

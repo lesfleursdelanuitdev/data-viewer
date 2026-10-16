@@ -1554,6 +1554,28 @@ test.describe('search', () => {
     expect(problems).toEqual([]);
     expect(await page.evaluate(() => (window as unknown as { errors: string[] }).errors)).toEqual([]);
   });
+
+  test('widening past 480 px with the sheet open moves focus to the field, keeping the text', async ({ page }) => {
+    const { problems } = await open(page);
+    const width = (px: number) => page.locator('#search-box').evaluate((el, w) => {
+      (el as HTMLElement).style.width = `${w}px`;
+    }, px);
+    await width(470);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await sfInput(page).click();
+    const sheet = page.locator('#search dialog.lfdln-search-filter-pop[open]');
+    await expect(sheet).toBeVisible();
+    await sheet.locator('input[role=combobox]').pressSequentially('su');
+    await width(900);
+    await expect(page.locator('#search dialog.lfdln-search-filter-pop')).toHaveCount(0);
+    await expect(sfList(page)).toBeVisible();
+    await expect(sfInput(page)).toBeFocused();
+    await expect(sfInput(page)).toHaveValue('su');
+    await expect(sfInput(page)).toHaveAttribute('aria-expanded', 'true');
+    await sfInput(page).press('Enter');
+    await expect(sfTokens(page).first()).toBeVisible();
+    expect(problems).toEqual([]);
+  });
 });
 
 test.describe('search on a phone', () => {
