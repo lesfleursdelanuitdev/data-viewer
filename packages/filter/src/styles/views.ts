@@ -13,7 +13,7 @@ import { chip } from '../parts/chip.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT } from '../parts/parts-css.ts';
 import { rangeBoxes } from '../parts/range-boxes.ts';
 import { later } from '../place.ts';
-import { builderRows, canSaveView, defaultViewsWords, newViewLabel, saveLabel, type ViewsWords } from './views-logic.ts';
+import { builderRows, canSaveView, defaultViewsWords, menuId, newViewLabel, saveLabel, type ViewsWords } from './views-logic.ts';
 
 export const viewsCss = `
 :where(.lfdln-filter-views) { display: flex; flex-direction: column; gap: 14px; min-width: 0; margin-bottom: 12px; }
@@ -99,7 +99,7 @@ const plus = (kit: FilterKit) => kit.svg`<svg viewBox="0 0 256 256" width="12" h
 
 // A tab: a button that picks the view (a text box while it is renamed), and on a saved view the
 // ⋯ menu. Rename: Enter or leaving the box saves (empty keeps the name), Esc cancels.
-function tab(kit: FilterKit, t: ViewTab, i: number, v: FilterStyleView, on: FilterStyleHandlers, w: Words): TemplateResult {
+function tab(kit: FilterKit, t: ViewTab, v: FilterStyleView, on: FilterStyleHandlers, w: Words): TemplateResult {
   const done = (e: Event, keep: boolean, back: boolean) => {
     const box = e.currentTarget as HTMLInputElement;
     if (box.dataset.done) return;
@@ -120,7 +120,7 @@ function tab(kit: FilterKit, t: ViewTab, i: number, v: FilterStyleView, on: Filt
       @click=${() => on.onView?.(t.key)}><span class="lfdln-filter-views-label">${t.label}</span>${t.count === null
         ? kit.nothing : kit.html` <span class="lfdln-filter-views-count">${t.count}</span>`}</button>`;
   const menu = t.user
-    ? kit.menu?.([{ id: 'rename', label: w.rename }, { id: 'delete', label: w.delete }], `${v.uid}-vm${i}`, w.viewMenu(t.label), (id) => {
+    ? kit.menu?.([{ id: 'rename', label: w.rename }, { id: 'delete', label: w.delete }], menuId(v.uid, t.key), w.viewMenu(t.label), (id) => {
       want.set(v.uid, id === 'rename' ? '.lfdln-filter-views-rename' : '.lfdln-filter-views-undo');
       if (id === 'rename') on.onRenaming?.(t.key);
       else on.onDeleteView?.(t.key);
@@ -175,7 +175,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
   const open = v.open && v.draft !== null;
   const bid = `${v.uid}-views-new`;
   return kit.html`<div class="lfdln-filter-root lfdln-filter-views lfdln-filter-style-root" ${kit.ref(settle(v.uid))}>
-    <nav class="lfdln-filter-views-tabs" aria-label=${w.views}>${kit.repeat(tabs, (t) => t.key, (t, i) => tab(kit, t, i, v, on, w))}<button
+    <nav class="lfdln-filter-views-tabs" aria-label=${w.views}>${kit.repeat(tabs, (t) => t.key, (t) => tab(kit, t, v, on, w))}<button
       type="button" class="lfdln-filter-views-new" aria-expanded=${open ? 'true' : 'false'} aria-controls=${open ? bid : kit.nothing}
       @click=${open ? on.onClose : on.onOpen}>${plus(kit)}${w.newView}</button></nav>
     ${open ? builder(kit, v, on, w, bid, tabs.filter((t) => t.user).length) : kit.nothing}

@@ -74,3 +74,8 @@ export function newViewLabel(name: string, userCount: number, words: ViewsWords)
 export function canSaveView(sections: FilterSection[], draft: FilterValue, search: string): boolean {
   return Object.keys(normalise(sections, draft)).length > 0 || search.trim() !== '';
 }
+
+/** The id of a saved view's ⋯ menu: keyed by the view key (not its place, so it stays put after a delete or undo), with every character but letters, digits and "-" written as _hex_. */
+export function menuId(uid: string, key: string): string {
+  return `${uid}-vm-${key.replace(/[^A-Za-z0-9-]/gu, (c) => `_${c.codePointAt(0)!.toString(16)}_`)}`;
+}

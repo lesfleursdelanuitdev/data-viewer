@@ -167,6 +167,8 @@ export function viewsStore(host: ViewsHost): ViewsStore {
       const q = host._q;
       const server = host.total !== undefined && host.total !== null;
       const mine = currentUserView(list, q, last);
+      // A page tab is current only on its bare state: its count ignores filters and search.
+      const bare = !q.search.trim() && !Object.keys(normalise(now, q.filters ?? {})).length;
       const pages = host.views?.length ? host.views : [{ key: '', label: host.text.allViews ?? defaultViewsWords.allViews }];
       const tabs: ViewTab[] = [
         ...pages.map((v) => ({
@@ -174,7 +176,7 @@ export function viewsStore(host: ViewsHost): ViewsStore {
           label: v.label,
           count: v.count ?? (server ? null : count({ view: v.key, search: '', filters: undefined })),
           user: false,
-          current: !mine && v.key === q.view,
+          current: !mine && bare && v.key === q.view,
         })),
         ...list.map((v) => ({
           key: v.key,

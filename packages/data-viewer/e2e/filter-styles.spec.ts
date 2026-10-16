@@ -1793,6 +1793,14 @@ test.describe('saved views store', () => {
     await expect(page.locator('#vprobe-page .lfdln-filter-chips')).toBeVisible();
   });
 
+  test('a page tab is current only when no filters or search are applied', async ({ page }) => {
+    await open(page, '?vprobepage.f.kind=Herb');
+    await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(5);
+    const pv = tabs(page, 'vprobe-page');
+    await expect(pv).toHaveCount(3);
+    expect(await pv.evaluateAll((li) => li.map((x) => x.getAttribute('data-current')))).toEqual(['false', 'false', 'false']);
+  });
+
   test('picking a page view clears filters and search', async ({ page }) => {
     await open(page, '?vprobepage.f.kind=Herb&vprobepage.search=mint');
     await expect(page.locator('#vprobe-page tbody tr')).toHaveCount(1);
@@ -2133,6 +2141,8 @@ test.describe('views', () => {
     expect(new URL(page.url()).searchParams.get('views.f.kind')).toBe('Herb');
     await expect(page.locator('#views tbody tr')).toHaveCount(5);
     await expect(page.locator('#views .lfdln-filter-chips')).toContainText('Herb');
+    // No tab is current: All's count ignores the leftover filters.
+    await expect(nav(page).locator('[aria-current]')).toHaveCount(0);
     await expect(toast(page)).toContainText('Deleted “Herbs”');
     await expect(toast(page).getByRole('button', { name: 'Undo' })).toBeFocused();
     expect(await page.evaluate(() => localStorage.getItem('views-demo.views'))).toBe('[]');

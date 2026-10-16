@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { builderRows, canSaveView, defaultViewsWords, newViewLabel, saveLabel } from '../src/styles/views-logic.ts';
+import { builderRows, canSaveView, defaultViewsWords, menuId, newViewLabel, saveLabel } from '../src/styles/views-logic.ts';
 import { defaultFilterWords } from '../src/core/summary.ts';
 import type { FilterSection } from '../src/core/types.ts';
 
@@ -85,4 +85,11 @@ test('defaultViewsWords: the words of the plan', () => {
   assert.deepEqual([v.allViews, v.newView, v.viewName(2), v.nameView, v.saveViewUnknown, v.viewMenu('Herbs'), v.rename, v.delete,
     v.renameView('Herbs'), v.viewDeleted('Herbs'), v.undo], ['All', 'New view', 'View 2', 'Name this view', 'Save', 'More for Herbs',
     'Rename', 'Delete', 'Rename Herbs', 'Deleted “Herbs”', 'Undo']);
+});
+
+test('menuId: keyed by the view key, safe for an id, and distinct for distinct keys', () => {
+  assert.equal(menuId('f1', 'u-abc9'), 'f1-vm-u-abc9');
+  assert.equal(menuId('f1', 'a b'), 'f1-vm-a_20_b');
+  assert.notEqual(menuId('f1', 'a_20_b'), menuId('f1', 'a b'));
+  assert.match(menuId('f1', 'é"#/ x'), /^[A-Za-z0-9_-]+$/);
 });
