@@ -12,6 +12,8 @@ export type {
 export { filterSections, matchesFilters, searchColumns } from './core/filters.ts';
 export { registerAdapter } from './adapters/register.ts';
 export { registerFilterStyle } from './core/filter-styles.ts';
+export type { ViewerFilterStyle } from './core/filter-styles.ts';
+export type { ViewsHost, ViewsStore } from './element/views-store.ts';
 export { configure, defineList } from './element/setup.ts';
 export type { ListColumn, ListConfig, ListSetup } from './element/setup.ts';
 export type { Adapter, AdapterAnswer } from './adapters/types.ts';

@@ -4,6 +4,7 @@ import { LfdlnFilterChips } from './lfdln-filter-chips.ts';
 export type { Chip, FilterOption, FilterRange, FilterSection, FilterValue, FilterWords, SectionPhrases } from './core/types.ts';
 // The sentence style's words (types only; the style and its defaults come with filter-style="sentence").
 export type { SentencePart, SentenceWords } from './styles/sentence-logic.ts';
+export type { ViewsWords } from './styles/views-logic.ts';
 export type {
   FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleSearch, FilterStyleView, FilterStyleViews, SavedView, ViewTab, ViewsFilterStyle,
 } from './core/style-types.ts';

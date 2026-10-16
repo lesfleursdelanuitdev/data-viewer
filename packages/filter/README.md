@@ -249,7 +249,7 @@ The sentence's words:
 |---|---|
 | `sentenceStart`, `sentenceEnd` | `Show`, `.` |
 | `and` | `and` (before the last value in a phrase: "perennials, shrubs and ferns") |
-| `comma`, `listComma` | `,` (between other values and phrases), `,` (before the last phrase; `''` leaves a space) |
+| `comma`, `listComma` | `,` (between other values, and before each phrase after the second, except the last), `,` (before the last phrase; `''` leaves a space) |
 | `anyValue` | `any` ("Owner: any", for a section with no `phraseAny`) |
 | `startOver` | `Start over` |
 | `things`, `sentenceNone(things)` | `results`, `No ${things} match that sentence. Change one of the underlined parts.` (the data viewer's empty line) |
@@ -277,9 +277,9 @@ inside. Each part takes the host's `kit` first.
 | `popover`, `returnFocus` | A popover under its anchor, or a bottom sheet on phones, closed by Esc and a click outside, one open per page; and putting focus back on the button that opened it |
 | `rangeBoxes`, `rangeOf`, `rangePressed`, `anySet`, `filteredCount` | A range's From and To boxes (drafted on every key, or applied when a box is left), a section's value as a range, whether a named range is the one set, and whether (or how many) sections narrow the list |
 | `menuKeys`, `radioKeys`, `tabStop` | Arrow keys in a menu of check rows and in a radio group, and a radio group's one tab stop |
-| `checkMenu`, `checkMenuCss` | One section's 220 px check menu ("Show kind", the options with counts, and a clear button whose label the caller may set), shared by `columns` and `sentence`, and its look |
+| `checkMenu`, `checkMenuCss` | One section's 220 px check menu ("Show kind", the options with counts, and a clear button whose label the caller may set; the heading is always `showColumn(label)`), shared by `columns` and `sentence`, and its look |
 | `addPartsStyles`, `addStyle`, `partsCss`, `HOVER`, `ON_TEXT`, `SOFT` | The parts' look (once per page), injecting a style's own `<style>`, and the hover, "on" text and "on" background colours |
-| `clearKey`, `removeChip`, `setBool`, `setRange`, `toggleOption`, `chipsOf`, `isSet`, `sectionSummary`, `choiceOptions`, `matchingOptions`, `SEARCH_ABOVE`, `defaultFilterWords`, `later` | Reading and changing a value, the option lists and their search, the words, and waiting for a part to be in the page |
+| `clearKey`, `normalise`, `removeChip`, `setBool`, `setRange`, `toggleOption`, `chipsOf`, `isSet`, `sectionSummary`, `choiceOptions`, `matchingOptions`, `SEARCH_ABOVE`, `defaultFilterWords`, `later` | Reading and changing a value, the option lists and their search, the words, and waiting for a part to be in the page |
 
 ## For other components
 
