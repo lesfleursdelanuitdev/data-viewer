@@ -95,6 +95,20 @@ test.describe('<lfdln-search-filter>', () => {
     ]);
     await expect(tokens(page)).toHaveText(['Name has mi']);
     await expect(tokens(page).locator('.lfdln-search-filter-token-key')).toHaveText('Name');
+    // Removing the text token clears its "Search in" too.
+    await sf(page).getByRole('button', { name: 'Remove Name has mi' }).click();
+    expect((await events(page)).slice(2)).toEqual([
+      { type: 'search-change', detail: { search: '', in: '' } },
+      { type: 'search-filter-change', detail: { search: '', value: {} } },
+    ]);
+  });
+
+  test('apply() with the value already applied fires nothing', async ({ page }) => {
+    await open(page);
+    await sf(page).evaluate((el) => (el as HTMLElement & { apply(v: unknown): void }).apply({ kind: ['Herb'] }));
+    expect(await events(page)).toHaveLength(2);
+    await sf(page).evaluate((el) => (el as HTMLElement & { apply(v: unknown): void }).apply({ kind: ['Herb'] }));
+    expect(await events(page)).toHaveLength(2);
   });
 
   test('ArrowDown/ArrowUp move aria-activedescendant and wrap; the first suggestion shows the Enter hint', async ({ page }) => {
@@ -405,5 +419,21 @@ test.describe('<lfdln-search-filter> on a phone', () => {
     await expect(page.locator('dialog.lfdln-filter-popover[open]')).toHaveCount(0);
     await expect(field(page)).toBeFocused();
     expect(problems).toEqual([]);
+  });
+
+  test("the sheet's field names the listbox only while there is one", async ({ page }) => {
+    await open(page);
+    // Nothing to suggest: no sections, nothing typed.
+    await sf(page).evaluate((el) => {
+      (el as HTMLElement & { sections: unknown[] }).sections = [];
+    });
+    await field(page).click();
+    const sheet = page.locator('dialog.lfdln-filter-popover[open]');
+    const inner = sheet.locator('input[role=combobox]');
+    await expect(inner).toBeFocused();
+    await expect(sheet.getByRole('listbox')).toHaveCount(0);
+    await expect(inner).not.toHaveAttribute('aria-controls', /.*/);
+    await inner.pressSequentially('x');
+    await expect(inner).toHaveAttribute('aria-controls', (await sheet.getByRole('listbox').getAttribute('id'))!);
   });
 });

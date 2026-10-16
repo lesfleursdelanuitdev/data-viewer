@@ -173,8 +173,9 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
     if (typed.trim()) on.onSearch?.(typed.trim());
     typedTo('', input);
   };
+  // Removing the text token clears its "Search in" too: no hidden one is left for the next search.
   const remove = (t: Token) => {
-    if (t.kind === 'text') on.onSearch?.('');
+    if (t.kind === 'text') on.onSearch?.('', '');
     else on.onApplyNow(removeToken(v.value, t));
   };
 
@@ -227,7 +228,8 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
 
   // The field: in the page, and its copy at the top of the sheet.
   const field = (sheet: boolean) => {
-    const controls = !open ? kit.nothing : sheet || !v.phone ? (showList ? listId : kit.nothing) : popId;
+    // The listbox is named only while it is drawn (in the sheet it can be empty).
+    const controls = !open ? kit.nothing : sheet || !v.phone ? (showList && rows.length ? listId : kit.nothing) : popId;
     const placeholder = tokens.length ? w.addFilter : w.searchOrFilter;
     return kit.html`<div class="lfdln-search-filter-field" @click=${(e: Event) => {
       if (e.target === e.currentTarget) (e.currentTarget as Element).querySelector<Input>('input')?.focus();
@@ -301,7 +303,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
     })
     : kit.nothing;
 
-  return kit.html`<div class="lfdln-filter-style-root lfdln-search-filter" role="search" aria-label=${v.label ?? w.searchOrFilter}
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-style-root lfdln-search-filter" role="search" aria-label=${v.label ?? w.searchOrFilter}
     @focusout=${(e: FocusEvent) => {
       // Focus leaving the field and its listbox closes it (the sheet keeps focus inside itself).
       const to = e.relatedTarget as Node | null;

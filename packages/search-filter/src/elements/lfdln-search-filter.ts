@@ -128,9 +128,11 @@ export class LfdlnSearchFilter extends LitElement {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
   }
 
-  /** Applies a filter value: sets `value` (ranges tidied, empty sections dropped), fires filter-change, then search-filter-change. */
+  /** Applies a filter value: sets `value` (ranges tidied, empty sections dropped), fires filter-change, then search-filter-change. Unchanged, nothing. */
   apply(value: FilterValue): void {
-    this.value = normalise(this.sections ?? [], value ?? {});
+    const next = normalise(this.sections ?? [], value ?? {});
+    if (JSON.stringify(next) === JSON.stringify(normalise(this.sections ?? [], this.value ?? {}))) return;
+    this.value = next;
     this._fire('filter-change', { value: this.value });
     this._fire('search-filter-change', { search: this.search, value: this.value });
   }
