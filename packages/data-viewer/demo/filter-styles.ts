@@ -1,5 +1,6 @@
 import { LfdlnDataViewer, define, registerFilterStyle } from '../src/index.ts';
-import type { Column } from '../src/core/types.ts';
+import { applyQuery } from '../src/core/list.ts';
+import type { Column, Query } from '../src/core/types.ts';
 
 // The 12 plants of filter-search.ts, tidied, with a kind, the light they like and whether any
 // are in stock.
@@ -34,14 +35,28 @@ for (const id of ['plants', 'test', 'missing']) {
   list.columns = columns;
   list.rows = plants;
 }
+
+// #served: the page plays a server for the same plants (server mode, no adapter). Kind has
+// options, since a server-mode filter needs options or facets to have a section.
+const servedColumns = columns.map((c) => (c.key === 'kind' ? { ...c, options: ['Flower', 'Foliage', 'Herb', 'Tree'] } : c));
+const served = document.querySelector('#served') as LfdlnDataViewer<Plant>;
+served.columns = servedColumns;
+const answer = (q: Query) => {
+  const out = applyQuery(plants, servedColumns, q, { pageSize: q.size });
+  served.rows = out.rows;
+  served.total = out.total;
+};
+answer({ page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 });
+served.addEventListener('dv-query', (e) => answer(e.detail));
 define();
 
-// Test scaffolding: a style that shows its draft count, registered after the lists have drawn
+// Test scaffolding: a style that shows its draft count (and results and total in data-*), registered after the lists have drawn
 // (as an add-on script that loads late would be).
 setTimeout(() => registerFilterStyle('probe', {
   name: 'probe',
   instant: false,
   showsApplied: true,
   styles() {},
-  render: (view, _on, kit) => kit.html`<p class="probe">${view.countFor}</p>`,
+  render: (view, _on, kit) => kit.html`<p class="probe" data-results=${String(view.results)}
+    data-total=${String(view.total)}>${view.countFor}</p>`,
 }), 200);

@@ -3,7 +3,8 @@ import { test, expect, type Page } from '@playwright/test';
 // demo/filter-styles.html: #plants (12 plants, today's dialog); #test (the same with
 // filter-style="probe", a test style the page registers 200 ms after the lists have drawn: it
 // draws <p class="probe">countFor</p> and shows applied filters itself); #missing
-// (filter-style="nope", which is never loaded).
+// (filter-style="nope", which is never loaded); #served (the probe, in server mode: the page
+// answers dv-query itself, no adapter). The probe puts view.results and view.total in data-*.
 async function open(page: Page, query = '') {
   const problems: string[] = [];
   const warnings: string[] = [];
@@ -50,5 +51,19 @@ test.describe('filter-style', () => {
     await expect(page.locator('#test .lfdln-filter-chips')).toHaveCount(0);
     // Today's dialog still has its chips row.
     await expect(page.locator('#plants .lfdln-filter-chips')).toBeVisible();
+  });
+
+  test('the view says how many rows the applied filters leave, and how many there are', async ({ page }) => {
+    await open(page, '?test.f.kind=Herb');
+    // Browser mode: 5 herbs of 12 plants.
+    await expect(page.locator('#test .probe')).toHaveAttribute('data-results', '5');
+    await expect(page.locator('#test .probe')).toHaveAttribute('data-total', '12');
+    // Served by the page: results is the host's total; there is no total before filters.
+    await expect(page.locator('#served .probe')).toHaveAttribute('data-results', '12');
+    await expect(page.locator('#served .probe')).toHaveAttribute('data-total', 'null');
+    await page.evaluate(() => {
+      (document.querySelector('#served') as HTMLElement & { total: number }).total = 7;
+    });
+    await expect(page.locator('#served .probe')).toHaveAttribute('data-results', '7');
   });
 });

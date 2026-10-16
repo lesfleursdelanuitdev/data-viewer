@@ -1013,8 +1013,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
     const sections = this.compact ? [] : this._sections();
     // With a filter style: what it is drawn from, shared by the bar and the table's header hook.
+    // results is not known before an adapter's first answer; a host's own total is.
     const styled = this._fStyle && sections.length
-      ? this._styled(w, sections, this._server ? (this._mode === 'unknown' ? null : total) : total)
+      ? this._styled(w, sections, this._adapted && this._mode === 'unknown' ? null : total)
       : undefined;
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
       ${this.compact ? nothing : this._bar(w, sections, styled)}
