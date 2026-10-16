@@ -88,3 +88,35 @@ test('the set range and the set yes / no are not suggested again', () => {
   assert.deepEqual(group(out, 'Price')?.map((s) => s.label), ['€5–€10', 'Over €10']);
   assert.deepEqual(group(out, 'In stock')?.map((s) => s.label), ['No']);
 });
+
+test('bool offers its row when the row’s own yes / no word matches', () => {
+  assert.deepEqual(group(suggest(sections, {}, search(), 'yes', words), 'In stock')?.map((s) => s.label), ['Yes']);
+  assert.deepEqual(group(suggest(sections, {}, search(), 'no', words), 'In stock')?.map((s) => s.label), ['No']);
+  const organic: FilterSection = { key: 'organic', label: 'Organic', kind: 'bool', yes: 'Certified', no: 'Not certified' };
+  assert.deepEqual(group(suggest([organic], {}, search(), 'certified', words), 'Organic')?.map((s) => s.label), ['Certified', 'Not certified']);
+  assert.deepEqual(group(suggest([organic], {}, search(), 'not', words), 'Organic')?.map((s) => s.label), ['Not certified']);
+});
+
+test('only the row for the applied "Search in" carries typedCount', () => {
+  const fields = [{ key: 'name', label: 'Name' }, { key: 'owner', label: 'Owner' }];
+  const counts = (over: { in: string }) =>
+    suggest(sections, {}, search({ fields, typedCount: 3, ...over }), 'mi', words).text.map((s) => s.kind === 'text' && s.count);
+  assert.deepEqual(counts({ in: '' }), [3, null, null]);
+  assert.deepEqual(counts({ in: 'name' }), [null, 3, null]);
+});
+
+test('typed numbers are plain decimals only', () => {
+  for (const typed of ['0x10', '1e3', '7.', '.5', 'Infinity']) {
+    assert.equal(group(suggest(sections, {}, search(), typed, words), 'Price'), undefined, typed);
+  }
+  const neg = group(suggest(sections, {}, search(), '-2', words), 'Price') ?? [];
+  assert.deepEqual(neg.map((s) => s.label), ['≤ -2', '≥ -2']);
+});
+
+test('≤ n and ≥ n keep the other end, and are not offered for the end already set', () => {
+  const items = group(suggest(sections, { price: { from: '2', to: '9' } }, search(), '7', words), 'Price') ?? [];
+  assert.deepEqual(items.map((s) => s.next.price), [{ from: '2', to: '7' }, { from: '7', to: '9' }]);
+  const set = group(suggest(sections, { price: { to: '7' } }, search(), '7', words), 'Price') ?? [];
+  assert.deepEqual(set.map((s) => s.label), ['≥ 7']);
+  assert.deepEqual(set[0]?.next.price, { from: '7', to: '7' });
+});

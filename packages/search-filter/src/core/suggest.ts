@@ -11,12 +11,13 @@ export type Suggestion =
 
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
-/** A typed number ("7", "7,5"), or null. */
+// A plain decimal, with a point or a comma ("7", "-2", "7,5"); not "0x10", "1e3", "7." or ".5".
+const NUMBER = /^-?\d+([.,]\d+)?$/;
+
+/** A typed number ("7", "7,5" as 7.5), or null. */
 function numberOf(typed: string): number | null {
   const t = typed.trim();
-  if (!t) return null;
-  const n = Number(t.replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
+  return NUMBER.test(t) ? Number(t.replace(',', '.')) : null;
 }
 
 /** Whether the typed text finds `label` (case and accents don't matter; no text finds all). */
@@ -32,18 +33,24 @@ function rangeItems(s: Range, value: FilterValue, typed: string, words: SearchFi
     .map((r) => item(r.label, setRange(value, s.key, r.from, r.to), r.count));
   const n = numberOf(typed);
   if (n !== null && s.type !== 'date') {
+    // Each sets its own end and keeps the other; the end already set to n is not offered again.
     const text = String(n);
-    out.push(item(words.atMost(text), setRange(value, s.key, undefined, text)), item(words.atLeast(text), setRange(value, s.key, text, undefined)));
+    const from = current.from?.trim() || undefined;
+    const to = current.to?.trim() || undefined;
+    if (to !== text) out.push(item(words.atMost(text), setRange(value, s.key, from, text)));
+    if (from !== text) out.push(item(words.atLeast(text), setRange(value, s.key, text, to)));
   }
   return out;
 }
 
 /**
  * The listbox for `typed`. `text`: "Search for “q”" (every column), then one "Name has “q”" per
- * "Search in" field, each counted with `search.typedCount`; none for no text. `groups`: by
+ * "Search in" field; the row for the applied "Search in" (`search.in`) carries `search.typedCount`,
+ * the others null; none for no text. `groups`: by
  * section, in order, the options the text finds that aren't picked, the named ranges it finds
- * that aren't set, ≤ / ≥ for a typed number (number and money ranges), and yes / no when the
- * text finds a bool's label (the one set left out); at most SEARCH_ABOVE each, empty groups left
+ * that aren't set, ≤ / ≥ for a typed number (number and money ranges; each keeps the other end,
+ * the end already at n left out), and yes / no when the text finds a bool's label, or the row's
+ * own word (the one set left out); at most SEARCH_ABOVE each, empty groups left
  * out. No text lists every group.
  */
 export function suggest(
@@ -52,10 +59,12 @@ export function suggest(
   const q = typed.trim();
   const text: Suggestion[] = q
     ? [
-      { kind: 'text', searchIn: '', label: words.searchFor(q), count: search.typedCount },
-      ...search.fields.map((f): Suggestion => ({ kind: 'text', searchIn: f.key, label: `${f.label} ${words.has} “${q}”`, count: search.typedCount })),
+      { kind: 'text', searchIn: '', label: words.searchFor(q), count: null },
+      ...search.fields.map((f): Suggestion => ({ kind: 'text', searchIn: f.key, label: `${f.label} ${words.has} “${q}”`, count: null })),
     ]
     : [];
+  // typedCount is for the typed text in the applied "Search in" ('' = every column): only that row has it.
+  for (const row of text) if (row.kind === 'text' && row.searchIn === search.in) row.count = search.typedCount;
   const groups: { label: string; items: Suggestion[] }[] = [];
   for (const s of sections) {
     let items: Suggestion[];
@@ -69,12 +78,12 @@ export function suggest(
     } else if (s.kind === 'range') {
       items = rangeItems(s, value, q, words);
     } else {
-      items = !finds(s.label, q) ? [] : ([true, false] as const)
-        .filter((b) => value[s.key] !== b)
-        .map((b): Suggestion => ({
-          kind: 'filter', section: s.key, group: s.label, op: s.label,
-          label: b ? s.yes ?? words.yes : s.no ?? words.no, next: setBool(value, s.key, b),
-        }));
+      // Both rows when the text finds the section's label; else the rows whose own word it finds.
+      const all = finds(s.label, q);
+      items = ([true, false] as const)
+        .map((b) => ({ b, label: b ? s.yes ?? words.yes : s.no ?? words.no }))
+        .filter(({ b, label }) => value[s.key] !== b && (all || finds(label, q)))
+        .map(({ b, label }): Suggestion => ({ kind: 'filter', section: s.key, group: s.label, op: s.label, label, next: setBool(value, s.key, b) }));
     }
     if (items.length) groups.push({ label: s.label, items: items.slice(0, SEARCH_ABOVE) });
   }
