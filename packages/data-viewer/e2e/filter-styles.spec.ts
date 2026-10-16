@@ -1497,7 +1497,8 @@ test.describe('search', () => {
     const input = sfInput(page, 'search-server');
     await input.click();
     await input.pressSequentially('ros');
-    await page.waitForTimeout(350);
+    // The count for "ros" has been asked for (300 ms after the typing) and is still on its way.
+    await expect.poll(() => first).toBe(false);
     await input.press('e');
     await input.press('Enter');
     expect(await page.evaluate(() => (window as unknown as { queries: { search: string }[] }).queries.map((q) => q.search))).toEqual(['rose']);
@@ -1523,6 +1524,49 @@ test.describe('search', () => {
     await sfInput(page).click();
     await sfInput(page).pressSequentially('ro');
     await expect(sfList(page).getByRole('option', { name: /has “ro”/ })).toHaveCount(2);
+  });
+
+  test('focus with nothing typed: no row is active, and Enter applies nothing', async ({ page }) => {
+    await open(page);
+    const input = sfInput(page);
+    await input.click();
+    await expect(sfList(page)).toBeVisible();
+    await expect(input).not.toHaveAttribute('aria-activedescendant', /.*/);
+    await input.press('Enter');
+    await expect(sfTokens(page)).toHaveCount(0);
+    expect([...addressOf(page).keys()].filter((k) => k.startsWith('search.'))).toEqual([]);
+    await expect(page.locator('#search tbody tr')).toHaveCount(12);
+  });
+
+  test('typed text is dropped on Back, a new state and a style switch', async ({ page }) => {
+    await open(page);
+    const input = sfInput(page);
+    const list = page.locator('#search');
+    await input.click();
+    await input.pressSequentially('her');
+    await input.press('Enter');
+    await expect.poll(() => addressOf(page).get('search.f.kind')).toBe('Herb');
+    await input.pressSequentially('su');
+    await page.goBack();
+    await expect(sfTokens(page)).toHaveCount(0);
+    await expect(input).toHaveValue('');
+    // A new state from the page.
+    await input.pressSequentially('su');
+    await list.evaluate((el) => {
+      (el as HTMLElement & { state: unknown }).state = { search: 'mint' };
+    });
+    await expect(sfTokens(page)).toHaveText(['Any column has mint']);
+    await expect(input).toHaveValue('');
+    // Another filter style and back.
+    await input.pressSequentially('su');
+    await list.evaluate(async (el) => {
+      const v = el as HTMLElement & { filterStyle: string; updateComplete: Promise<unknown> };
+      v.filterStyle = 'bar';
+      await v.updateComplete;
+      v.filterStyle = 'search';
+      await v.updateComplete;
+    });
+    await expect(input).toHaveValue('');
   });
 
   test('narrower than 480 px the listbox is the bottom sheet', async ({ page }) => {

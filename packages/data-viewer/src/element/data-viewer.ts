@@ -455,6 +455,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (changed.has('state') && this.state) {
       this._q = tidy({ ...this._q, ...this.state });
       this._searchText = this._q.search;
+      this._untype();
     }
     // rememberAs is often set after the element connects; the stored choice still wins.
     if (changed.has('rememberAs')) {
@@ -501,6 +502,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (!sameFilterStyle(style, this._fStyle) && this.hasUpdated) {
       this._fDraft = null;
       this._fMenu = null;
+      this._untype();
     }
     this._fStyle = style;
     style?.styles();
@@ -585,6 +587,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     clearTimeout(this._timer);
     this._q = q;
     this._searchText = q.search;
+    this._untype();
     // A restored or Back-button state that isn't the default needs the host's rows.
     if (announce || JSON.stringify(q) !== JSON.stringify(blank)) this._announce();
     // (A size from the address that the list of sizes, set later, makes valid is asked for in willUpdate.)
@@ -1000,6 +1003,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         },
       },
     };
+  }
+
+  // The search style's typed text goes (and its count) when the address, state or style changes.
+  private _untype(): void {
+    this._typed = '';
+    this._typedCount.stop();
   }
 
   // Whether the list is narrower than the style's narrowBelow (then view.phone is set).

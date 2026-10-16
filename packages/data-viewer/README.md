@@ -422,7 +422,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `searchKeys` | none | `string[]` | every column | The row keys search looks at. A key need not be a column. Columns marked `searchable` win over it. |
 | `searchIn` | `search-in` | boolean | `false` | Shows the "Search in" picker beside the search box (with two or more searchable columns). See [Search and filter](#search-and-filter). |
 | `searchSubmitLabel` | `search-submit-label` | string | unset | A button after the search box with these words; then typing alone doesn't search, only Enter or the button. |
-| `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. |
+| `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. With `filter-style="search"` it names the field's search landmark and its suggestions' popover instead. |
 | `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
 | `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'`, `'columns'` or `'search'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
@@ -652,20 +652,26 @@ loaded. Each file is 6 to 11 KB gzipped. To show a filter style without the view
   mint"; it reads "Plant has mint" when one column is `searchable`, or "Owner has mint" with
   that column picked in "Search in". The filters follow as tokens: "Kind is Herb",
   "Price · Under €5", "In stock · Yes".
-  - Typing lists "Search for “q”" with how many rows the text would leave, then, with
-    `search-in` and two or more searchable columns, a "Plant has “q”" row for each (picking one
-    sets "Search in"; with `supports.searchIn: false` there are none), then the filters the text
-    finds, by section: options, named ranges, "≤ 7" / "≥ 7" for a number typed into a number or
-    money column, and Yes / No.
-  - Enter picks the active row: the first filter that leaves something (one at 0 dims to 0.45
-    and can be clicked, but Enter never picks it), else "Search for". Backspace in the empty
-    field removes the last token, Esc closes, Done searches the typed text.
+  - Typing lists "Search for “q”", then, with `search-in` and two or more searchable columns, a
+    "Plant has “q”" row for each (picking one sets "Search in"; with `supports.searchIn: false`
+    there are none), then the filters the text finds, by section: options, named ranges,
+    "≤ 7" / "≥ 7" for a number typed into a number or money column, and Yes / No. How many rows
+    the text would leave shows on the row for the "Search in" already applied: "Search for"
+    with none, else that column's row.
+  - With nothing typed, no row is active and Enter does nothing until an arrow key moves.
+    Once text is typed, Enter picks the active row: the first filter that leaves something (one
+    at 0 dims to 0.45 and can be clicked, but Enter never picks it), else "Search for".
+    Backspace in the empty field removes the last token, Esc closes, Done searches the typed text.
+    Typed text that wasn't applied goes when Back, a new `state` or another filter style
+    changes the list.
   - Every token added or removed applies at once, and the address keeps the same keys as
     before: `<prefix>.search`, `<prefix>.in` and `<prefix>.f.<key>`. So bookmarks made with the
     search box still work, and a value that has gone shows as a token you can remove.
   - Below 480 px of list width, or on a phone, the suggestions are a bottom sheet with its own
     copy of the field at the top; rows are 44 px. If the list widens past 480 px while the sheet
     is open, the suggestions move under the field and focus goes back to it, with the text kept.
+  - With no filter sections (an adapter with `supports.filters: false`, or server mode before
+    `facets` arrive), the list shows the plain search box until there are sections.
   - `dv-query` carries `search`, `searchIn` and `filters` as with the search box. To use the
     field without the viewer, see the
     [search-filter](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
