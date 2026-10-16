@@ -1,0 +1,63 @@
+{
+  "name": "@lesfleursdelanuitdev/search-filter",
+  "version": "0.1.0",
+  "description": "Search and filter in one field: <lfdln-search-filter>, a Lit web component that turns what you type into a search or into filters, with suggestions as you type.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/search-filter"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "lit",
+    "search",
+    "filter",
+    "facets",
+    "tokens"
+  ],
+  "type": "module",
+  "module": "./dist/search-filter.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/search-filter.js"
+    },
+    "./style": {
+      "types": "./dist/types/style.d.ts",
+      "import": "./dist/style.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/search-filter.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
+  "scripts": {
+    "test": "node --import ./test/siblings.mjs --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/search-filter.standalone.js=20480",
+    "e2e": "playwright test --pass-with-no-tests"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  },
+  "dependencies": {
+    "@lesfleursdelanuitdev/filter": "0.1.0"
+  }
+}

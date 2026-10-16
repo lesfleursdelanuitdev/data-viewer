@@ -26,6 +26,12 @@
       ],
       "@lesfleursdelanuitdev/filter/*": [
         "../filter/dist/types/*.d.ts"
+      ],
+      "@lesfleursdelanuitdev/search-filter": [
+        "../search-filter/dist/types/index.d.ts"
+      ],
+      "@lesfleursdelanuitdev/search-filter/*": [
+        "../search-filter/dist/types/*.d.ts"
       ]
     }
   },

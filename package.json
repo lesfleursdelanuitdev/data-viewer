@@ -11,6 +11,7 @@
     "packages/card",
     "packages/search",
     "packages/filter",
+    "packages/search-filter",
     "packages/data-viewer"
   ],
   "scripts": {

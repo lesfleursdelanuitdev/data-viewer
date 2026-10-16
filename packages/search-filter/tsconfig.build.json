@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist/types",
+    "types": [],
+    "paths": {
+      "@lesfleursdelanuitdev/filter": ["../filter/dist/types/index.d.ts"],
+      "@lesfleursdelanuitdev/filter/*": ["../filter/dist/types/*.d.ts"]
+    }
+  },
+  "include": [],
+  "files": ["src/index.ts", "src/style.ts"]
+}
