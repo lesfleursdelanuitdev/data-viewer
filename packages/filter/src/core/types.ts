@@ -1,15 +1,24 @@
 /** One choice a choice section offers. `count` is how many rows it would leave. */
 export type FilterOption = { value: string; label?: string; count?: number; description?: string };
 
+/**
+ * How a section reads in a sentence (filter-style="sentence"): `phrase` when set, `{values}`
+ * standing for its values ("for {values}"; none: "{label}: {values}"); `phraseAny` when not set
+ * (none: "{label}: any"); `plural` names a choice's values ("Fern" -> "ferns"; none: the label
+ * in lower case).
+ */
+export type SectionPhrases = { phrase?: string; phraseAny?: string; plural?: Record<string, string> };
+
 /** One part of the filter: pick from options, give a range, or say yes or no. */
-export type FilterSection =
+export type FilterSection = SectionPhrases & (
   | { key: string; label: string; kind: 'choice'; options: FilterOption[]; single?: boolean }
   | {
     key: string; label: string; kind: 'range'; type?: 'number' | 'money' | 'date';
     ranges?: { label: string; from?: string; to?: string; count?: number }[];
     histogram?: { from: number; to: number; buckets: number[] }; format?: { currency?: string; locale?: string };
   }
-  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string; hint?: string };
+  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string; hint?: string }
+);
 
 /** The filters, by section key: picked option values, a range, or yes / no. */
 export type FilterValue = Record<string, string[] | { from?: string; to?: string } | boolean>;

@@ -197,6 +197,11 @@ export function filterSections<T>(cols: Column<T>[], opts: {
 }): FilterSection[] {
   const equals = opts.supports?.filters === 'equals';
   const out: FilterSection[] = [];
+  // The sentence's words for a section, when the column has them.
+  const push = (s: FilterSection, col: Column<T>) => {
+    for (const k of ['phrase', 'phraseAny', 'plural'] as const) if (col[k]) s[k] = col[k] as never;
+    out.push(s);
+  };
   for (const col of cols) {
     if (!col.filterable) continue;
     const kind = filterKind(col);
@@ -204,7 +209,7 @@ export function filterSections<T>(cols: Column<T>[], opts: {
     if (kind === 'bool') {
       const s: FilterSection = { key: col.key, label: col.label, kind };
       if (col.hint) s.hint = col.hint;
-      out.push(s);
+      push(s, col);
     } else if (kind === 'range') {
       const s: FilterSection = { key: col.key, label: col.label, kind, type: col.type === 'date' ? 'date' : col.type === 'money' ? 'money' : 'number' };
       if (col.ranges?.length) s.ranges = col.ranges;
@@ -239,7 +244,7 @@ export function filterSections<T>(cols: Column<T>[], opts: {
         if (col.format.currency) s.format.currency = col.format.currency;
         if (col.format.locale) s.format.locale = col.format.locale;
       }
-      out.push(s);
+      push(s, col);
     } else {
       let options: FilterOption[] | undefined;
       if (opts.rows) {
@@ -265,7 +270,7 @@ export function filterSections<T>(cols: Column<T>[], opts: {
       if (!options) continue;
       const s: FilterSection = { key: col.key, label: col.label, kind, options };
       if (equals) s.single = true;
-      out.push(s);
+      push(s, col);
     }
   }
   return out;
@@ -277,14 +282,18 @@ export function parseOptions(attr: string | null | undefined): string[] | undefi
   return list.length ? list : undefined;
 }
 
+// "a:b, c:d" as [a, b] pairs, split at each part's last ":"; parts with none are left out.
+function pairs(attr: string | null | undefined): [string, string][] {
+  return (attr ?? '').split(',').filter((p) => p.includes(':')).map((p) => {
+    const at = p.lastIndexOf(':');
+    return [p.slice(0, at).trim(), p.slice(at + 1).trim()];
+  });
+}
+
 /** ranges="1900s:1900..1999,Recent:2020.." from a column attribute; bad parts are left out. */
 export function parseRanges(attr: string | null | undefined): { label: string; from?: string; to?: string }[] | undefined {
   const out: { label: string; from?: string; to?: string }[] = [];
-  for (const part of (attr ?? '').split(',')) {
-    const at = part.lastIndexOf(':');
-    if (at < 0) continue;
-    const label = part.slice(0, at).trim();
-    const span = part.slice(at + 1).trim();
+  for (const [label, span] of pairs(attr)) {
     const dots = span.indexOf('..');
     if (!label || dots < 0) continue;
     const r: { label: string; from?: string; to?: string } = { label };
@@ -295,4 +304,10 @@ export function parseRanges(attr: string | null | undefined): { label: string; f
     if (from || to) out.push(r);
   }
   return out.length ? out : undefined;
+}
+
+/** plural="Perennial:perennials,Fern:ferns" from a column attribute; bad parts are left out. */
+export function parsePlural(attr: string | null | undefined): Record<string, string> | undefined {
+  const list = pairs(attr).filter(([value, noun]) => value && noun);
+  return list.length ? Object.fromEntries(list) : undefined;
 }

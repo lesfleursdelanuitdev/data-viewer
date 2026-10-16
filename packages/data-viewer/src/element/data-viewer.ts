@@ -13,6 +13,7 @@ import {
 } from '@lesfleursdelanuitdev/filter';
 import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/style';
 import type { ViewsWords } from '@lesfleursdelanuitdev/filter/views';
+import type { SentenceWords } from '@lesfleursdelanuitdev/filter';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
 import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';
@@ -55,8 +56,9 @@ const cardsIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="non
 // rowsPerPage) are the pagination package's; the search box's (search, searchIn, allFields, clear)
 // the search package's; the filter's (filter, apply, clearAll, none, any, …) the filter package's;
 // filter-style="search"'s (searchOrFilter, addFilter, searchFor, …) the search-filter package's;
-// filter-style="views"'s (allViews, newView, saveView, …) the filter package's views words.
-export type Words = PaginationWords & SearchWords & FilterWords & Partial<SearchFilterWords> & Partial<ViewsWords> & {
+// filter-style="views"'s (allViews, newView, saveView, …) the filter package's views words;
+// filter-style="sentence"'s (sentenceStart, and, listComma, things, …) its sentence words.
+export type Words = PaginationWords & SearchWords & FilterWords & Partial<SearchFilterWords> & Partial<ViewsWords> & Partial<SentenceWords> & {
   views: string;
   showTable: string;
   showCards: string;

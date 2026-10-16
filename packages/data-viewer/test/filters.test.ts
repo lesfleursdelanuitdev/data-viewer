@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cellValues, countMatching, filterKind, filterSections, matchesFilters, parseOptions, parseRanges, searchColumns } from '../src/core/filters.ts';
+import { cellValues, countMatching, filterKind, filterSections, matchesFilters, parseOptions, parsePlural, parseRanges, searchColumns } from '../src/core/filters.ts';
 import type { Column, Query } from '../src/core/types.ts';
 
 type Row = Record<string, unknown>;
@@ -156,6 +156,39 @@ test('parseOptions and parseRanges read the column attributes', () => {
   ]);
   assert.deepEqual(parseRanges('Cheap:..10, junk, :1..2'), [{ label: 'Cheap', to: '10' }]);
   assert.deepEqual(parseRanges(''), undefined);
+});
+
+test('parsePlural reads plural="Perennial:perennials, Fern:ferns" (the last ":" splits)', () => {
+  assert.deepEqual(parsePlural('Perennial:perennials, Fern:ferns'), { Perennial: 'perennials', Fern: 'ferns' });
+  assert.deepEqual(parsePlural('a:b:cs, junk, :x, y:'), { 'a:b': 'cs' });
+  assert.equal(parsePlural(''), undefined);
+  assert.equal(parsePlural(null), undefined);
+});
+
+test("a column's phrase, phraseAny and plural arrive on its section", () => {
+  const own: Column<Row>[] = [
+    { key: 'status', label: 'Status', filterable: true, phrase: '{values}', phraseAny: 'all plants', plural: { sold: 'sold ones' } },
+    { key: 'price', label: 'Price', type: 'money', filterable: true, phraseAny: 'at any price' },
+    { key: 'organic', label: 'Organic', type: 'bool', filterable: true, phrase: 'organic only' },
+    { key: 'tags', label: 'Tags', type: 'tags', filterable: true },
+  ];
+  const [status, price, organic, tags] = filterSections(own, { rows, q });
+  assert.deepEqual([status?.phrase, status?.phraseAny, status?.plural], ['{values}', 'all plants', { sold: 'sold ones' }]);
+  assert.deepEqual([price?.phrase, price?.phraseAny, price?.plural], [undefined, 'at any price', undefined]);
+  assert.equal(organic?.phrase, 'organic only');
+  assert.ok(tags && !('phrase' in tags) && !('phraseAny' in tags) && !('plural' in tags));
+});
+
+test('the phrase, phrase-any and plural column attributes', async () => {
+  // column.ts defines an element class; node has no HTMLElement.
+  (globalThis as { HTMLElement?: unknown }).HTMLElement ??= class {};
+  const { columnFrom } = await import('../src/element/column.ts');
+  const attrs: Record<string, string> = { key: 'kind', phrase: 'for {values}', 'phrase-any': 'in any light', plural: 'Perennial:perennials,Fern:ferns' };
+  const el = { getAttribute: (n: string) => attrs[n] ?? null, hasAttribute: (n: string) => n in attrs } as unknown as Element;
+  const col = columnFrom<Row>(el);
+  assert.deepEqual([col.phrase, col.phraseAny, col.plural], ['for {values}', 'in any light', { Perennial: 'perennials', Fern: 'ferns' }]);
+  const bare = columnFrom<Row>({ getAttribute: (n: string) => (n === 'key' ? 'a' : null), hasAttribute: () => false } as unknown as Element);
+  assert.ok(!('phrase' in bare) && !('phraseAny' in bare) && !('plural' in bare));
 });
 
 test('range sections count each range over the rows the other filters leave', () => {

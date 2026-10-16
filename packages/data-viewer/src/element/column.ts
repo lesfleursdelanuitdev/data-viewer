@@ -1,5 +1,5 @@
 import type { Column } from '../core/types.ts';
-import { parseOptions, parseRanges } from '../core/filters.ts';
+import { parseOptions, parsePlural, parseRanges } from '../core/filters.ts';
 
 /**
  * <lfdln-dv-column>: one column of a viewer, written in HTML. It only holds attributes and
@@ -29,8 +29,12 @@ export function columnFrom<T>(el: Element): Column<T> {
   if (options) col.options = options;
   const ranges = parseRanges(el.getAttribute('ranges'));
   if (ranges) col.ranges = ranges;
-  const hint = el.getAttribute('hint');
-  if (hint) col.hint = hint;
+  for (const [name, k] of [['hint', 'hint'], ['phrase', 'phrase'], ['phrase-any', 'phraseAny']] as const) {
+    const text = el.getAttribute(name);
+    if (text) col[k] = text;
+  }
+  const plural = parsePlural(el.getAttribute('plural'));
+  if (plural) col.plural = plural;
   return col;
 }
 

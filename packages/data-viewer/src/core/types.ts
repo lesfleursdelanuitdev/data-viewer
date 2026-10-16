@@ -26,6 +26,12 @@ export type Column<T> = {
   ranges?: { label: string; from?: string; to?: string }[];
   /** A bool column's one-line explanation in the filter. */
   hint?: string;
+  /** filter-style="sentence": how it reads when set, {values} standing for its values ("for {values}"). */
+  phrase?: string;
+  /** filter-style="sentence": how it reads when not set ("at any price"). */
+  phraseAny?: string;
+  /** filter-style="sentence": a value's plural ({ Fern: 'ferns' }); otherwise its label in lower case. */
+  plural?: Record<string, string>;
 };
 
 export type View<T> = {
