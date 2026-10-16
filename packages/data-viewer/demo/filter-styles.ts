@@ -50,7 +50,7 @@ const answer = (q: Query) => {
 answer({ page: 1, search: '', sort: '', dir: 'asc', view: '', size: 20 });
 served.addEventListener('dv-query', (e) => answer(e.detail));
 
-// #server and #counting: 45 recipes from the fake API, filtered by cuisine on the server.
+// #server, #recipes (today's dialog) and #counting: 45 recipes from the fake API, filtered by cuisine on the server.
 // "counting" loads as json does but counts every draft as 999 (adapter.count wins over load).
 type Recipe = { id: number; name: string; cuisine: string; minutes: number };
 const recipeColumns: Column<Recipe>[] = [
@@ -59,7 +59,7 @@ const recipeColumns: Column<Recipe>[] = [
   { key: 'minutes', label: 'Minutes', type: 'number' },
 ];
 registerAdapter('counting', { load: jsonAdapter.load, count: async () => 999 });
-for (const id of ['server', 'counting']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
+for (const id of ['server', 'recipes', 'counting']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
 define();
 
 // Test scaffolding: a style that shows its draft count (and results and total in data-*), registered after the lists have drawn

@@ -5,7 +5,8 @@ import { test, expect, type Page } from '@playwright/test';
 // draws <p class="probe">countFor</p> and shows applied filters itself); #missing
 // (filter-style="nope", which is never loaded); #served (the probe, in server mode: the page
 // answers dv-query itself, no adapter); #server (the probe on /api/recipes through the json
-// adapter: 45 recipes, filterable by cuisine on the server); #counting (the same through an
+// adapter: 45 recipes, filterable by cuisine on the server); #recipes (the same with today's
+// dialog, no filter-style); #counting (the same through an
 // adapter whose count() always says 999). The probe puts view.countFor, view.results and
 // view.total in data-*; its "draft" button opens the draft and sets it to the list's data-draft
 // (JSON, { kind: ['Herb'] } without one), and "close" closes it.
@@ -180,6 +181,18 @@ test.describe('countFor', () => {
     await page.waitForTimeout(600);
     expect(asked).toEqual([]);
     await expect(page.locator('#server .probe')).toHaveAttribute('data-count', 'null');
+  });
+
+  test("today's dialog in server mode asks for no counts", async ({ page }) => {
+    const asked = countRequests(page);
+    await open(page);
+    const list = page.locator('#recipes');
+    await expect(list.locator('tbody tr').first()).toBeVisible();
+    await list.locator('.lfdln-filter-button').click();
+    await list.getByRole('dialog').getByRole('option', { name: 'Persian' }).click();
+    await expect(list.getByRole('dialog').getByRole('option', { name: 'Persian' })).toHaveAttribute('aria-selected', 'true');
+    await page.waitForTimeout(600);
+    expect(asked).toEqual([]);
   });
 
   test('a page that serves its own rows has no count', async ({ page }) => {

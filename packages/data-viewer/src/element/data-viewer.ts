@@ -639,13 +639,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
-  // Server mode with an adapter: ask for the open draft's count (adapter.count, else a load of
-  // one row and its total), 300 ms after the draft last changed. Otherwise, or once the draft
-  // is closed, there is none (browser mode counts in _styled).
+  // A filter style in server mode with an adapter: ask for the open draft's count
+  // (adapter.count, else a load of one row and its total), 300 ms after the draft last changed.
+  // Otherwise (today's dialog shows no count), or once the draft is closed, there is none
+  // (browser mode counts in _styled).
   private _askCount(): void {
-    const adapter = this._adapted && this._server && this._fDraft !== null ? adapterNamed(this.adapter!.trim()) : undefined;
-    if (!adapter) return this._countFor.stop();
-    const q: Query = { ...this._query, page: 1, filters: normalise(this._sections(), this._fDraft!) };
+    const adapter = this._fStyle && this._adapted && this._server && this._fDraft !== null ? adapterNamed(this.adapter!.trim()) : undefined;
+    const sections = adapter ? this._sections() : [];
+    if (!adapter || !sections.length) return this._countFor.stop();
+    const q: Query = { ...this._query, page: 1, filters: normalise(sections, this._fDraft!) };
     const src = (this.src ?? '').trim();
     this._countFor.ask((signal) => adapter.count
       ? adapter.count(q, { signal, src })
