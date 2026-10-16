@@ -19,6 +19,8 @@ test.describe('<lfdln-filter-panel>', () => {
     await expect(p.locator('.lfdln-filter-show')).toHaveText('Show 4 results');
     await p.locator('.lfdln-filter-toggle[data-value="Herb"]').click();
     await expect(p.locator('.lfdln-filter-show')).toHaveText('Show 2 results');
+    await expect(p.getByRole('switch')).toHaveAccessibleName('In stock');
+    await expect(p.getByRole('switch')).toHaveAccessibleDescription('Hide plants that are sold out');
     await p.getByRole('switch', { name: 'In stock' }).click();
     await expect(p.locator('.lfdln-filter-show')).toHaveText('Show 1 result');
     // A single choice of 2 is a segmented control.
@@ -28,9 +30,14 @@ test.describe('<lfdln-filter-panel>', () => {
     await expect(p.getByRole('dialog')).toHaveCount(0);
     expect(await events(page)).toEqual([{ id: 'p', value: { kind: ['Herb'], stock: true, size: ['s'] } }]);
     await expect(p.locator('.lfdln-filter-badge')).toHaveText('3');
-    // × on a chip applies at once.
+    // × on a chip applies at once, and leaves an open draft too.
+    await p.locator('.lfdln-filter-trigger').click();
     await p.getByRole('button', { name: 'Remove Herb' }).click();
     expect((await events(page)).at(-1)).toEqual({ id: 'p', value: { stock: true, size: ['s'] } });
+    await expect(p.locator('.lfdln-filter-toggle[data-value="Herb"]')).toHaveAttribute('aria-pressed', 'false');
+    await p.locator('.lfdln-filter-show').click();
+    expect((await events(page)).at(-1)).toEqual({ id: 'p', value: { stock: true, size: ['s'] } });
+    await expect(p.locator('.lfdln-filter-tag')).toHaveText(['Small', 'In stock: Yes']);
     expect(problems).toEqual([]);
   });
 

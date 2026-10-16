@@ -278,6 +278,21 @@ test.describe('panel', () => {
     await expect(page.locator('#panel .dv-root')).not.toHaveAttribute('data-filter-open', '');
   });
 
+  test('× on an applied chip while the panel is open drops it from the draft too', async ({ page }) => {
+    await open(page, '?panel.f.kind=Herb,Flower');
+    await trigger(page).click();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#panel').getByRole('button', { name: 'Remove Herb' }).click();
+    await expect(page.locator('#panel tbody tr')).toHaveCount(3);
+    await expect(panelOf(page)).toBeVisible();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'false');
+    // Show applies the draft as it is now: Herb stays removed.
+    await show(page).click();
+    await expect(panelOf(page)).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(3);
+    await expect(page.locator('#panel .lfdln-filter-tag')).toHaveText(['Flower']);
+  });
+
   test('Cancel and Esc drop the draft', async ({ page }) => {
     await open(page);
     await trigger(page).click();
@@ -361,6 +376,8 @@ test.describe('panel', () => {
     const sw = panelOf(page).getByRole('switch', { name: 'In stock' });
     await expect(sw).toHaveAttribute('aria-checked', 'false');
     await expect(panelOf(page).getByText('Hide plants that are sold out')).toBeVisible();
+    // Named by its label only; the hint is its description, said once.
+    await expect(sw).toHaveAccessibleName('In stock');
     await expect(sw).toHaveAccessibleDescription('Hide plants that are sold out');
     const box = (await sw.boundingBox())!;
     expect([box.width, box.height]).toEqual([34, 20]);

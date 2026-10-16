@@ -4,23 +4,27 @@ import type { FilterKit } from '../core/style-types.ts';
 export type SwitchOptions = {
   on: boolean;
   onToggle(): void;
-  label?: string; // its name when no <label> holds it
+  label?: string; // its name, when nothing names it
+  labelledBy?: string; // the id of the text that names it
   describedBy?: string; // the id of its helper text
 };
 
 /** A 34×20 switch (role="switch"); Space and Enter toggle it, as on any button. */
 export function toggleSwitch(kit: FilterKit, o: SwitchOptions): TemplateResult {
   return kit.html`<button type="button" class="lfdln-filter-switch" role="switch" aria-checked=${o.on ? 'true' : 'false'}
-    aria-label=${o.label ?? kit.nothing} aria-describedby=${o.describedBy ?? kit.nothing}
+    aria-label=${o.label ?? kit.nothing} aria-labelledby=${o.labelledBy ?? kit.nothing} aria-describedby=${o.describedBy ?? kit.nothing}
     @click=${o.onToggle}><span class="lfdln-filter-knob"></span></button>`;
 }
 
 export type SwitchRowOptions = { id: string; label: string; hint?: string; on: boolean; onToggle(): void };
 
-/** A row with the switch on the right: its label (which names it, and toggles it when clicked) and a helper line. */
+/**
+ * A row with the switch on the right: its label, which names it (aria-labelledby, so the helper
+ * line is only its description) and toggles it when clicked, and a helper line.
+ */
 export function switchRow(kit: FilterKit, o: SwitchRowOptions): TemplateResult {
   const hint = o.hint ? `${o.id}-hint` : undefined;
-  return kit.html`<label class="lfdln-filter-switch-row"><span class="lfdln-filter-switch-text"><span>${o.label}</span>${o.hint
+  return kit.html`<label class="lfdln-filter-switch-row"><span class="lfdln-filter-switch-text"><span id=${`${o.id}-label`}>${o.label}</span>${o.hint
     ? kit.html`<span class="lfdln-filter-hint" id=${hint}>${o.hint}</span>` : kit.nothing}</span>${toggleSwitch(kit, {
-    on: o.on, onToggle: o.onToggle, describedBy: hint })}</label>`;
+    on: o.on, onToggle: o.onToggle, labelledBy: `${o.id}-label`, describedBy: hint })}</label>`;
 }

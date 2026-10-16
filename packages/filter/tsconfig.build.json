@@ -10,5 +10,5 @@
     "types": []
   },
   "include": [],
-  "files": ["src/index.ts", "src/panel.ts", "src/elements/lfdln-filter-panel.ts"]
+  "files": ["src/index.ts", "src/panel.ts", "src/panel-element.ts"]
 }

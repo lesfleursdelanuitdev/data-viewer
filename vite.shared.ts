@@ -5,20 +5,18 @@ import type { Plugin, UserConfig } from 'vite';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
-const source = (name: string, file = 'index') => fileURLToPath(new URL(`./packages/${name}/src/${file}.ts`, import.meta.url));
+const src = (rel: string) => fileURLToPath(new URL(`./packages/${rel}`, import.meta.url));
 
 /**
- * The sibling packages, by npm name, as their sources. A subpath comes before its package: an
- * alias also matches the names under it, and the first match wins.
+ * The sibling packages, by npm name, as their sources. A subpath `@lesfleursdelanuitdev/<pkg>/<x>`
+ * is the package's `src/<x>.ts` (each package export has a source file of the same name, such as
+ * filter's src/panel.ts and src/panel-element.ts); the bare name is its `src/index.ts`. Exact
+ * patterns, so the bare name never swallows a subpath.
  */
-export const siblings: Record<string, string> = {
-  '@lesfleursdelanuitdev/filter/panel': source('filter', 'panel'),
-  '@lesfleursdelanuitdev/menu': source('menu'),
-  '@lesfleursdelanuitdev/pagination': source('pagination'),
-  '@lesfleursdelanuitdev/card': source('card'),
-  '@lesfleursdelanuitdev/search': source('search'),
-  '@lesfleursdelanuitdev/filter': source('filter'),
-};
+export const siblings: { find: RegExp; replacement: string }[] = [
+  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|search|filter)\/([\w-]+)$/, replacement: src('$1/src/$2.ts') },
+  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|search|filter)$/, replacement: src('$1/src/index.ts') },
+];
 
 /** Fails the build when a script grows past its gzipped limit. */
 export function sizeCheck(limit: number): Plugin {

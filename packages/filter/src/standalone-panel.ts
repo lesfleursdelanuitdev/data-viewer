@@ -2,6 +2,6 @@
 // registered on load, plus the `panel` style and its parts.
 import { definePanel } from './elements/lfdln-filter-panel.ts';
 
-export { LfdlnFilterPanel, definePanel } from './elements/lfdln-filter-panel.ts';
+export * from './panel-element.ts';
 export * from './panel.ts';
 definePanel();

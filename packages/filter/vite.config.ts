@@ -11,5 +11,5 @@ export default defineConfig(({ command, mode }) => {
   if (command === 'serve') return demo();
   if (mode === 'standalone') return standalone('src/standalone.ts', 'filter.standalone.js', LIMIT);
   if (mode === 'standalone-panel') return standalone('src/standalone-panel.ts', 'filter-panel.standalone.js', LIMIT);
-  return library({ filter: 'src/index.ts', panel: 'src/panel.ts', 'panel-element': 'src/elements/lfdln-filter-panel.ts' });
+  return library({ filter: 'src/index.ts', panel: 'src/panel.ts', 'panel-element': 'src/panel-element.ts' });
 });

@@ -7,7 +7,7 @@
       "@lesfleursdelanuitdev/card": ["../card/src/index.ts"],
       "@lesfleursdelanuitdev/search": ["../search/src/index.ts"],
       "@lesfleursdelanuitdev/filter": ["../filter/src/index.ts"],
-      "@lesfleursdelanuitdev/filter/panel": ["../filter/src/panel.ts"]
+      "@lesfleursdelanuitdev/filter/*": ["../filter/src/*.ts"]
     }
   },
   "include": ["src", "test", "e2e", "demo", "vite.config.ts", "playwright.config.ts"]

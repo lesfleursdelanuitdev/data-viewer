@@ -32,7 +32,7 @@
       "import": "./dist/panel.js"
     },
     "./panel-element": {
-      "types": "./dist/types/elements/lfdln-filter-panel.d.ts",
+      "types": "./dist/types/panel-element.d.ts",
       "import": "./dist/panel-element.js"
     },
     "./standalone": {

@@ -24,8 +24,8 @@
       "@lesfleursdelanuitdev/filter": [
         "../filter/dist/types/index.d.ts"
       ],
-      "@lesfleursdelanuitdev/filter/panel": [
-        "../filter/dist/types/panel.d.ts"
+      "@lesfleursdelanuitdev/filter/*": [
+        "../filter/dist/types/*.d.ts"
       ]
     }
   },

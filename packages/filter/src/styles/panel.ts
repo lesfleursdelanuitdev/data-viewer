@@ -6,7 +6,7 @@ import type { TemplateResult } from 'lit';
 import { removeChip, setBool, setRange, toggleOption } from '../core/draft.ts';
 import { chipsOf } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import type { Chip, FilterRange, FilterSection, FilterValue } from '../core/types.ts';
 import { badge } from '../parts/badge.ts';
 import { chip, tag } from '../parts/chip.ts';
 import { addPartsStyles, addStyle } from '../parts/parts-css.ts';
@@ -129,10 +129,12 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
   const hid = `${v.uid}-panel-title`;
   const applied = chipsOf(v.sections, v.value, w);
 
-  // Removing an applied filter applies at once; focus goes to the button, which stays.
-  const remove = (e: Event, next: FilterValue) => {
+  // Removing an applied filter applies at once, and drops it from an open draft too (or Show
+  // would apply it again); focus goes to the button, which stays.
+  const remove = (e: Event, c: Chip) => {
     (e.currentTarget as Element).closest('.lfdln-filter-panel-root')?.querySelector<HTMLElement>('.lfdln-filter-trigger')?.focus();
-    on.onApplyNow(next);
+    on.onApplyNow(removeChip(v.value, c));
+    if (draft) on.onDraft(removeChip(draft, c));
   };
   const leave = (e: Event, then: () => void) => {
     returnFocus(e.currentTarget as Element);
@@ -144,7 +146,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
     @click=${open ? on.onClose : on.onOpen}>${sliders(kit)}<span>${v.label ?? w.filter}</span>${applied.length
       ? badge(kit, applied.length) : kit.nothing}</button>`;
   const tags = applied.map((c) => tag(kit, {
-    label: c.label, removeLabel: w.remove(c.label), onRemove: (e) => remove(e, removeChip(v.value, c)),
+    label: c.label, removeLabel: w.remove(c.label), onRemove: (e) => remove(e, c),
   }));
 
   const panel = open
