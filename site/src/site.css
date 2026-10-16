@@ -66,20 +66,22 @@ body {
   background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
-h1, h2, h3, h4, h5, h6 {
+/* The page's element rules leave the parts' own headings, paragraphs and buttons alone (their
+   classes start with lfdln-): a bare `h2 {}` would otherwise beat their zero-specificity rules. */
+:is(h1, h2, h3, h4, h5, h6):not(:where([class*="lfdln-"])) {
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
   line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 var(--space-2);
 }
-h1 { font-size: 42px; }
-h2 { font-size: 32px; }
-h3 { font-size: 25px; }
-h4 { font-size: 20px; }
-p { margin: 0 0 var(--space-3); }
+h1:not(:where([class*="lfdln-"])) { font-size: 42px; }
+h2:not(:where([class*="lfdln-"])) { font-size: 32px; }
+h3:not(:where([class*="lfdln-"])) { font-size: 25px; }
+h4:not(:where([class*="lfdln-"])) { font-size: 20px; }
+p:not(:where([class*="lfdln-"])) { margin: 0 0 var(--space-3); }
 a { color: var(--color-accent-300); text-decoration: none; text-underline-offset: 3px; }
 a:hover { color: var(--color-accent-200); text-decoration: underline; }
 img { display: block; max-width: 100%; }
 figure { margin: 0; }
-button { font: inherit; }
+button:not(:where([class*="lfdln-"])) { font: inherit; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 ::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
@@ -401,6 +403,8 @@ html:has(.l-page) { scroll-behavior: smooth; }
   --search-border: var(--color-neutral-800); --search-accent: var(--color-accent); --search-radius: var(--radius-md); --search-font: var(--font-body);
   --filter-bg: var(--color-bg); --filter-surface: var(--color-surface); --filter-text: var(--color-text); --filter-muted: var(--color-neutral-400);
   --filter-border: var(--color-neutral-800); --filter-accent: var(--color-accent); --filter-on-accent: var(--color-bg); --filter-radius: var(--radius-md); --filter-font: var(--font-body);
+  /* The filter styles' "on" chip: its background, and its text and counts (handoff: accent-900 / accent-200). */
+  --filter-accent-soft: var(--color-accent-900); --filter-accent-text: var(--color-accent-200);
 }
 .demo-host { color: var(--color-text); font-size: 14px; }
 .demo-status { font-size: 13px; color: var(--color-neutral-500); animation: dvpulse 1.4s ease-in-out infinite; }
@@ -455,6 +459,17 @@ html:has(.l-page) { scroll-behavior: smooth; }
   .demo { min-height: 420px; }
   .code-view { max-height: calc(100vh - 200px); }
 }
+
+/* A page whose demo needs the width (filter styles: the rail wants a 720 px list) keeps the
+   single column at every width. */
+@media (min-width: 1180px) {
+  .is-wide .bench { grid-template-columns: minmax(0, 1fr); grid-template-areas: "text" "panel" "notes"; max-width: 1100px; }
+  .is-wide .panel { position: static; }
+}
+/* The filter styles demo: its own tab bar picks the list's filter-style. */
+.fs-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: -8px 0 18px; box-shadow: inset 0 -1px 0 var(--color-neutral-800); }
+.fs-tabs .tab { height: 40px; font-size: 13px; }
+.fs-tabs .tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: var(--radius-sm); }
 
 /* — Reference: the package README's sections for this page — */
 .reference { max-width: 900px; margin-top: 64px; }

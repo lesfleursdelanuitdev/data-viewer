@@ -40,6 +40,7 @@ test.describe('live demos', () => {
     ['/docs/basics/', 'lfdln-data-viewer .dv-table'],
     ['/docs/setup-file/', 'lfdln-data-viewer .dv-table'],
     ['/docs/custom-cards/', 'lfdln-data-viewer .dv-card-custom'],
+    ['/docs/filter-styles/', 'lfdln-data-viewer .lfdln-filter-trigger'],
     ['/docs/server-pages/', 'lfdln-data-viewer .dv-table'],
     ['/docs/light-dark/', 'lfdln-data-viewer .dv-root'],
     ['/docs/menu/', 'lfdln-menu .lfdln-menu-button'],
@@ -203,6 +204,98 @@ test.describe('panel', () => {
     await expect.poll(colour).not.toBe(dark);
     await page.locator('.seg-opt', { hasText: 'Device' }).click();
     await expect(box).toHaveCSS('color-scheme', 'light dark');
+  });
+});
+
+// /docs/filter-styles/: one list of plants, its filter-style switched by the "Filter style" tabs.
+const STYLES: [string, string, string][] = [
+  ['Panel', 'panel', '.lfdln-filter-trigger'],
+  ['Bar', 'bar', '.lfdln-filter-pills'],
+  ['Rail', 'rail', '.lfdln-filter-rail'],
+  ['Columns', 'columns', '.lfdln-filter-col-btn'],
+  ['Dialog', 'dialog', '.lfdln-filter-button'],
+];
+const styleTabs = (page: Page) => page.getByRole('tablist', { name: 'Filter style' });
+
+test.describe('filter styles', () => {
+  test('the page loads with no errors, and each tab shows its style', async ({ page }) => {
+    const problems = watch(page);
+    await page.goto('/docs/filter-styles/');
+    const host = page.locator('[data-host]');
+    const list = host.locator('lfdln-data-viewer');
+    await expect(list.locator('.dv-table tbody tr').first()).toBeVisible();
+    await expect(styleTabs(page).getByRole('tab')).toHaveText(STYLES.map(([label]) => label));
+    for (const [label, name, selector] of STYLES) {
+      const tab = styleTabs(page).getByRole('tab', { name: label, exact: true });
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(list).toHaveAttribute('filter-style', name);
+      await expect(list.locator(selector).first()).toBeVisible();
+      // Only this style is drawn.
+      for (const [, other, sel] of STYLES) if (other !== name) await expect(list.locator(sel), `${other} under ${name}`).toHaveCount(0);
+    }
+    // Arrow keys move between the style tabs, and pick.
+    await styleTabs(page).getByRole('tab', { name: 'Dialog' }).press('ArrowLeft');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Columns' })).toBeFocused();
+    await expect(list).toHaveAttribute('filter-style', 'columns');
+    await page.waitForLoadState('networkidle');
+    expect(problems).toEqual([]);
+  });
+
+  test('the words say "plants", and the applied filter stays when the style changes', async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    // panel: "Show N plants" counts the draft.
+    await list.locator('.lfdln-filter-trigger').click();
+    await expect(list.locator('.lfdln-filter-panel-title')).toHaveText('Filter plants');
+    await list.locator('.lfdln-filter-toggle', { hasText: 'Herb' }).click();
+    await expect(list.locator('.lfdln-filter-show')).toHaveText('Show 6 plants');
+    await list.locator('.lfdln-filter-show').click();
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(6);
+    // The applied filter stays when the style changes.
+    await styleTabs(page).getByRole('tab', { name: 'Rail' }).click();
+    await expect(list.locator('.lfdln-filter-rail-count')).toHaveText('6 plants');
+    await styleTabs(page).getByRole('tab', { name: 'Columns' }).click();
+    await expect(list.locator('.lfdln-filter-col-summary-text')).toHaveText('6 of 18 plants · 1 column filtered');
+  });
+
+  test('the Nocturne colours reach the styles through --filter-*', async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await styleTabs(page).getByRole('tab', { name: 'Bar' }).click();
+    await list.locator('.lfdln-filter-pill', { hasText: 'Kind' }).click();
+    await list.locator('.lfdln-filter-check-row', { hasText: 'Herb' }).click();
+    // The on pill: accent-900 behind, accent-200 text (the site's --filter-accent-soft / -text),
+    // its key in the accent.
+    const pill = list.locator('.lfdln-filter-pill-on').first();
+    await expect(pill).toHaveCSS('background-color', 'rgb(43, 39, 65)');
+    await expect(pill).toHaveCSS('color', 'rgb(231, 229, 254)');
+    await expect(pill.locator('.lfdln-filter-pill-key')).toHaveCSS('color', 'rgb(145, 132, 217)');
+  });
+
+  test("code tabs: HTML loads a style's file, npm imports it", async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    await page.getByRole('tab', { name: 'HTML', exact: true }).click();
+    await expect(page.locator('pre.code-view:visible')).toContainText('data-viewer-filter-bar.js');
+    await expect(page.locator('pre.code-view:visible')).toContainText('filter-style="bar"');
+    await page.getByRole('tab', { name: 'npm', exact: true }).click();
+    await expect(page.locator('pre.code-view:visible')).toContainText("import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar'");
+  });
+
+  test('at 390px no style is wider than the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/docs/filter-styles/');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await expect(list.locator('.dv-root')).toBeVisible();
+    for (const [label, name] of STYLES) {
+      await styleTabs(page).getByRole('tab', { name: label, exact: true }).click();
+      await expect(list).toHaveAttribute('filter-style', name);
+      // The rail is the panel on a phone (the list is narrower than 720 px).
+      if (name === 'rail') await expect(list.locator('.lfdln-filter-trigger')).toBeVisible();
+      await page.waitForTimeout(100);
+      const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+      expect(scroll, name).toBeLessThanOrEqual(inner);
+    }
   });
 });
 

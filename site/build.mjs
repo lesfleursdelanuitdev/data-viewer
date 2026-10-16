@@ -97,7 +97,7 @@ async function docsPage(id) {
     title: esc(id === 'overview' ? 'data-viewer docs' : `${P.nav} · data-viewer docs`),
     description: esc(plain(P.intro)),
     page: esc(id),
-    bodyClass: id === 'overview' ? 'is-overview' : '',
+    bodyClass: id === 'overview' ? 'is-overview' : P.wide ? 'is-wide' : '',
     preload: P.mount ? '  <link rel="modulepreload" href="/js/data-viewer.standalone.js">\n' : '',
     logo: LOGO,
     sidebar: sidebar(id),
@@ -304,7 +304,10 @@ async function checkNoOtherSites() {
 
 // ── build ──
 const pkgDist = join(root, 'packages', 'data-viewer', 'dist');
-for (const f of ['data-viewer.standalone.js', 'data-viewer-json.js']) {
+// The viewer, the json adapter and the four filter styles' add-on files.
+const PKG_FILES = ['data-viewer.standalone.js', 'data-viewer-json.js',
+  ...['panel', 'bar', 'rail', 'columns'].map((n) => `data-viewer-filter-${n}.js`)];
+for (const f of PKG_FILES) {
   if (!existsSync(join(pkgDist, f))) fail(`missing ${join(pkgDist, f)}: run \`npm run build\` first`);
 }
 
@@ -313,7 +316,7 @@ await mkdir(join(out, 'js'), { recursive: true });
 await mkdir(join(out, 'fonts'), { recursive: true });
 
 // The packages' scripts, the site's own scripts and the content module.
-for (const f of ['data-viewer.standalone.js', 'data-viewer-json.js']) await copyFile(join(pkgDist, f), join(out, 'js', f));
+for (const f of PKG_FILES) await copyFile(join(pkgDist, f), join(out, 'js', f));
 for (const f of ['docs.js', 'landing.js', 'tabs.js']) {
   if (existsSync(join(src, f))) await copyFile(join(src, f), join(out, 'js', f));
 }

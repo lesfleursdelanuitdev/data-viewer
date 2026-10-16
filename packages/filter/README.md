@@ -23,6 +23,7 @@ npm install @lesfleursdelanuitdev/filter lit
 |---|---|---|
 | `@lesfleursdelanuitdev/filter` (`dist/filter.js`) | apps with a bundler; Lit is left out | No: call `define()` |
 | `dist/filter.standalone.js` | plain pages; Lit is inside (about 16 KB gzipped) | Yes, on load |
+| `dist/filter-panel.standalone.js`, `-bar`, `-rail` | plain pages: one [filter style](#filter-styles-on-their-own) each, Lit inside | Yes, on load |
 
 `define(name, chipsName)` registers them under other names. A name that is taken already is
 left alone, so loading this script next to the data viewer's standalone script is safe.
@@ -147,6 +148,71 @@ the value itself, so it can still be seen and removed.
 | `selected(n)` | `${n} selected` |
 | `searchOptions(label)` | `Search ${label.toLowerCase()}` |
 | `remove(label)` | `Remove ${label}` (a chip's ×) |
+| `showResults(n)`, `showResultsUnknown`, `noResults` | `Show ${n} results` (`Show 1 result`), `Show results`, `Nothing matches` (the panel's button) |
+| `resultsCount(n)`, `resultsOf(n, m)`, `allResults(m)` | `${n} results` (`1 result`), `${n} of ${m}`, `All ${m} results` |
+| `columnsFiltered(k)` | `${k} columns filtered` (`1 column filtered`) |
+| `filterBy(label)`, `showColumn(label)` | `Filter by ${label}`, `Show ${label.toLowerCase()}` (columns) |
+| `clearSection(label)`, `clearColumn` | `Clear ${label.toLowerCase()}` (a bar menu), `Clear this column` |
+| `filters`, `reset` | `Filters` (the rail's title), `Reset` (the panel) |
+
+## Filter styles on their own
+
+Three of the data viewer's [filter styles](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/data-viewer#filter-styles)
+are elements of their own too, for a list that isn't a data viewer. They take the same
+`sections` and `value` as `<lfdln-filter>` and fire the same `filter-change` with `{ value }`.
+`columns` has no element, because it needs the viewer's table.
+
+| Element | Style | Applies | Plain page | npm |
+|---|---|---|---|---|
+| `<lfdln-filter-panel>` | A Filter button with a count badge and the applied chips beside it; one 400 px panel with every section | A draft, then "Show 12 results" | `dist/filter-panel.standalone.js` | `@lesfleursdelanuitdev/filter/panel-element`, then `definePanel()` |
+| `<lfdln-filter-bar>` | One pill per section, each with a 240 px menu; a yes/no pill toggles | At once | `dist/filter-bar.standalone.js` | `@lesfleursdelanuitdev/filter/bar-element`, then `defineBar()` |
+| `<lfdln-filter-rail>` | Every section open, in a column | At once | `dist/filter-rail.standalone.js` | `@lesfleursdelanuitdev/filter/rail-element`, then `defineRail()` |
+
+Each standalone file has Lit inside (16 to 17 KB gzipped) and registers its element when it loads.
+`definePanel(name)`, `defineBar(name)` and `defineRail(name)` register it under another name; a
+name that is taken already is left alone. On phones (639 px or narrower) the panel and the bar's
+menus are bottom sheets, and every target is at least 44 px.
+
+```html
+<script type="module" src="/js/filter-panel.standalone.js"></script>
+
+<lfdln-filter-panel id="plant-filter" heading="Filter plants"></lfdln-filter-panel>
+
+<script type="module">
+  const filter = document.querySelector('#plant-filter');
+  filter.sections = [
+    { key: 'kind', label: 'Kind', kind: 'choice', options: [
+      { value: 'Herb', count: 6 }, { value: 'Shrub', count: 4 },
+    ] },
+    { key: 'stock', label: 'In stock', kind: 'bool', hint: 'Hide plants that are sold out' },
+  ];
+  // How many rows a draft would leave; without it the button says "Show results".
+  filter.countFor = (draft) => countMatching(draft);
+  filter.addEventListener('filter-change', (e) => showMatching(e.detail.value));
+</script>
+```
+
+| Property | Attribute | On | What it does |
+|---|---|---|---|
+| `sections` | none | all three | The sections, in order |
+| `value` | none | all three | The applied filters. Setting it fires nothing |
+| `words` | none | all three | Any of the [words](#words) |
+| `label` | `label` | all three | The panel's button text (default `Filter`); the bar's and the rail's name for screen readers (the rail shows it as its title, default `Filters`) |
+| `heading` | `heading` | panel | The panel's title (default `Filter`) |
+| `countFor` | none | panel | `(draft) => number \| null`: how many rows the draft would leave. `null` or no function: "Show results" |
+
+| Method | What it does |
+|---|---|
+| `apply(value)` | Tidies a value, sets `value` and fires `filter-change` |
+
+The counts on the options are the options' own `count`, as with `<lfdln-filter>`. A bool section
+can carry `hint`, a line under its switch. A range entry can carry `count`, and a range section
+`histogram: { from, to, buckets }` (the panel draws it as bars).
+
+The styles themselves are Lit-free modules for other hosts: `@lesfleursdelanuitdev/filter/panel`
+(`panelStyle` and the shared parts), `/bar` (`barStyle`), `/rail` (`railStyle`) and `/columns`
+(`columnsStyle`). Each is a `FilterStyle`: a `render(view, handlers, kit)` function that draws with
+the Lit the host passes in, so a file that holds one carries no Lit of its own.
 
 ## For other components
 
@@ -160,7 +226,10 @@ the value itself, so it can still be seen and removed.
 
 ## Styling
 
-`<style id="lfdln-filter-style">` goes first in `<head>`, every rule inside `:where()`.
+`<style id="lfdln-filter-style">` goes first in `<head>`, every rule inside `:where()`. The
+filter styles add theirs right after it, once per page: `lfdln-filter-parts-style` (the parts they
+share), then `lfdln-filter-panel-style`, `lfdln-filter-bar-style`, `lfdln-filter-rail-style` or
+`lfdln-filter-columns-style`.
 
 | Variable | Light | Dark |
 |---|---|---|
@@ -173,8 +242,14 @@ the value itself, so it can still be seen and removed.
 | `--filter-on-accent` | `#ffffff` | `#17171a` |
 | `--filter-radius` | `8px` | `8px` |
 | `--filter-font` | `system-ui, -apple-system, "Segoe UI", sans-serif` | same |
+| `--filter-accent-soft` | `color-mix(in srgb, var(--filter-accent) 16%, var(--filter-bg))` | same |
+| `--filter-accent-text` | `color-mix(in srgb, var(--filter-accent) 70%, var(--filter-text))` | same |
 
-They follow the page's `color-scheme` through `light-dark()`.
+They follow the page's `color-scheme` through `light-dark()`. The last two are used only by the
+filter styles: `--filter-accent-soft` is an "on" chip's or pill's background, and
+`--filter-accent-text` its text, the counts on it, a pill's key and a filtered column's values.
+They aren't set anywhere by default, so the `color-mix()` above is worked out where they are
+used: set either one on any element to replace it there.
 
 ### Class names
 
@@ -199,6 +274,26 @@ They follow the page's `color-scheme` through `light-dark()`.
 | `lfdln-filter-primary`, `lfdln-filter-secondary` | Their buttons |
 | `lfdln-filter-chips`, `lfdln-filter-chip`, `lfdln-filter-chip-x`, `lfdln-filter-chips-clear` | The chips |
 | `lfdln-filter-sr` | Text for screen readers only |
+
+### Class names in the filter styles
+
+| Class | Part |
+|---|---|
+| `lfdln-filter-check-row`, `lfdln-filter-box`, `lfdln-filter-box-round`, `lfdln-filter-check-label`, `lfdln-filter-check-count` | A 32 px check row (28 px in the rail), its box (round for one at a time), label and count |
+| `lfdln-filter-toggle`, `lfdln-filter-toggle-count` | A chip that toggles an option |
+| `lfdln-filter-tag`, `lfdln-filter-tag-label`, `lfdln-filter-tag-x` | An applied filter as a chip, with its × |
+| `lfdln-filter-switch`, `lfdln-filter-knob`, `lfdln-filter-switch-row`, `lfdln-filter-hint` | The 34×20 switch, its row and its hint |
+| `lfdln-filter-seg`, `lfdln-filter-seg-opt` | The segmented control |
+| `lfdln-filter-popover`, `lfdln-filter-handle` | A menu or panel (a `<dialog>` bottom sheet on phones), and the sheet's handle |
+| `lfdln-filter-divider`, `lfdln-filter-badge`, `lfdln-filter-dim` | The fading line, the count badge, a zero-count option (opacity 0.45) |
+| `lfdln-filter-btn`, `lfdln-filter-btn-ghost`, `lfdln-filter-btn-primary` | The styles' buttons |
+| `lfdln-filter-trigger`, `lfdln-filter-panel`, `lfdln-filter-panel-title`, `lfdln-filter-panel-section`, `lfdln-filter-hist`, `lfdln-filter-panel-foot`, `lfdln-filter-show` | panel: the button, the panel, its title, a section, the histogram, the footer and "Show 12 results" |
+| `lfdln-filter-bar-row`, `lfdln-filter-pill`, `lfdln-filter-pill-on`, `lfdln-filter-pill-key`, `lfdln-filter-pill-value`, `lfdln-filter-pill-toggle`, `lfdln-filter-pill-menu`, `lfdln-filter-pill-search` | bar: the row, a pill (set: `-on`), its key and value, the yes/no pill, a menu and its search |
+| `lfdln-filter-rail`, `lfdln-filter-rail-title`, `lfdln-filter-rail-group`, `lfdln-filter-rail-label`, `lfdln-filter-rail-results`, `lfdln-filter-rail-count` | rail: the column, its title, a section and its label, the "12 results" line and its count |
+| `lfdln-filter-col`, `lfdln-filter-col-btn`, `lfdln-filter-col-dot`, `lfdln-filter-col-menu`, `lfdln-filter-col-label`, `lfdln-filter-col-clear`, `lfdln-filter-col-summary`, `lfdln-filter-col-summary-text` | columns: the header's funnel and dot, the menu, its "Show kind" label and "Clear this column", the summary line |
+
+The dialog's quick ranges use `lfdln-filter-pills` and `lfdln-filter-pill` too, so to style only
+the bar's pills, start from `.lfdln-filter-bar-row`.
 
 ## Licence
 

@@ -1,6 +1,6 @@
 # Filter styles: the redesigned filters as choices (plan)
 
-Status: PROPOSED 2026-10-15, waiting for review. Source: monadelanuit's handoff
+Status: BUILT (stage 1) 2026-10-16 on branch `filter-styles` (not merged, deployed or pushed). Proposed 2026-10-15. Source: monadelanuit's handoff
 `Data Viewer redesign (1).zip` → `design_handoff_filter_redesign/` (README + `Filter Redesign.dc.html`).
 
 ## What we're doing and why
@@ -223,6 +223,52 @@ filter-style="bar"  ──►  registry.get('bar')?  ──no──►  dialog +
 
 The work happens on branch `filter-styles` in its own worktree, `~/data-viewer-filters`, with a
 commit after each step. It is merged into main, deployed and pushed only when momolig says so.
+
+### What changed from the spec
+
+The READMEs and the docs site describe what was built. Where it differs from the text above:
+
+- **Elements on their own subpaths.** `./panel`, `./bar`, `./rail` and `./columns` are Lit-free
+  style modules (the viewer's add-ons import them). The elements are on `./panel-element`,
+  `./bar-element` and `./rail-element`, with `definePanel()`, `defineBar()` and `defineRail()`.
+  Putting an element in the same module would pull Lit into the add-ons.
+- **Three elements:** panel, bar and rail. `columns` has none, as planned.
+- **`FilterStyle` grew two optional members.** `side` draws the style in a column of its own
+  (the viewer marks `.dv-root[data-filter-side]` and makes `.dv-side` and `.dv-main`).
+  `summary(view, on, kit)` draws above the list in the chips row's place: the rail's
+  "12 results" and chips, and the columns' "5 of 12 · 1 column filtered" with Clear all.
+  `FilterStyleView` also carries `results`, `total` and `menu`, and the handlers `onApplyNow`
+  and `onMenu`.
+- **Every style shows what is applied itself** (`showsApplied: true`), the panel too: its chips
+  sit beside its button, so the viewer's chips row is off for all four.
+- **Columns:** `render` draws nothing and the summary line comes from the `summary` hook. The
+  viewer keeps the table's headers when no rows are left, so a pick can be undone from the same
+  menu. The menu is `position: fixed` (the table's scrolling box would cut it off), anchored to
+  the funnel button, opens above it near the window's bottom edge and follows it on scroll. The
+  funnel is its own 24 px button (44 px on phones) beside the sorting header text, with the
+  column's setting as its description.
+- **Radios.** In the rail and the columns' menus, single choices, named ranges and Yes/No are
+  `role="radio"` rows in a `role="radiogroup"` (one tab stop; arrow keys move and pick).
+  Several-at-once rows are `role="checkbox"` in a group.
+- **The rail's fallback** watches the width of the list's own `.dv-root` with a ResizeObserver
+  and redraws on the next frame (a redraw in the same frame caused "ResizeObserver loop" errors).
+- **Counts follow the draft.** While a style's draft is open, the viewer counts the options over
+  the draft (browser mode), so the panel's zero counts react to each tick.
+- **Light in the panel is chips**, not the handoff's segmented control: the segmented control is
+  only for a single choice with 5 options or fewer, as decided above.
+- **New pieces:** a column's `hint` (a yes/no section's helper line), the word
+  `allResults(m)` ("All 40 results"), `adapter.count` as planned, and `clearKey` in
+  `core/draft.ts`.
+- **Build:** the standalone scripts are now really minified (they kept whitespace before), which
+  is what let the viewer stay under 46080 bytes; it is 43 KB gzipped now. The data-viewer build
+  checks that no add-on file contains Lit. The styles' `<style>` elements go right after
+  `lfdln-filter-style` rather than first in `<head>`, so the dialog's base rules don't override
+  them.
+- **Class names:** the bar's row also has `lfdln-filter-bar-row`, and its rules go through it,
+  because today's dialog uses `lfdln-filter-pills` / `lfdln-filter-pill` for its quick ranges.
+- **Docs site:** a page `/docs/filter-styles/` with one list switched by "Filter style" tabs.
+  The site's element rules (`h2 {}`, `p {}`, `button {}`) now skip elements whose class starts
+  with `lfdln-`, so the parts' own headings and buttons keep their sizes.
 
 ## Stage 2 sketch: SearchFilter (1d)
 

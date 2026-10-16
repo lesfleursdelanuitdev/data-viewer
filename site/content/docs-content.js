@@ -97,7 +97,7 @@ const listStyle = 'margin:0;padding:0 0 0 1.6em;display:grid;grid-template-colum
 
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
-  { name: 'The list', items: ['basics', 'config', 'custom', 'server', 'scheme'] },
+  { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'server', 'scheme'] },
   { name: 'Parts', items: ['menu', 'pagination', 'card', 'search', 'filter'] },
   { name: 'Reference', items: ['styling'] },
 ];
@@ -425,6 +425,103 @@ export function Plants() {
       list.rows = copy(PLANTS);
       list.addEventListener('dv-action', (e) => {
         if (e.detail.id === 'remove') list.rows = list.rows.filter((p) => p !== e.detail.row);
+      });
+    },
+  },
+
+  filterStyles: {
+    nav: 'Filter styles', kicker: 'The list', title: 'Filter styles',
+    wide: true,
+    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, or menus in the column headers. Each style is one more script. Without one you get today’s dialog.',
+    tabs: [
+      { label: 'HTML', code: `<!-- The viewer, then the file for your style. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-bar.js"></script>
+
+<lfdln-data-viewer id="plants" label="Plants" filter-style="bar" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.."></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
+    hint="Hide plants that are sold out"></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  // Optional: make the words say "plants".
+  document.querySelector('#plants').words = {
+    heading: 'Filter plants',
+    showResults: (n) => \`Show \${n} \${n === 1 ? 'plant' : 'plants'}\`,
+    showResultsUnknown: 'Show plants',
+    noResults: 'No plants match',
+    resultsCount: (n) => \`\${n} \${n === 1 ? 'plant' : 'plants'}\`,
+    resultsOf: (n, m) => \`\${n} of \${m} plants\`,
+    allResults: (m) => \`All \${m} plants\`,
+  };
+</script>` },
+      { label: 'npm', code: `import { define } from '@lesfleursdelanuitdev/data-viewer';
+// Importing a style registers it: filter-style="bar" now works.
+import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar';
+// The others: …/filter-styles/panel, …/filter-styles/rail, …/filter-styles/columns.
+
+define();
+
+// <lfdln-data-viewer label="Plants" filter-style="bar" …> as in the HTML tab.` },
+    ],
+    notes: [
+      'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js` or `-columns.js`. The rail and columns files hold the panel too, for their fallback.',
+      'A style that isn’t loaded shows the dialog, with one console warning naming the file to add. If the file loads later, the list switches to it.',
+      'The rail becomes the panel when the list is narrower than 720 px. Columns become the panel in cards view.',
+      'Bar, rail and columns apply each change at once. The panel keeps a draft until “Show N results”.',
+      '`filter-change` still carries `{ value }`, in the same shape for every style.',
+    ],
+    mount: (host) => {
+      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['dialog', 'Dialog']];
+      host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>
+        `<button type="button" class="tab" role="tab" id="fs-tab-${name}" aria-controls="fs-demo" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''} data-style="${name}">${label}</button>`).join('')}</div>
+        <div class="fs-demo" id="fs-demo" role="tabpanel" aria-labelledby="fs-tab-panel">
+          <lfdln-data-viewer label="Plants" filter-style="panel" page-size="8" layout-switch="icons"></lfdln-data-viewer>
+        </div>`;
+      // Each style is a file of its own; the list switches as soon as one has loaded.
+      for (const name of ['panel', 'bar', 'rail', 'columns']) import(`/js/data-viewer-filter-${name}.js`);
+      const list = host.querySelector('lfdln-data-viewer');
+      list.columns = [
+        { key: 'name', label: 'Plant', sortable: true, searchable: true },
+        { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true },
+        { key: 'light', label: 'Light', sortable: true, filterable: true },
+        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true, filterable: true,
+          ranges: [{ label: 'Under €5', to: '5' }, { label: '€5–€10', from: '5', to: '10' }, { label: 'Over €10', from: '10' }] },
+        { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
+      ];
+      list.words = {
+        heading: 'Filter plants',
+        showResults: (n) => `Show ${n} ${n === 1 ? 'plant' : 'plants'}`,
+        showResultsUnknown: 'Show plants',
+        noResults: 'No plants match',
+        resultsCount: (n) => `${n} ${n === 1 ? 'plant' : 'plants'}`,
+        resultsOf: (n, m) => `${n} of ${m} plants`,
+        allResults: (m) => `All ${m} plants`,
+      };
+      list.rows = copy(PLANTS);
+      const tabs = [...host.querySelectorAll('[role="tab"]')];
+      const panel = host.querySelector('[role="tabpanel"]');
+      const pick = (i, focus) => {
+        tabs.forEach((t, j) => { t.setAttribute('aria-selected', String(i === j)); t.tabIndex = i === j ? 0 : -1; });
+        panel.setAttribute('aria-labelledby', tabs[i].id);
+        list.setAttribute('filter-style', tabs[i].dataset.style);
+        // Columns live in the table's headers (in cards view they are the panel), so show the table.
+        if (tabs[i].dataset.style === 'columns') list.layout = 'table';
+        if (focus) tabs[i].focus();
+      };
+      tabs.forEach((t, i) => {
+        t.addEventListener('click', () => pick(i, false));
+        t.addEventListener('keydown', (e) => {
+          const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+          if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); pick(e.key === 'Home' ? 0 : tabs.length - 1, true); }
+          else if (step) { e.preventDefault(); pick((i + step + tabs.length) % tabs.length, true); }
+        });
       });
     },
   },

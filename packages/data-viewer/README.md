@@ -421,6 +421,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `searchSubmitLabel` | `search-submit-label` | string | unset | A button after the search box with these words; then typing alone doesn't search, only Enter or the button. |
 | `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. |
 | `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
+| `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'` or `'columns'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
@@ -457,6 +458,7 @@ column is formatted the way that column is.
 | `filterable` | Present: the filter has a part for this column. |
 | `options` | A choice's options, `options="Sun,Part shade,Shade"`, in that order. |
 | `ranges` | A range's quick ranges, `ranges="1900s:1900..1999,Recent:2020.."` (label, colon, `from..to`; either end may be empty). |
+| `hint` | For a yes/no column: a line under its switch in the `panel` and `rail` [filter styles](#filter-styles), such as `hint="Hide plants that are sold out"`. |
 | `align` | `left` or `right`. |
 | `currency` | For `type="money"`, such as `EUR`. Defaults to `USD`. |
 
@@ -476,6 +478,7 @@ type Column<T> = {
   filterable?: boolean;         // the filter has a part for it
   options?: (string | FilterOption)[];                      // a choice's options, in order
   ranges?: { label: string; from?: string; to?: string }[]; // a range's quick ranges
+  hint?: string;                // a yes/no filter's helper line (panel and rail styles)
 };
 ```
 
@@ -544,6 +547,168 @@ list.columns = [
   { key: 'added', label: 'Added', type: 'date', filterable: true },
 ];
 ```
+
+## Filter styles
+
+`filter-style` picks how the filter looks. Today's dialog is the default, so a list without the
+attribute doesn't change. Each other style is a file of its own, and only pages that use it load it.
+
+| `filter-style` | What it is | Applies | Shows what is applied |
+|---|---|---|---|
+| `dialog` (default) | The funnel button and the two-column dialog (a bottom sheet on phones) | A draft, then Apply | The chips row under the bar |
+| `panel` | A Filter button that opens one 400 px panel with every section (a bottom sheet on phones) | A draft, then "Show 12 results" | A count badge and chips beside the button; a chip's × applies at once |
+| `bar` | One pill per section in the bar. A pill opens a 240 px menu (a bottom sheet on phones); a yes/no pill just toggles | At once | In the pills, and a "Clear all" at the end |
+| `rail` | A 190 px column beside the list with every section open | At once | "12 results" and chips above the list |
+| `columns` | A funnel button in each filterable column's header. It opens a 220 px menu | At once | A dot on the header, accent-coloured cells, and "5 of 12 · 1 column filtered" with "Clear all" above the table |
+
+With any of the four new styles the viewer's own chips row is off, even with `filter-chips="on"`:
+the style shows what is applied itself.
+
+### Which file to add
+
+| `filter-style` | Plain page (after `data-viewer.standalone.js`) | npm (import once, before the list draws) |
+|---|---|---|
+| `panel` | `dist/data-viewer-filter-panel.js` | `@lesfleursdelanuitdev/data-viewer/filter-styles/panel` |
+| `bar` | `dist/data-viewer-filter-bar.js` | `@lesfleursdelanuitdev/data-viewer/filter-styles/bar` |
+| `rail` | `dist/data-viewer-filter-rail.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/rail` |
+| `columns` | `dist/data-viewer-filter-columns.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/columns` |
+
+```html
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-bar.js"></script>
+
+<lfdln-data-viewer label="Plants" filter-style="bar" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.."></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
+    hint="Hide plants that are sold out"></lfdln-dv-column>
+</lfdln-data-viewer>
+```
+
+```js
+import { define } from '@lesfleursdelanuitdev/data-viewer';
+import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar'; // registers filter-style="bar"
+
+define();
+```
+
+The add-on files hold no Lit: they draw with the viewer's own copy. Each one registers its style
+when it loads, and the order doesn't matter. A list draws the style as soon as its file has
+loaded. Each file is 6 to 9 KB gzipped. To show a filter style without the viewer, see the filter package's
+[filter styles on their own](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#filter-styles-on-their-own).
+
+### Fallbacks
+
+- **A style that isn't loaded** (or a name that doesn't exist) shows today's dialog. The console
+  gets one warning, once the page has loaded, naming the file to add:
+  `lfdln-data-viewer: filter-style="bar" is not loaded, so it shows the dialog. Add data-viewer-filter-bar.js.`
+  If the file loads later, the list switches to the style.
+- **`rail`** shows `panel` while the list itself is narrower than 720 px (it watches the list's
+  width, not the window's). So on phones the rail is always the panel.
+- **`columns`** shows `panel` in cards view, which has no headers.
+- The name is read in lower case. Changing `filter-style`, or a fallback taking over, closes an
+  open filter and drops its draft.
+
+### How each style behaves
+
+- **Counts.** Every option shows how many rows you'd get if you picked it, counted over what the
+  other sections leave. An option that would leave nothing dims to 0.45 but stays clickable. A
+  range's quick ranges show counts too, in browser mode.
+- **`panel`:**
+  - A choice is a set of chips. A single choice with 5 options or fewer is a segmented control
+    ("Any" and its options).
+  - A range shows its `ranges` as chips, or From and To boxes when it has none. A `number` or
+    `money` range also gets a 12-bar histogram of the rows the other sections leave, in browser
+    mode only, when at least 2 values differ. Bars inside the drafted range are accent-coloured.
+  - A yes/no section is a switch, with the column's `hint` under it.
+  - The title is `words.heading` ("Filter"). The button at the bottom counts the draft: "Show 12 results", "Nothing matches" at 0, or
+    "Show results" while the count isn't known. Reset empties the draft. Cancel, Esc and a click
+    outside drop it. While the panel is open, the list behind it dims.
+- **`bar`:** a pill reads its section's key and what it is set to ("Herb", "Herb +1", "Under €5").
+  Its menu has an option search when the section has more than 8 options, and "Clear kind" once
+  something is set. Only one menu is open on the page at a time. A long summary is cut off with
+  an ellipsis; the pill's name for screen readers has all of it.
+- **`rail`:** "Filters" with a "Clear" button, then each section with an 11 px uppercase label.
+  Single choices and named ranges are radios (arrow keys move and pick). Yes/no is a switch.
+- **`columns`:** the header text still sorts. The funnel is a second button in the same header,
+  named "Filter by Kind". Its menu is "Show kind" with the options, the ranges as one-at-a-time
+  rows (or From and To boxes), or Yes and No for a yes/no column, and "Clear this column" once it
+  is set. The menu is right-aligned for the last two columns, opens above the header near the
+  window's bottom edge, and follows the header when the page scrolls. With no rows left, the
+  headers stay, so you can undo the pick.
+
+### Counts from a server
+
+In server mode the list can't count a draft itself, so the panel's "Show 12 results" asks the
+server. It asks 300 ms after the draft last changed, and cancels the request before it. An
+older answer never replaces a newer one.
+
+- If the adapter has `count(q, { signal, src })`, the list calls it. It returns a number.
+- Otherwise the list calls `load` for a page of 1 row and reads its `total`.
+- While the answer is coming, if it fails, or when the page serves its own rows with no adapter,
+  the button says "Show results" with no number. A failed count shows no error.
+- Today's dialog never asks: it shows no count.
+
+```ts
+const mine: Adapter = {
+  load: async (q, { signal, src }) => { /* … as in Your own adapter */ },
+  // Optional: a cheaper way to count a draft's rows.
+  async count(q, { signal, src }) {
+    const res = await fetch(`${src}/count?${toParams(q)}`, { signal });
+    return (await res.json()).count;
+  },
+};
+```
+
+### Words for the styles
+
+These join the list's [words](#words) and are set the same way, through `words`:
+
+| Key | Default |
+|---|---|
+| `showResults(n)` | `Show ${n} results` (`Show 1 result`) |
+| `showResultsUnknown` | `Show results` |
+| `noResults` | `Nothing matches` (the panel's button at 0) |
+| `resultsCount(n)` | `${n} results` (`1 result`; the rail and columns) |
+| `resultsOf(n, m)` | `${n} of ${m}` (columns) |
+| `allResults(m)` | `All ${m} results` (columns, with nothing filtered) |
+| `columnsFiltered(k)` | `${k} columns filtered` (`1 column filtered`) |
+| `filterBy(label)` | `Filter by ${label}` (each funnel's name) |
+| `showColumn(label)` | `Show ${label.toLowerCase()}` (a column's menu) |
+| `clearSection(label)` | `Clear ${label.toLowerCase()}` (a bar menu) |
+| `clearColumn` | `Clear this column` |
+| `filters` | `Filters` (the rail's title, unless `filter-label`) |
+| `reset` | `Reset` (the panel) |
+
+To make them say "plants":
+
+```js
+document.querySelector('#plants').words = {
+  heading: 'Filter plants',
+  showResults: (n) => `Show ${n} ${n === 1 ? 'plant' : 'plants'}`,
+  showResultsUnknown: 'Show plants',
+  noResults: 'No plants match',
+  resultsCount: (n) => `${n} ${n === 1 ? 'plant' : 'plants'}`,
+  resultsOf: (n, m) => `${n} of ${m} plants`,
+  allResults: (m) => `All ${m} plants`,
+};
+```
+
+### Styling the styles
+
+The styles use the filter package's `--filter-*` variables, plus `--filter-accent-soft` (the
+"on" chip's background) and `--filter-accent-text` (its text, counts and keys). See the filter
+package's [styling](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#styling).
+The viewer adds these hooks:
+
+| Hook | Where |
+|---|---|
+| `.dv-root[data-filter-open]` | While the panel's draft is open (the list dims) |
+| `.dv-root[data-filter-side]`, `.dv-side`, `.dv-main` | With `rail`: the rail's column and the list's column |
+| `.dv-filtered` | With `columns`: a filtered column's header and body cells |
 
 ## The table
 
@@ -968,6 +1133,10 @@ registerAdapter('mine', mine);
 An adapter may say what its server can do with `supports: { filters?: 'all' | 'equals', searchIn?:
 boolean, facets?: boolean }`; without it the list offers everything. It may return `facets` with the
 rows.
+
+An adapter may also have `count(q, { signal, src })`, which returns how many rows `q` would give.
+The `panel` filter style uses it for "Show 12 results"; without it the list loads one row and reads
+the total. See [Counts from a server](#counts-from-a-server).
 
 `q` is the same query `dv-query` carries, `size` included (`pageSize` is the same number, kept
 for older adapters). `src` is the element's `src`, trimmed, or `''` when it has none, so an adapter that knows where
