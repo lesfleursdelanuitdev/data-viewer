@@ -10,6 +10,7 @@ export type PopoverOptions = {
   cls?: string; // the design's own classes
   onClose(): void; // Esc, a click outside, the sheet's backdrop
   onKey?(e: KeyboardEvent): void; // any other key pressed inside it (a menu's arrow keys)
+  place?(el: HTMLElement): void; // the desktop popover's own placing, instead of under its anchor's left edge
   content: unknown;
 };
 
@@ -35,7 +36,7 @@ function mountPop(el?: Element): void {
     if (!el.isConnected) return;
     closeOthers(el);
     watchOutside(el.ownerDocument);
-    place(el);
+    ((el as HTMLElement & { lfdlnPlace?: (el: HTMLElement) => void }).lfdlnPlace ?? place)(el);
     el.focus();
   });
 }
@@ -76,7 +77,7 @@ export function popover(kit: FilterKit, o: PopoverOptions): TemplateResult {
   }
   return kit.html`<div class=${cls} id=${o.id ?? kit.nothing} role="dialog" aria-modal="false"
     aria-labelledby=${o.labelledBy ?? kit.nothing} aria-label=${o.label ?? kit.nothing} tabindex="-1"
-    ${kit.ref(mountPop)} .lfdlnClose=${o.onClose}
+    ${kit.ref(mountPop)} .lfdlnClose=${o.onClose} .lfdlnPlace=${o.place}
     @keydown=${(e: KeyboardEvent) => {
       if (e.key !== 'Escape') return o.onKey?.(e);
       e.preventDefault();

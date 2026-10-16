@@ -38,6 +38,11 @@
   <div id="rail-box"><lfdln-data-viewer id="rail" label="Plants (rail)" url-state="rail" filter-style="rail" layout="table"></lfdln-data-viewer></div>
   <h2>A test style drawn beside the list that leaves the applied filters to the viewer's chips row</h2>
   <lfdln-data-viewer id="side" label="Plants (side probe)" url-state="side" filter-style="probe-side" layout="table"></lfdln-data-viewer>
+  <h2>Filters in the column headers (filter-style="columns"), beside a second bar (#bar2)</h2>
+  <div id="two" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 24px; align-items: start">
+    <lfdln-data-viewer id="columns" label="Plants (columns)" url-state="columns" filter-style="columns" layout="table"></lfdln-data-viewer>
+    <lfdln-data-viewer id="bar2" label="Plants (bar 2)" url-state="bar2" filter-style="bar" layout="table"></lfdln-data-viewer>
+  </div>
   <script type="module" src="./filter-styles.ts"></script>
   <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
   <script type="module">import "../src/filter-styles/panel.ts";</script>
@@ -45,5 +50,7 @@
   <script type="module">import "../src/filter-styles/bar.ts";</script>
   <!-- The rail style (and the panel, its fallback), as a page would add data-viewer-filter-rail.js. -->
   <script type="module">import "../src/filter-styles/rail.ts";</script>
+  <!-- The columns style (and the panel, its fallback in cards view), as a page would add data-viewer-filter-columns.js. -->
+  <script type="module">import "../src/filter-styles/columns.ts";</script>
 </body>
 </html>

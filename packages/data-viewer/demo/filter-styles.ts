@@ -31,11 +31,16 @@ const columns: Column<Plant>[] = [
   { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
 ];
 
-for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side']) {
+for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side', 'bar2']) {
   const list = document.querySelector(`#${id}`) as LfdlnDataViewer<Plant>;
   list.columns = columns;
   list.rows = plants;
 }
+
+// #columns: the same plants, every column sortable, so a header's text sorts and its funnel filters.
+const cols = document.querySelector('#columns') as LfdlnDataViewer<Plant>;
+cols.columns = columns.map((c) => ({ ...c, sortable: true }));
+cols.rows = plants;
 
 // #bar: the same plants, each cared for by someone, with 30 people to choose from (18 care for
 // none, so they count 0). window.barQueries keeps every dv-query #bar fires.

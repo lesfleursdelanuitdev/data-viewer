@@ -7,7 +7,7 @@ import {
 import { renderCard, renderCardActions, type CardActions, type CardHooks } from '@lesfleursdelanuitdev/card';
 import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
 import {
-  defaultFilterWords, normalise, removeChip, renderFilter, renderFilterChips,
+  defaultFilterWords, isSet, normalise, removeChip, renderFilter, renderFilterChips,
   type FilterHandlers, type FilterSection, type FilterStyle, type FilterStyleHandlers, type FilterStyleView,
   type FilterValue, type FilterView, type FilterWords,
 } from '@lesfleursdelanuitdev/filter';
@@ -1088,8 +1088,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const dim = this._fStyle && !this._fStyle.instant && this._fDraft !== null;
     // A style drawn beside the list (rail) gets a column of its own; the rest go in .dv-main.
     const side = Boolean(styled && this._fStyle!.side);
+    // A style drawn in the table's headers (columns) has nothing in the bar, and keeps the
+    // headers even with no rows, so a pick that leaves nothing can be undone there.
+    const inHead = Boolean(styled && this._fStyle!.header && this.layout !== 'cards');
     const main = html`
-      ${this.compact ? nothing : this._bar(w, sections, styled, side)}
+      ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead)}
       ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
@@ -1100,7 +1103,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ${first || failedEmpty
         ? nothing
         : rows.length === 0
-          ? html`<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
+          ? html`${inHead ? this._table(rows, w, sections, styled) : nothing}<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
           : this.layout === 'cards'
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
@@ -1111,10 +1114,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         : main}${this._confirm(w)}</div>`;
   }
 
-  private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, side = false): TemplateResult {
+  // elsewhere: the style is drawn beside the list (side) or in the headers, not in the bar.
+  private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, elsewhere = false): TemplateResult {
     return html`<div class="dv-bar">
       <div class="dv-search">${this._searchBox(w)}</div>
-      ${sections.length && !side ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
+      ${sections.length && !elsewhere ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
       ${this.views?.length
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {
@@ -1201,6 +1205,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       const s = style?.header && styled ? sections.find((x) => x.key === c.key) : undefined;
       return s ? style!.header!(s, { index, of: cols.length }, styled!.view, styled!.on, viewerKit) : nothing;
     };
+    // With a header hook, a filtered column's header and cells carry dv-filtered (the style tints them).
+    const filtered = new Set(style?.header && styled ? sections.filter((x) => isSet(x, styled.view.value[x.key])).map((x) => x.key) : []);
+    const cls = (c: Column<T>) => [this._right(c) ? 'dv-right' : '', filtered.has(c.key) ? 'dv-filtered' : ''].join(' ').trim();
     return html`<div class="dv-table-wrap">
       <table class="dv-table" aria-label=${this.label || nothing}>
         <thead>
@@ -1208,7 +1215,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
             ${cols.map((c, i) => {
               const sorted = this._q.sort === c.key;
               const ariaSort = sorted ? (this._q.dir === 'desc' ? 'descending' : 'ascending') : nothing;
-              return html`<th scope="col" class=${this._right(c) ? 'dv-right' : ''} aria-sort=${ariaSort}>
+              return html`<th scope="col" class=${cls(c)} aria-sort=${ariaSort}>
                 ${c.sortable
                   ? html`<button type="button" @click=${() => this._sortBy(c.key)}>${c.label}<span
                         aria-hidden="true">${sorted ? (this._q.dir === 'desc' ? '↓' : '↑') : ''}</span></button>`
@@ -1222,12 +1229,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           ${rows.map((row, r) => {
             const p = this._parts(row);
             return html`<tr>
-              ${cols.map((c, i) => {
-                const cls = this._right(c) ? 'dv-right' : '';
-                return i === 0
-                  ? html`<th scope="row" class=${cls}>${this._firstCell(c, row, p)}</th>`
-                  : html`<td class=${cls}>${this._cell(c, row)}</td>`;
-              })}
+              ${cols.map((c, i) => i === 0
+                ? html`<th scope="row" class=${cls(c)}>${this._firstCell(c, row, p)}</th>`
+                : html`<td class=${cls(c)}>${this._cell(c, row)}</td>`)}
               <td class="dv-row-menu">${renderMenu(p.menu, `${this._uid}-t${r}`, w.menuFor(p.title),
                 (item, button) => this._pick(item, row, button))}</td>
             </tr>`;

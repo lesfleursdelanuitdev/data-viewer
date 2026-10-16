@@ -914,3 +914,304 @@ test.describe('rail on a phone', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 });
+
+// #columns: the 12 plants with filter-style="columns" (the add-on registers columns and panel),
+// every column sortable; #bar2 beside it: the same plants with filter-style="bar".
+const cols = (page: Page) => page.locator('#columns');
+const funnel = (page: Page, label: string) => cols(page).getByRole('button', { name: `Filter by ${label}` });
+const colMenu = (page: Page) => cols(page).locator('.lfdln-filter-col-menu');
+const headOf = (page: Page, label: string) => cols(page).locator('thead th').filter({ has: page.getByRole('button', { name: `Filter by ${label}` }) });
+// The list's top at the window's top, so its menus have room below.
+async function colsToTop(page: Page) {
+  // The lists above load their recipes first (they would push #columns down after the scroll).
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('#panel-server tbody tr').first()).toBeVisible();
+  await cols(page).evaluate((el) => {
+    el.ownerDocument.body.style.paddingBottom = '100vh'; // #columns is near the page's end
+    el.scrollIntoView({ block: 'start' });
+  });
+}
+const colSummary = (page: Page) => cols(page).locator('.lfdln-filter-col-summary-text');
+const colRows = (page: Page) => cols(page).locator('tbody tr');
+
+test.describe('columns', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("clicking a header's text still sorts; the funnel is its own button named \"Filter by Kind\"", async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(funnel(page, 'Kind')).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(funnel(page, 'Kind')).toHaveAttribute('aria-expanded', 'false');
+    await expect(funnel(page, 'Name')).toHaveCount(0); // Name is not filterable
+    // No filter button, no pills: the headers are the filter.
+    await expect(cols(page).locator('.dv-filter, .lfdln-filter-trigger, .lfdln-filter-pills')).toHaveCount(0);
+    await cols(page).locator('thead').getByRole('button', { name: 'Kind', exact: true }).click();
+    await expect(headOf(page, 'Kind')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(colMenu(page)).toHaveCount(0);
+    await expect(colRows(page).first().locator('td').first()).toHaveText('Flower');
+    await funnel(page, 'Kind').click();
+    await expect(colMenu(page)).toBeVisible();
+    await expect(funnel(page, 'Kind')).toHaveAttribute('aria-expanded', 'true');
+    await expect(headOf(page, 'Kind')).toHaveAttribute('aria-sort', 'ascending');
+    // A click on another header's text closes the menu and sorts.
+    await cols(page).locator('thead').getByRole('button', { name: 'Light', exact: true }).click();
+    await expect(colMenu(page)).toHaveCount(0);
+    await expect(cols(page).locator('thead th').nth(2)).toHaveAttribute('aria-sort', 'ascending');
+    expect(problems).toEqual([]);
+  });
+
+  test('the menu lists options with counts and applies at once; "Clear this column" when set', async ({ page }) => {
+    const { problems } = await open(page);
+    await funnel(page, 'Kind').click();
+    const m = colMenu(page);
+    expect(Math.round((await m.boundingBox())!.width)).toBe(220);
+    await expect(m.locator('.lfdln-filter-col-label')).toHaveText('Show kind');
+    const group = m.getByRole('group', { name: 'Show kind' });
+    await expect(group.getByRole('checkbox')).toHaveCount(4);
+    await expect(m.locator('.lfdln-filter-check-label')).toHaveText(['Flower', 'Foliage', 'Herb', 'Tree']);
+    await expect(m.locator('.lfdln-filter-check-count')).toHaveText(['3', '3', '5', '1']);
+    expect(Math.round((await m.locator('.lfdln-filter-check-row').first().boundingBox())!.height)).toBe(32);
+    await expect(m.getByRole('button', { name: 'Clear this column' })).toHaveCount(0);
+    // Arrow keys move between rows.
+    await page.keyboard.press('ArrowDown');
+    await expect(group.getByRole('checkbox', { name: /Flower/ })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(group.getByRole('checkbox', { name: /Foliage/ })).toBeFocused();
+    await group.getByRole('checkbox', { name: /Herb/ }).click();
+    await expect(colRows(page)).toHaveCount(5);
+    await expect(m).toBeVisible(); // it applies and stays open
+    await expect(group.getByRole('checkbox', { name: /Herb/ })).toHaveAttribute('aria-checked', 'true');
+    expect(new URL(page.url()).searchParams.get('columns.f.kind')).toBe('Herb');
+    await expect(m.getByRole('button', { name: 'Clear this column' })).toBeVisible();
+    // Counts follow the other columns: no herb likes shade, so Shade dims to 0.45 and stays clickable.
+    await funnel(page, 'Light').click();
+    await expect(colMenu(page)).toHaveCount(1);
+    const shade = colMenu(page).getByRole('checkbox', { name: /^Shade/ });
+    await expect(shade).toHaveClass(/lfdln-filter-dim/);
+    expect(await shade.evaluate((el) => getComputedStyle(el).opacity)).toBe('0.45');
+    // A pick that leaves nothing keeps the headers, so the menu stays open to undo it.
+    await shade.click();
+    await expect(colRows(page)).toHaveCount(0);
+    await expect(cols(page).locator('.dv-empty')).toBeVisible();
+    await expect(colMenu(page)).toBeVisible();
+    await shade.click();
+    await expect(colRows(page)).toHaveCount(5);
+    await page.keyboard.press('Escape');
+    await expect(colMenu(page)).toHaveCount(0);
+    await expect(funnel(page, 'Light')).toBeFocused();
+    // Clear this column: the menu closes, focus goes back to the funnel.
+    await funnel(page, 'Kind').click();
+    await colMenu(page).getByRole('button', { name: 'Clear this column' }).click();
+    await expect(colRows(page)).toHaveCount(12);
+    await expect(colMenu(page)).toHaveCount(0);
+    await expect(funnel(page, 'Kind')).toBeFocused();
+    expect(new URL(page.url()).searchParams.get('columns.f.kind')).toBeNull();
+    expect(problems).toEqual([]);
+  });
+
+  test('a range column lists its ranges as single-choice rows; a bool column lists Yes and No', async ({ page }) => {
+    const { problems } = await open(page);
+    await funnel(page, 'Price').click();
+    const price = colMenu(page).getByRole('radiogroup', { name: 'Show price' });
+    await expect(price.locator('.lfdln-filter-check-label')).toHaveText(['Under €5', '€5–€10', 'Over €10']);
+    await expect(price.getByRole('radio')).toHaveCount(3);
+    await expect(price.locator('.lfdln-filter-box-round')).toHaveCount(3);
+    const under = price.getByRole('radio', { name: /Under €5/ });
+    const n = Number(await under.locator('.lfdln-filter-check-count').textContent());
+    await under.click();
+    await expect(colRows(page)).toHaveCount(n);
+    await expect(under).toHaveAttribute('aria-checked', 'true');
+    // Arrow keys move and pick, as radios do.
+    await page.keyboard.press('ArrowDown');
+    await expect(price.getByRole('radio', { name: /€5–€10/ })).toBeFocused();
+    await expect(price.getByRole('radio', { name: /€5–€10/ })).toHaveAttribute('aria-checked', 'true');
+    await expect(under).toHaveAttribute('aria-checked', 'false');
+    // A tick on the picked one unpicks it.
+    await page.keyboard.press('Space');
+    await expect(colRows(page)).toHaveCount(12);
+    await page.keyboard.press('Escape');
+    await funnel(page, 'In stock').click();
+    const stock = colMenu(page).getByRole('radiogroup', { name: 'Show in stock' });
+    await expect(stock.locator('.lfdln-filter-check-label')).toHaveText(['Yes', 'No']);
+    await stock.getByRole('radio', { name: 'No' }).click();
+    await expect(colRows(page)).toHaveCount(3);
+    await expect(stock.getByRole('radio', { name: 'No' })).toHaveAttribute('aria-checked', 'true');
+    await stock.getByRole('radio', { name: 'Yes' }).click();
+    await expect(colRows(page)).toHaveCount(9);
+    await stock.getByRole('radio', { name: 'Yes' }).click();
+    await expect(colRows(page)).toHaveCount(12);
+    expect(problems).toEqual([]);
+  });
+
+  test("the last two columns' menus are right-aligned", async ({ page }) => {
+    await open(page);
+    await colsToTop(page);
+    for (const [label, end] of [['Kind', false], ['Light', false], ['Price', true], ['In stock', true]] as const) {
+      await funnel(page, label).click();
+      await expect(colMenu(page)).toBeVisible();
+      const [m, f] = await Promise.all([colMenu(page).boundingBox(), funnel(page, label).boundingBox()]);
+      if (end) expect(Math.abs(m!.x + m!.width - (f!.x + f!.width))).toBeLessThanOrEqual(1);
+      else expect(Math.abs(m!.x - f!.x)).toBeLessThanOrEqual(1);
+      expect(m!.y).toBeGreaterThan(f!.y + f!.height); // under it
+      await page.keyboard.press('Escape');
+    }
+    // The menu is not cut off by the table's scrolling box, even with one row left.
+    await page.goto('/filter-styles.html?columns.f.kind=Tree');
+    await expect(colRows(page)).toHaveCount(1);
+    await colsToTop(page);
+    await funnel(page, 'Kind').click();
+    const clear = colMenu(page).getByRole('button', { name: 'Clear this column' });
+    await expect(clear).toBeVisible();
+    const [c, wrap] = await Promise.all([clear.boundingBox(), cols(page).locator('.dv-table-wrap').boundingBox()]);
+    expect(c!.y).toBeGreaterThan(wrap!.y + wrap!.height); // below the table, and still shown
+    await clear.click();
+    await expect(colRows(page)).toHaveCount(12);
+    // Near the window's bottom edge, the menu opens above the header, and follows it on scroll.
+    await funnel(page, 'Kind').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      scrollBy(0, r.bottom - innerHeight + 40);
+    });
+    await funnel(page, 'Kind').click();
+    await expect(colMenu(page)).toBeVisible();
+    let [m, f] = await Promise.all([colMenu(page).boundingBox(), funnel(page, 'Kind').boundingBox()]);
+    expect(m!.y + m!.height).toBeLessThanOrEqual(f!.y);
+    await page.evaluate(() => scrollBy(0, 300));
+    await expect.poll(async () => {
+      [m, f] = await Promise.all([colMenu(page).boundingBox(), funnel(page, 'Kind').boundingBox()]);
+      return Math.round(m!.y - (f!.y + f!.height));
+    }).toBe(6);
+  });
+
+  test('filtered headers get the dot; filtered body cells get dv-filtered', async ({ page }) => {
+    await open(page, '?columns.f.kind=Herb&columns.f.stock=yes');
+    await expect(colRows(page)).toHaveCount(4);
+    await expect(headOf(page, 'Kind').locator('.lfdln-filter-col-dot')).toHaveCount(1);
+    await expect(headOf(page, 'In stock').locator('.lfdln-filter-col-dot')).toHaveCount(1);
+    await expect(headOf(page, 'Light').locator('.lfdln-filter-col-dot')).toHaveCount(0);
+    await expect(headOf(page, 'Kind')).toHaveClass(/dv-filtered/);
+    await expect(headOf(page, 'Light')).not.toHaveClass(/dv-filtered/);
+    // Kind (2nd) and In stock (5th) cells, in every row; none of the others.
+    await expect(cols(page).locator('tbody .dv-filtered')).toHaveCount(8);
+    await expect(colRows(page).first().locator('td').nth(0)).toHaveClass(/dv-filtered/);
+    await expect(colRows(page).first().locator('td').nth(1)).not.toHaveClass(/dv-filtered/);
+    await expect(colRows(page).first().locator('td').nth(3)).toHaveClass(/dv-filtered/);
+    // Accent-coloured values; the others keep the text colour.
+    const colour = (i: number) => colRows(page).first().locator('td').nth(i).evaluate((el) => getComputedStyle(el).color);
+    expect(await colour(0)).not.toBe(await colour(1));
+    // The funnel is at full strength when filtered, half otherwise.
+    const icon = (label: string) => funnel(page, label).locator('svg').evaluate((el) => getComputedStyle(el).opacity);
+    expect(await icon('Kind')).toBe('1');
+    expect(await icon('Light')).toBe('0.5');
+    // The dot is 6 px; the funnel's description says what the column is set to.
+    const dot = await headOf(page, 'Kind').locator('.lfdln-filter-col-dot').boundingBox();
+    expect(Math.round(dot!.width)).toBe(6);
+    await expect(funnel(page, 'Kind')).toHaveAccessibleDescription('Kind: Herb');
+    await expect(funnel(page, 'Light')).toHaveAccessibleDescription('');
+  });
+
+  test('the summary reads "N of M · K columns filtered" and Clear all empties them', async ({ page }) => {
+    await open(page);
+    await expect(colSummary(page)).toHaveText('All 12 results');
+    const clearAll = cols(page).locator('.lfdln-filter-col-summary').getByRole('button', { name: 'Clear all' });
+    await expect(clearAll).toHaveCount(0);
+    await funnel(page, 'Kind').click();
+    await colMenu(page).getByRole('checkbox', { name: /Herb/ }).click();
+    await expect(colSummary(page)).toHaveText('5 of 12 · 1 column filtered');
+    await funnel(page, 'In stock').click();
+    await colMenu(page).getByRole('radio', { name: 'Yes' }).click();
+    await expect(colSummary(page)).toHaveText('4 of 12 · 2 columns filtered');
+    await page.keyboard.press('Escape');
+    // Above the table, in the chips row's place; there is no chips row.
+    const [s, table] = await Promise.all([cols(page).locator('.lfdln-filter-col-summary').boundingBox(), cols(page).locator('.dv-table-wrap').boundingBox()]);
+    expect(s!.y + s!.height).toBeLessThanOrEqual(table!.y);
+    await expect(cols(page).locator('.lfdln-filter-chips')).toHaveCount(0);
+    await clearAll.click();
+    await expect(colRows(page)).toHaveCount(12);
+    await expect(colSummary(page)).toHaveText('All 12 results');
+    await expect(clearAll).toHaveCount(0);
+    await expect(cols(page).locator('.lfdln-filter-col-dot, .dv-filtered')).toHaveCount(0);
+    expect([...new URL(page.url()).searchParams.keys()].filter((k) => k.startsWith('columns.f.'))).toEqual([]);
+    // Clear all leaves; focus goes to the summary, which stays.
+    await expect(colSummary(page)).toBeFocused();
+  });
+
+  test('in cards view it becomes the panel', async ({ page }) => {
+    const { problems } = await open(page, '?columns.f.kind=Herb');
+    await cols(page).getByRole('button', { name: 'Show cards' }).click();
+    await expect(cols(page).locator('.lfdln-filter-trigger')).toBeVisible();
+    await expect(cols(page).locator('.lfdln-filter-badge')).toHaveText('1');
+    await expect(cols(page).locator('.lfdln-filter-col, .lfdln-filter-col-summary')).toHaveCount(0);
+    await expect(cols(page).locator('.dv-cards > li')).toHaveCount(5);
+    await cols(page).getByRole('button', { name: 'Show a table' }).click();
+    await expect(cols(page).locator('.lfdln-filter-trigger')).toHaveCount(0);
+    await expect(headOf(page, 'Kind').locator('.lfdln-filter-col-dot')).toHaveCount(1);
+    expect(problems).toEqual([]);
+  });
+
+  test('a bookmarked value that no longer exists shows the header dot and clears', async ({ page }) => {
+    await open(page, '?columns.f.kind=Cactus');
+    await expect(colRows(page)).toHaveCount(0);
+    await expect(headOf(page, 'Kind').locator('.lfdln-filter-col-dot')).toHaveCount(1);
+    await expect(colSummary(page)).toHaveText('0 of 12 · 1 column filtered');
+    await funnel(page, 'Kind').click();
+    const cactus = colMenu(page).getByRole('checkbox', { name: /Cactus/ });
+    await expect(cactus).toHaveAttribute('aria-checked', 'true');
+    await expect(cactus.locator('.lfdln-filter-check-count')).toHaveText('0');
+    await colMenu(page).getByRole('button', { name: 'Clear this column' }).click();
+    await expect(colRows(page)).toHaveCount(12);
+    await expect(headOf(page, 'Kind').locator('.lfdln-filter-col-dot')).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get('columns.f.kind')).toBeNull();
+  });
+
+  test("two lists, two styles: opening #bar2's pill closes #columns' menu; neither list's style changes the other", async ({ page }) => {
+    const { problems } = await open(page);
+    const bar2Pill = page.locator('#bar2 .lfdln-filter-pill[data-key="kind"]');
+    await funnel(page, 'Kind').click();
+    await expect(colMenu(page)).toBeVisible();
+    await bar2Pill.click();
+    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toBeVisible();
+    await expect(colMenu(page)).toHaveCount(0);
+    await funnel(page, 'Light').click();
+    await expect(colMenu(page)).toBeVisible();
+    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    // A filter in #bar2 leaves #columns alone, and its table gets no columns look.
+    await bar2Pill.click();
+    await page.locator('#bar2 .lfdln-filter-pill-menu .lfdln-filter-check-row[data-value="Herb"]').click();
+    await expect(page.locator('#bar2 tbody tr')).toHaveCount(5);
+    await expect(colRows(page)).toHaveCount(12);
+    await expect(page.locator('#bar2 .dv-filtered, #bar2 .lfdln-filter-col, #bar2 .lfdln-filter-col-summary')).toHaveCount(0);
+    await expect(cols(page).locator('.lfdln-filter-pills')).toHaveCount(0);
+    // #bar2's menu rows are still the bar's (menu items, not the columns' check boxes).
+    await expect(page.locator('#bar2 .lfdln-filter-pill-menu .lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemcheckbox');
+    // Same cell colour for #bar2's filtered Kind as for an unfiltered one.
+    const c2 = await page.locator('#bar2 tbody tr').first().locator('td').nth(0).evaluate((el) => getComputedStyle(el).color);
+    const c1 = await page.locator('#bar2 tbody tr').first().locator('td').nth(1).evaluate((el) => getComputedStyle(el).color);
+    expect(c2).toBe(c1);
+    expect(problems).toEqual([]);
+  });
+});
+
+test.describe('columns on a phone', () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test('phone: funnels are 44 px and menus open as the bottom sheet', async ({ page }) => {
+    const { problems } = await open(page);
+    const f = await funnel(page, 'Kind').boundingBox();
+    expect(Math.round(f!.height)).toBeGreaterThanOrEqual(44);
+    expect(Math.round(f!.width)).toBeGreaterThanOrEqual(44);
+    await funnel(page, 'Kind').click();
+    const sheet = page.locator('#columns dialog.lfdln-filter-col-menu[open]');
+    await expect(sheet).toBeVisible();
+    const box = await sheet.boundingBox();
+    expect(Math.round(box!.width)).toBe(390);
+    expect(Math.round(box!.y + box!.height)).toBe(800);
+    for (const r of await sheet.locator('.lfdln-filter-check-row').all()) expect(Math.round((await r.boundingBox())!.height)).toBeGreaterThanOrEqual(44);
+    await sheet.getByRole('checkbox', { name: /Herb/ }).click();
+    await expect(colRows(page)).toHaveCount(5);
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(funnel(page, 'Kind')).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(problems).toEqual([]);
+  });
+});

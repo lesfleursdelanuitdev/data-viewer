@@ -12,6 +12,7 @@ import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { divider } from '../parts/divider.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT, SOFT } from '../parts/parts-css.ts';
+import { menuKeys } from '../parts/menu-keys.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
@@ -71,23 +72,6 @@ type Range = Extract<FilterSection, { kind: 'range' }>;
 const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
   v && typeof v === 'object' && !Array.isArray(v) ? v : {};
 
-// Up, Down, Home and End move between a menu's rows; Down from the search box goes to the
-// first row, Up from the first row back to the search box.
-function onMenuKey(e: KeyboardEvent): void {
-  const menu = (e.currentTarget as HTMLElement);
-  const rows = [...menu.querySelectorAll<HTMLElement>('.lfdln-filter-check-row')];
-  const at = rows.indexOf(menu.ownerDocument.activeElement as HTMLElement);
-  const search = menu.querySelector<HTMLElement>('.lfdln-filter-pill-search');
-  let to: HTMLElement | null | undefined;
-  if (e.key === 'ArrowDown') to = rows[at < 0 ? 0 : Math.min(at + 1, rows.length - 1)];
-  else if (e.key === 'ArrowUp' && at >= 0) to = at === 0 ? search ?? rows[0] : rows[at - 1];
-  else if (e.key === 'Home' && at >= 0) to = rows[0];
-  else if (e.key === 'End' && at >= 0) to = rows.at(-1);
-  if (!to) return;
-  e.preventDefault();
-  to.focus();
-}
-
 function choiceRows(kit: FilterKit, s: Choice, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const picked = Array.isArray(v.value[s.key]) ? (v.value[s.key] as string[]) : [];
   const rows = menuOptions(s, v.value, searchable(s) ? v.optionSearch : '');
@@ -140,7 +124,7 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
   };
   const menu = open
     ? popover(kit, {
-      phone: v.phone, id: mid, cls: 'lfdln-filter-pill-menu', onClose: () => on.onMenu(null), onKey: onMenuKey,
+      phone: v.phone, id: mid, cls: 'lfdln-filter-pill-menu', onClose: () => on.onMenu(null), onKey: menuKeys,
       labelledBy: v.phone ? hid : undefined, label: v.phone ? undefined : s.label,
       content: kit.html`${v.phone
         ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div><h2 class="lfdln-filter-pill-title" id=${hid}>${s.label}</h2>`

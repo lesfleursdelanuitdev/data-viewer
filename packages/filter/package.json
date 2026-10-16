@@ -51,6 +51,10 @@
       "types": "./dist/types/rail-element.d.ts",
       "import": "./dist/rail-element.js"
     },
+    "./columns": {
+      "types": "./dist/types/columns.d.ts",
+      "import": "./dist/columns.js"
+    },
     "./standalone": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.standalone.js"

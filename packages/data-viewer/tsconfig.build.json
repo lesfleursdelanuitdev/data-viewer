@@ -36,6 +36,7 @@
     "src/adapters/pammy.ts",
     "src/filter-styles/panel.ts",
     "src/filter-styles/bar.ts",
-    "src/filter-styles/rail.ts"
+    "src/filter-styles/rail.ts",
+    "src/filter-styles/columns.ts"
   ]
 }
