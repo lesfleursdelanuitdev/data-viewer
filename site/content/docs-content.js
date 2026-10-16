@@ -95,6 +95,107 @@ const MENU_ICON = {
 
 const listStyle = 'margin:0;padding:0 0 0 1.6em;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 20px;font-size:14px;line-height:1.7';
 
+// /docs/filter-styles/: one live list per style, stacked down the page, each with its code.
+const FS_COLUMNS = `  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.."></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>`;
+const fsCode = (style, extra = '') => `<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-${style}.js"></script>
+
+<lfdln-data-viewer label="Plants" filter-style="${style}"${extra} adapter="json" src="plants.json">
+${FS_COLUMNS}
+</lfdln-data-viewer>
+
+<!-- With npm instead of the script tags:
+     import '@lesfleursdelanuitdev/data-viewer/filter-styles/${style}'; -->`;
+
+// [name, label, what it looks like and when to pick it, its code]
+const FS_STYLES = [
+  ['panel', 'Panel', 'A Filter button opens a panel with a live count. Changes wait as a draft until “Show N results”, so pick it when each change is slow, as with a server.', fsCode('panel')],
+  ['bar', 'Bar', 'Each filter is a pill beside the search, and a change applies at once. Pick it for a few filters people change often.', fsCode('bar')],
+  ['rail', 'Rail', 'The filters stay open in a column beside the list. Pick it for wide pages with many filters. Below 720 px of list width it becomes the panel.', fsCode('rail')],
+  ['columns', 'Columns', 'Each column’s header has its own filter menu. Pick it for tables; it needs the table layout, and in cards view it becomes the panel.', fsCode('columns', ' layout="table"')],
+  ['search', 'Search', 'One field does the search and the filters, in place of the search box. Type “her” and press Enter for Kind is Herb. Pick it where space is short.', `<!-- One field for the search and the filters: it takes the search box's place. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-search.js"></script>
+
+<lfdln-data-viewer label="Plants" filter-style="search" adapter="json" src="plants.json">
+${FS_COLUMNS}
+</lfdln-data-viewer>
+
+<!-- With npm instead of the script tags:
+     import '@lesfleursdelanuitdev/data-viewer/filter-styles/search'; -->`],
+  ['views', 'Views', 'Saved views sit as tabs above the list. “+ New view” opens a builder: pick filters, name it and save. Pick it when people come back to the same few lists. Here the views last until you reload.', `<!-- Tabs of saved views above the list. Keep the visitor's views one of two ways. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-views.js"></script>
+
+<!-- 1. In this browser: remember-as keeps them in localStorage, under "plants.views". -->
+<lfdln-data-viewer id="plants" label="Plants" filter-style="views" remember-as="plants"
+  adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<!-- 2. Or on your server: set savedViews (this turns the browser's copy off) and save on views-change. -->
+<lfdln-data-viewer id="plants-mine" label="Plants" filter-style="views" adapter="json" src="plants.json">
+  …the same columns…
+</lfdln-data-viewer>
+
+<script type="module">
+  const list = document.querySelector('#plants-mine');
+  list.savedViews = await (await fetch('/api/views')).json();
+  // After every save, rename, delete and undo: the whole list of views.
+  list.addEventListener('views-change', async (e) => {
+    if (e.target !== list) return; // lists inside cards fire it too
+    await fetch('/api/views', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(e.detail.views),
+    });
+  });
+  // Each view is { key, label, filter, search? }, such as
+  // { key: 'u-m2x9k1', label: 'Herbs for sun', filter: { kind: ['Herb'], light: ['Sun'] } }
+</script>`],
+  ['sentence', 'Sentence', 'The filter is written out as a sentence, such as “Show herbs for sun”. Each underlined part opens its menu. Pick it for people who would rather read than fill in a form.', `<!-- The filter as a sentence: each column says how it reads. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-sentence.js"></script>
+
+<lfdln-data-viewer id="plants" label="Plants" filter-style="sentence" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable
+    phrase="{values}" phrase-any="all plants"
+    plural="Perennial:perennials,Shrub:shrubs,Fern:ferns,Herb:herbs"></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable
+    phrase="for {values}" phrase-any="in any light"></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.." phrase="{values}" phrase-any="at any price"></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
+    phrase="in stock only" phrase-any="including sold out"></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  // "No plants match that sentence." when nothing is left.
+  document.querySelector('#plants').words = { things: 'plants' };
+</script>`],
+  ['dialog', 'Dialog', 'What you get with no filter-style: a Filter button that opens a dialog. It needs no extra file.', `<!-- No filter-style: the Filter button opens a dialog. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+
+<lfdln-data-viewer label="Plants" adapter="json" src="plants.json">
+${FS_COLUMNS}
+</lfdln-data-viewer>`],
+];
+const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
   { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'selection', 'server', 'scheme'] },
@@ -432,7 +533,7 @@ export function Plants() {
   filterStyles: {
     nav: 'Filter styles', kicker: 'The list', title: 'Filter styles',
     wide: true,
-    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, menus in the column headers, one field that searches and filters, saved views as tabs, or the filter written out as a sentence. Each style is one more script. Without one you get today’s dialog.',
+    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, menus in the column headers, one field that searches and filters, saved views as tabs, or the filter written out as a sentence. Each style is one more script, and each has a live list below. Without one you get today’s dialog.',
     tabs: [
       { label: 'HTML', code: `<!-- The viewer, then the file for your style. -->
 <script type="module" src="/js/data-viewer.standalone.js"></script>
@@ -469,24 +570,6 @@ import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar';
 define();
 
 // <lfdln-data-viewer label="Plants" filter-style="bar" …> as in the HTML tab.` },
-      { label: 'Search style', code: `<!-- One field for the search and the filters: it takes the search box's place. -->
-<script type="module" src="/js/data-viewer.standalone.js"></script>
-<script type="module" src="/js/data-viewer-json.js"></script>
-<script type="module" src="/js/data-viewer-filter-search.js"></script>
-
-<lfdln-data-viewer label="Plants" filter-style="search" adapter="json" src="plants.json">
-  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
-  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
-  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
-  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
-    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.."></lfdln-dv-column>
-  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
-</lfdln-data-viewer>
-
-<script type="module">
-  // With npm instead of the script tags:
-  // import '@lesfleursdelanuitdev/data-viewer/filter-styles/search';
-</script>` },
       { label: 'Field alone', code: `<!-- The same field without the viewer: your page does the searching and filtering. -->
 <script type="module" src="/js/search-filter.standalone.js"></script>
 
@@ -508,62 +591,6 @@ define();
     showMatches(search, column, value);
   });
 </script>` },
-      { label: 'Saved views', code: `<!-- Tabs of saved views above the list. Keep the visitor's views one of two ways. -->
-<script type="module" src="/js/data-viewer.standalone.js"></script>
-<script type="module" src="/js/data-viewer-json.js"></script>
-<script type="module" src="/js/data-viewer-filter-views.js"></script>
-
-<!-- 1. In this browser: remember-as keeps them in localStorage, under "plants.views". -->
-<lfdln-data-viewer id="plants" label="Plants" filter-style="views" remember-as="plants"
-  adapter="json" src="plants.json">
-  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
-  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
-  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
-  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
-</lfdln-data-viewer>
-
-<!-- 2. Or on your server: set savedViews (this turns the browser's copy off) and save on views-change. -->
-<lfdln-data-viewer id="plants-mine" label="Plants" filter-style="views" adapter="json" src="plants.json">
-  …the same columns…
-</lfdln-data-viewer>
-
-<script type="module">
-  const list = document.querySelector('#plants-mine');
-  list.savedViews = await (await fetch('/api/views')).json();
-  // After every save, rename, delete and undo: the whole list of views.
-  list.addEventListener('views-change', async (e) => {
-    if (e.target !== list) return; // lists inside cards fire it too
-    await fetch('/api/views', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(e.detail.views),
-    });
-  });
-  // Each view is { key, label, filter, search? }, such as
-  // { key: 'u-m2x9k1', label: 'Herbs for sun', filter: { kind: ['Herb'], light: ['Sun'] } }
-</script>` },
-      { label: 'Sentence', code: `<!-- The filter as a sentence: each column says how it reads. -->
-<script type="module" src="/js/data-viewer.standalone.js"></script>
-<script type="module" src="/js/data-viewer-json.js"></script>
-<script type="module" src="/js/data-viewer-filter-sentence.js"></script>
-
-<lfdln-data-viewer id="plants" label="Plants" filter-style="sentence" adapter="json" src="plants.json">
-  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
-  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable
-    phrase="{values}" phrase-any="all plants"
-    plural="Perennial:perennials,Shrub:shrubs,Fern:ferns,Herb:herbs"></lfdln-dv-column>
-  <lfdln-dv-column key="light" label="Light" filterable
-    phrase="for {values}" phrase-any="in any light"></lfdln-dv-column>
-  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
-    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.." phrase="{values}" phrase-any="at any price"></lfdln-dv-column>
-  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
-    phrase="in stock only" phrase-any="including sold out"></lfdln-dv-column>
-</lfdln-data-viewer>
-
-<script type="module">
-  // "No plants match that sentence." when nothing is left.
-  document.querySelector('#plants').words = { things: 'plants' };
-</script>` },
     ],
     notes: [
       'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js`, `-columns.js`, `-search.js`, `-views.js` or `-sentence.js`. The rail, columns and search files hold the panel too.',
@@ -579,24 +606,16 @@ define();
     // views-change shows the saved views' labels.
     events: { 'dv-query': (d) => ({ filters: d.filters }), 'views-change': (d) => ({ views: d.views.map((v) => v.label) }) },
     mount: (host) => {
-      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['search', 'Search'], ['views', 'Views'], ['sentence', 'Sentence'], ['dialog', 'Dialog']];
-      host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>
-        `<button type="button" class="tab" role="tab" id="fs-tab-${name}" aria-controls="fs-demo" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''} data-style="${name}">${label}</button>`).join('')}</div>
-        <div class="fs-demo" id="fs-demo" role="tabpanel" aria-labelledby="fs-tab-panel">
-          <lfdln-data-viewer label="Plants" page-size="8" layout-switch="icons"></lfdln-data-viewer>
-        </div>`;
-      // Each style is a file of its own. The list gets its filter-style once they have loaded:
-      // set before, the viewer would rightly warn that the style is not loaded.
-      const list = host.querySelector('lfdln-data-viewer');
-      let style = 'panel';
-      let loaded = false;
-      const useStyle = () => { if (loaded) list.setAttribute('filter-style', style); };
-      Promise.all(['panel', 'bar', 'rail', 'columns', 'search', 'views', 'sentence'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
-        loaded = true;
-        useStyle();
-      });
+      host.innerHTML = FS_STYLES.map(([name, label, text, code]) => `<section class="fs-style" id="style-${name}" aria-labelledby="style-${name}-h">
+          <h2 class="fs-head" id="style-${name}-h">${label} <code class="fs-attr">${name === 'dialog' ? 'no filter-style' : `filter-style="${name}"`}</code></h2>
+          <p class="fs-text">${escHtml(text)}</p>
+          <lfdln-data-viewer id="fs-list-${name}" label="Plants, ${label.toLowerCase()} style" page-size="5" layout-switch="icons"></lfdln-data-viewer>
+          <details class="fs-code"><summary>Show the code</summary>
+            <div class="fs-code-box"><button type="button" class="btn btn-ghost copy-code fs-copy">Copy</button><pre class="fs-pre" tabindex="0"><code>${escHtml(code)}</code></pre></div>
+          </details>
+        </section>`).join('');
       // phrase, phraseAny and plural are how each column reads in the sentence; other styles ignore them.
-      list.columns = [
+      const columns = [
         { key: 'name', label: 'Plant', sortable: true, searchable: true },
         { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true, phrase: '{values}', phraseAny: 'all plants',
           plural: { Perennial: 'perennials', Shrub: 'shrubs', Fern: 'ferns', Herb: 'herbs' } },
@@ -606,7 +625,7 @@ define();
         { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out',
           phrase: 'in stock only', phraseAny: 'including sold out' },
       ];
-      list.words = {
+      const words = {
         heading: 'Filter plants',
         showResults: (n) => `Show ${n} ${n === 1 ? 'plant' : 'plants'}`,
         showResultsUnknown: 'Show plants',
@@ -616,29 +635,40 @@ define();
         allResults: (m) => `All ${m} plants`,
         things: 'plants',
       };
-      list.rows = copy(PLANTS);
-      const tabs = [...host.querySelectorAll('[role="tab"]')];
-      const panel = host.querySelector('[role="tabpanel"]');
-      const pick = (i, focus) => {
-        tabs.forEach((t, j) => { t.setAttribute('aria-selected', String(i === j)); t.tabIndex = i === j ? 0 : -1; });
-        panel.setAttribute('aria-labelledby', tabs[i].id);
-        style = tabs[i].dataset.style;
-        useStyle();
+      // Each list has its own rows, so a filter in one section leaves the others alone.
+      const lists = FS_STYLES.map(([name]) => {
+        const list = host.querySelector(`#fs-list-${name}`);
+        list.columns = columns.map((c) => ({ ...c }));
+        list.words = words;
+        list.rows = copy(PLANTS);
         // Columns live in the table's headers (in cards view they are the panel), so show the table.
-        if (tabs[i].dataset.style === 'columns') list.layout = 'table';
-        if (focus) tabs[i].focus();
-      };
-      tabs.forEach((t, i) => {
-        t.addEventListener('click', () => pick(i, false));
-        t.addEventListener('keydown', (e) => {
-          const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
-          if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); pick(e.key === 'Home' ? 0 : tabs.length - 1, true); }
-          else if (step) { e.preventDefault(); pick((i + step + tabs.length) % tabs.length, true); }
-        });
+        if (name === 'columns') list.layout = 'table';
+        return [name, list];
       });
-      // An address ending in a style's name (#search, #views, #sentence) opens on that tab.
-      const asked = STYLES.findIndex(([name]) => `#${name}` === location.hash);
-      if (asked > 0) pick(asked, false);
+      for (const btn of host.querySelectorAll('.fs-copy')) {
+        let timer;
+        btn.addEventListener('click', () => {
+          navigator.clipboard?.writeText(btn.nextElementSibling.textContent).catch(() => {});
+          btn.textContent = 'Copied';
+          clearTimeout(timer);
+          timer = setTimeout(() => { btn.textContent = 'Copy'; }, 1400);
+        });
+      }
+      // Each style is a file of its own. The lists get their filter-style once the files have loaded:
+      // set before, the viewer would rightly warn that the style is not loaded.
+      Promise.all(['panel', 'bar', 'rail', 'columns', 'search', 'views', 'sentence'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(async () => {
+        for (const [name, list] of lists) if (name !== 'dialog') list.setAttribute('filter-style', name);
+        await Promise.all(lists.map(([, list]) => list.updateComplete));
+        // The sections are drawn by this script, after the browser looked for the address's #part.
+        // Old links name the style alone (#search); new ones the section (#style-search).
+        const goTo = () => {
+          const want = location.hash.replace(/^#(style-)?/, '');
+          const section = FS_STYLES.some(([name]) => name === want) && host.querySelector(`#style-${want}`);
+          if (section) requestAnimationFrame(() => section.scrollIntoView());
+        };
+        goTo();
+        addEventListener('hashchange', goTo);
+      });
     },
   },
 

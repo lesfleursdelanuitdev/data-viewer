@@ -468,10 +468,30 @@ html:has(.l-page) { scroll-behavior: smooth; }
   .is-wide .bench { grid-template-columns: minmax(0, 1fr); grid-template-areas: "text" "panel" "notes"; max-width: 1100px; }
   .is-wide .panel { position: static; }
 }
-/* The filter styles demo: its own tab bar picks the list's filter-style. */
-.fs-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: -8px 0 18px; box-shadow: inset 0 -1px 0 var(--color-neutral-800); }
-.fs-tabs .tab { height: 40px; font-size: 13px; }
-.fs-tabs .tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+/* The filter styles demo: one section per style, stacked, each with its own list and code. */
+.fs-style { scroll-margin-top: 72px; min-width: 0; }
+.fs-style + .fs-style { margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--color-neutral-800); }
+.fs-head:not(:where([class*="lfdln-"])) {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 6px; font-size: 20px; line-height: 1.3;
+}
+.fs-attr { font-family: var(--font-mono); font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--color-accent-300); }
+.fs-text:not(:where([class*="lfdln-"])) { margin: 0 0 16px; max-width: 64ch; font-size: 14px; line-height: 1.6; color: var(--color-neutral-300); text-wrap: pretty; }
+.fs-code { margin-top: 14px; }
+.fs-code summary {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; font-size: 13px; color: var(--color-accent-300);
+  border-radius: var(--radius-sm);
+}
+.fs-code summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.fs-code-box {
+  position: relative; margin-top: 8px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+}
+.fs-copy { position: absolute; top: 8px; right: 8px; z-index: 1; background: var(--color-surface); }
+.fs-pre {
+  margin: 0; padding: 18px 20px; overflow: auto; max-height: 480px; font-size: 12.5px; line-height: 1.65;
+  color: var(--color-neutral-200); tab-size: 2;
+}
+.fs-pre:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 
 /* — Reference: the package README's sections for this page — */
 .reference { max-width: 900px; margin-top: 64px; }
