@@ -168,7 +168,7 @@ are elements of their own too, for a list that isn't a data viewer. They take th
 | `<lfdln-filter-bar>` | One pill per section, each with a 240 px menu; a yes/no pill toggles | At once | `dist/filter-bar.standalone.js` | `@lesfleursdelanuitdev/filter/bar-element`, then `defineBar()` |
 | `<lfdln-filter-rail>` | Every section open, in a column | At once | `dist/filter-rail.standalone.js` | `@lesfleursdelanuitdev/filter/rail-element`, then `defineRail()` |
 
-Each standalone file has Lit inside (15 to 17 KB gzipped) and registers its element when it loads.
+Each standalone file has Lit inside (16 to 18 KB gzipped) and registers its element when it loads.
 `definePanel(name)`, `defineBar(name)` and `defineRail(name)` register it under another name; a
 name that is taken already is left alone. On phones (639 px or narrower) the panel and the bar's
 menus are bottom sheets, and every target is at least 44 px.
