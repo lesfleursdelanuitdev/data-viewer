@@ -6,7 +6,9 @@ import type { TemplateResult } from 'lit';
 import { clearKey, removeChip, setBool, setRange, toggleOption } from '../core/draft.ts';
 import { chipsOf } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { Chip, FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import type { Chip, FilterSection, FilterValue } from '../core/types.ts';
+import { rangeOf, rangePressed } from '../core/range.ts';
+import { rangeBoxes } from '../parts/range-boxes.ts';
 import { badge } from '../parts/badge.ts';
 import { chip, tag } from '../parts/chip.ts';
 import { addPartsStyles, addStyle } from '../parts/parts-css.ts';
@@ -56,9 +58,6 @@ export const panelCss = `
 type Choice = Extract<FilterSection, { kind: 'choice' }>;
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
-const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-
 function choice(kit: FilterKit, s: Choice, draft: FilterValue, on: FilterStyleHandlers, any: string): TemplateResult {
   const v = draft[s.key];
   const picked = Array.isArray(v) ? v : [];
@@ -92,8 +91,6 @@ function placePanel(pop: HTMLElement, bounds: FilterStyleView['bounds']): void {
 
 function range(kit: FilterKit, s: Range, draft: FilterValue, on: FilterStyleHandlers, v: FilterStyleView): TemplateResult {
   const r = rangeOf(draft[s.key]);
-  const from = (r.from ?? '').trim();
-  const to = (r.to ?? '').trim();
   const bars = histogramBars(s, r);
   const hist = bars.length
     ? kit.html`<div class="lfdln-filter-hist" aria-hidden="true">${bars.map((b) => kit.html`<span
@@ -101,21 +98,18 @@ function range(kit: FilterKit, s: Range, draft: FilterValue, on: FilterStyleHand
     : kit.nothing;
   if (s.ranges?.length) {
     return kit.html`${hist}<div class="lfdln-filter-panel-chips" role="group" aria-label=${s.label}>${s.ranges.map((p) => {
-      const pressed = (p.from ?? '') === from && (p.to ?? '') === to;
+      const pressed = rangePressed(p, r);
       return chip(kit, {
         label: p.label, count: p.count, on: pressed,
         onToggle: () => on.onDraft(pressed ? setRange(draft, s.key) : setRange(draft, s.key, p.from, p.to)),
       });
     })}</div>`;
   }
-  // No ranges: the From and To boxes, read together so typing in one never loses the other.
-  const typed = (e: Event) => {
-    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-panel-range')!.querySelectorAll('input');
-    on.onDraft(setRange(draft, s.key, a!.value, b!.value));
-  };
-  const box = (word: string, val: string | undefined) => kit.html`<label><span>${word}</span><input type="text"
-    autocomplete="off" inputmode=${s.type === 'date' ? kit.nothing : 'decimal'} .value=${kit.live(val ?? '')} @input=${typed}></label>`;
-  return kit.html`${hist}<div class="lfdln-filter-panel-range" role="group" aria-label=${s.label}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
+  // No ranges: the From and To boxes, drafted on every key.
+  return kit.html`${hist}${rangeBoxes(kit, {
+    cls: 'lfdln-filter-panel-range', section: s, range: r, words: v.words, label: s.label, on: 'input',
+    onRange: (a, b) => on.onDraft(setRange(draft, s.key, a, b)),
+  })}`;
 }
 
 function section(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {

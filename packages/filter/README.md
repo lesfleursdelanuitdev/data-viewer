@@ -224,6 +224,7 @@ inside. Each part takes the host's `kit` first.
 |---|---|
 | `checkRow`, `chip`, `tag`, `toggleSwitch`, `switchRow`, `seg`, `badge`, `divider` | The parts: a check row with a count, a chip that turns on and off, a removable chip, a switch (and a row with its label and hint), a segmented control, a count badge and a line |
 | `popover`, `returnFocus` | A popover under its anchor, or a bottom sheet on phones, closed by Esc and a click outside, one open per page; and putting focus back on the button that opened it |
+| `rangeBoxes`, `rangeOf`, `rangePressed`, `anySet`, `filteredCount` | A range's From and To boxes (drafted on every key, or applied when a box is left), a section's value as a range, whether a named range is the one set, and whether (or how many) sections narrow the list |
 | `menuKeys`, `radioKeys`, `tabStop` | Arrow keys in a menu of check rows and in a radio group, and a radio group's one tab stop |
 | `addPartsStyles`, `addStyle`, `partsCss`, `HOVER`, `ON_TEXT`, `SOFT` | The parts' look (once per page), injecting a style's own `<style>`, and the hover, "on" text and "on" background colours |
 | `clearKey`, `removeChip`, `setBool`, `setRange`, `toggleOption`, `chipsOf`, `isSet`, `sectionSummary`, `choiceOptions`, `matchingOptions`, `SEARCH_ABOVE`, `defaultFilterWords`, `later` | Reading and changing a value, the option lists and their search, the words, and waiting for a part to be in the page |

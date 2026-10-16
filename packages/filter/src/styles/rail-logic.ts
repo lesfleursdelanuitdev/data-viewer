@@ -1,8 +1,11 @@
 // The rail's pure helpers: no DOM, no Lit, tested with node:test.
 import { setRange, toggleOption } from '../core/draft.ts';
 import { choiceOptions } from '../core/options.ts';
-import { isSet } from '../core/summary.ts';
-import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import { rangeOf, rangePressed } from '../core/range.ts';
+import type { FilterSection, FilterValue } from '../core/types.ts';
+
+// Moved to core/summary.ts (bar and columns use it too); still exported from here.
+export { anySet } from '../core/summary.ts';
 
 /** Narrower than this (the list's own width, not the window's), the rail becomes the panel. */
 export const RAIL_MIN_WIDTH = 720;
@@ -14,9 +17,6 @@ export function railFallback(ctx: { width: number; layout: 'table' | 'cards' }):
 
 /** One check row in the rail, with the value a tick on it leaves. */
 export type RailRow = { value: string; label: string; count?: number; on: boolean; round: boolean; next: FilterValue };
-
-const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
 
 /**
  * A section's check rows: a choice's options (and any picked value it no longer offers, count 0),
@@ -34,10 +34,8 @@ export function railRows(section: FilterSection, value: FilterValue): RailRow[] 
   }
   if (section.kind === 'range' && section.ranges?.length) {
     const r = rangeOf(value[section.key]);
-    const from = (r.from ?? '').trim();
-    const to = (r.to ?? '').trim();
     return section.ranges.map((p) => {
-      const on = (p.from ?? '') === from && (p.to ?? '') === to;
+      const on = rangePressed(p, r);
       return {
         value: p.label, label: p.label, count: p.count, on, round: true,
         next: on ? setRange(value, section.key) : setRange(value, section.key, p.from, p.to),
@@ -45,9 +43,4 @@ export function railRows(section: FilterSection, value: FilterValue): RailRow[] 
     });
   }
   return [];
-}
-
-/** Whether any section narrows the list (the rail's Clear shows then). */
-export function anySet(sections: FilterSection[], value: FilterValue): boolean {
-  return sections.some((s) => isSet(s, value[s.key]));
 }

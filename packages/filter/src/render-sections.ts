@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { setBool, setRange, toggleOption } from './core/draft.ts';
-import type { FilterOption, FilterRange, FilterSection, FilterValue, FilterWords } from './core/types.ts';
+import type { FilterOption, FilterSection, FilterValue, FilterWords } from './core/types.ts';
+import { rangeOf, rangePressed } from './core/range.ts';
 import { check } from './icons.ts';
 import { matchingOptions, SEARCH_ABOVE } from './core/options.ts';
 
@@ -58,10 +59,7 @@ function choice(s: Extract<FilterSection, { kind: 'choice' }>, v: SectionView, h
 }
 
 function range(s: Extract<FilterSection, { kind: 'range' }>, v: SectionView, h: SectionHandlers): TemplateResult {
-  const raw = v.draft[s.key];
-  const r: FilterRange = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
-  const from = (r.from ?? '').trim();
-  const to = (r.to ?? '').trim();
+  const r = rangeOf(v.draft[s.key]);
   // Both boxes are read together, so typing in one never loses the other.
   const typed = (e: Event) => {
     const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-range')!.querySelectorAll('input');
@@ -72,7 +70,7 @@ function range(s: Extract<FilterSection, { kind: 'range' }>, v: SectionView, h: 
     @input=${typed}></label>`;
   return html`${s.ranges?.length
     ? html`<div class="lfdln-filter-pills" role="group" aria-label=${s.label}>${s.ranges.map((p) => {
-      const on = (p.from ?? '') === from && (p.to ?? '') === to;
+      const on = rangePressed(p, r);
       return html`<button type="button" class="lfdln-filter-pill" aria-pressed=${on ? 'true' : 'false'}
         @click=${() => h.onDraft(on ? setRange(v.draft, s.key) : setRange(v.draft, s.key, p.from, p.to))}>${p.label}</button>`;
     })}</div>`

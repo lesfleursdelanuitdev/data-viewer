@@ -1,4 +1,5 @@
-import type { Chip, FilterRange, FilterSection, FilterValue, FilterWords } from './types.ts';
+import { rangeOf } from './range.ts';
+import type { Chip, FilterSection, FilterValue, FilterWords } from './types.ts';
 
 export const defaultFilterWords: FilterWords = {
   filter: 'Filter',
@@ -38,8 +39,6 @@ export const defaultFilterWords: FilterWords = {
 type One = FilterValue[string] | undefined;
 
 const picked = (v: One): string[] => (Array.isArray(v) ? v : []);
-const rangeOf = (v: One): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
 const filled = (s: string | undefined): s is string => typeof s === 'string' && s.trim() !== '';
 
 /** Whether a section's value narrows anything (and has the right shape for its kind). */
@@ -48,6 +47,16 @@ export function isSet(section: FilterSection, v: One): boolean {
   if (section.kind === 'bool') return typeof v === 'boolean';
   const r = rangeOf(v);
   return filled(r.from) || filled(r.to);
+}
+
+/** How many sections narrow the list (a value no longer offered counts: it still filters). */
+export function filteredCount(sections: FilterSection[], value: FilterValue): number {
+  return sections.filter((s) => isSet(s, value[s.key])).length;
+}
+
+/** Whether any section narrows the list (a style's Clear all shows then). */
+export function anySet(sections: FilterSection[], value: FilterValue): boolean {
+  return sections.some((s) => isSet(s, value[s.key]));
 }
 
 // Formatters are slow to make; a currency or locale the browser doesn't know shows the number as typed.

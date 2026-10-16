@@ -6,14 +6,16 @@
 // row is off. Drawn with the host's Lit (the kit), so the add-on file carries no Lit of its own.
 import type { TemplateResult } from 'lit';
 import { clearKey, setBool, setRange, toggleOption } from '../core/draft.ts';
-import { isSet } from '../core/summary.ts';
+import { anySet, isSet } from '../core/summary.ts';
+import { rangeOf, rangePressed } from '../core/range.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import type { FilterSection } from '../core/types.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { divider } from '../parts/divider.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT, SOFT } from '../parts/parts-css.ts';
 import { menuKeys } from '../parts/menu-keys.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
+import { rangeBoxes } from '../parts/range-boxes.ts';
 import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
 
@@ -70,9 +72,6 @@ export const barCss = `
 type Choice = Extract<FilterSection, { kind: 'choice' }>;
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
-const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-
 function choiceRows(kit: FilterKit, s: Choice, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const picked = Array.isArray(v.value[s.key]) ? (v.value[s.key] as string[]) : [];
   const rows = menuOptions(s, v.value, searchable(s) ? v.optionSearch : '');
@@ -85,26 +84,20 @@ function choiceRows(kit: FilterKit, s: Choice, v: FilterStyleView, on: FilterSty
 
 function rangeRows(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const r = rangeOf(v.value[s.key]);
-  const from = (r.from ?? '').trim();
-  const to = (r.to ?? '').trim();
   if (s.ranges?.length) {
     return kit.html`<div class="lfdln-filter-bar-pill-list" role="menu" aria-label=${s.label}>${s.ranges.map((p) => {
-      const pressed = (p.from ?? '') === from && (p.to ?? '') === to;
+      const pressed = rangePressed(p, r);
       return checkRow(kit, {
         label: p.label, count: p.count, on: pressed, round: true,
         onToggle: () => on.onApplyNow(pressed ? setRange(v.value, s.key) : setRange(v.value, s.key, p.from, p.to)),
       });
     })}</div>`;
   }
-  // No ranges: the From and To boxes, applied when one is left or Enter is pressed (not on every
-  // key), and read together so a change in one never loses the other.
-  const typed = (e: Event) => {
-    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-bar-pill-range')!.querySelectorAll('input');
-    on.onApplyNow(setRange(v.value, s.key, a!.value.trim(), b!.value.trim()));
-  };
-  const box = (word: string, val: string | undefined) => kit.html`<label><span>${word}</span><input type="text"
-    autocomplete="off" inputmode=${s.type === 'date' ? kit.nothing : 'decimal'} .value=${kit.live(val ?? '')} @change=${typed}></label>`;
-  return kit.html`<div class="lfdln-filter-bar-pill-range" role="group" aria-label=${s.label}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
+  // No ranges: the From and To boxes, applied when one is left or Enter is pressed (not on every key).
+  return rangeBoxes(kit, {
+    cls: 'lfdln-filter-bar-pill-range', section: s, range: r, words: v.words, label: s.label, on: 'change',
+    onRange: (a, b) => on.onApplyNow(setRange(v.value, s.key, a, b)),
+  });
 }
 
 const chevron = (kit: FilterKit) => kit.svg`<svg viewBox="0 0 256 256" width="11" height="11" aria-hidden="true"><path d="M64 96l64 64 64-64"/></svg>`;
@@ -164,7 +157,7 @@ function togglePill(kit: FilterKit, s: Extract<FilterSection, { kind: 'bool' }>,
 }
 
 function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult {
-  const any = v.sections.some((s) => isSet(s, v.value[s.key]));
+  const any = anySet(v.sections, v.value);
   // Clear all leaves the row; focus goes to the first pill, which stays.
   const clearAll = (e: Event) => {
     (e.currentTarget as Element).closest('.lfdln-filter-bar-row')?.querySelector<HTMLElement>('.lfdln-filter-bar-pill')?.focus();

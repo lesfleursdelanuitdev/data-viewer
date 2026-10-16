@@ -1,7 +1,6 @@
 // The columns style's pure helpers: no DOM, no Lit, tested with node:test.
 import { setBool } from '../core/draft.ts';
 import { choiceOptions, matchingOptions, SEARCH_ABOVE } from '../core/options.ts';
-import { isSet } from '../core/summary.ts';
 import type { FilterSection, FilterValue, FilterWords } from '../core/types.ts';
 import { railRows, type RailRow } from './rail-logic.ts';
 
@@ -39,10 +38,8 @@ export function menuRoom(anchor: { top: number; bottom: number }, vh: number): {
   return { up, max: Math.max(120, Math.min(320, up ? above : below)) };
 }
 
-/** How many sections narrow the list (a value no longer offered counts: it still filters). */
-export function filteredCount(sections: FilterSection[], value: FilterValue): number {
-  return sections.filter((s) => isSet(s, value[s.key])).length;
-}
+// Moved to core/summary.ts (bar and rail use anySet beside it); still exported from here.
+export { filteredCount } from '../core/summary.ts';
 
 /**
  * The line above the table: "5 of 12 · 1 column filtered"; "All 12 results" with nothing set;

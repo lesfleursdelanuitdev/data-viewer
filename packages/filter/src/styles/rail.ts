@@ -7,15 +7,17 @@
 // kit), so the add-on file carries no Lit of its own.
 import type { TemplateResult } from 'lit';
 import { removeChip, setBool, setRange } from '../core/draft.ts';
-import { chipsOf } from '../core/summary.ts';
+import { anySet, chipsOf } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { Chip, FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import type { Chip, FilterSection } from '../core/types.ts';
+import { rangeOf } from '../core/range.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { tag } from '../parts/chip.ts';
 import { addPartsStyles, addStyle, HOVER } from '../parts/parts-css.ts';
 import { radioKeys, tabStop } from '../parts/radios.ts';
+import { rangeBoxes } from '../parts/range-boxes.ts';
 import { switchRow } from '../parts/switch.ts';
-import { anySet, railFallback, railRows } from './rail-logic.ts';
+import { railFallback, railRows } from './rail-logic.ts';
 
 
 export const railCss = `
@@ -53,20 +55,13 @@ export const railCss = `
 
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
-const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-
 // No named ranges: the From and To boxes, applied when one is left or Enter is pressed (not on
 // every key), and read together so a change in one never loses the other.
-function rangeBoxes(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers, labelId: string): TemplateResult {
-  const r = rangeOf(v.value[s.key]);
-  const typed = (e: Event) => {
-    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-rail-range')!.querySelectorAll('input');
-    on.onApplyNow(setRange(v.value, s.key, a!.value.trim(), b!.value.trim()));
-  };
-  const box = (word: string, val: string | undefined) => kit.html`<label><span>${word}</span><input type="text"
-    autocomplete="off" inputmode=${s.type === 'date' ? kit.nothing : 'decimal'} .value=${kit.live(val ?? '')} @change=${typed}></label>`;
-  return kit.html`<div class="lfdln-filter-rail-range" role="group" aria-labelledby=${labelId}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
+function boxes(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers, labelId: string): TemplateResult {
+  return rangeBoxes(kit, {
+    cls: 'lfdln-filter-rail-range', section: s, range: rangeOf(v.value[s.key]), words: v.words, labelledBy: labelId, on: 'change',
+    onRange: (a, b) => on.onApplyNow(setRange(v.value, s.key, a, b)),
+  });
 }
 
 function group(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
@@ -87,7 +82,7 @@ function group(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterS
       tabIndex: one ? tabStop(rows.map((x) => x.on), i) : undefined,
       onToggle: () => on.onApplyNow(r.next),
     }))
-    : rangeBoxes(kit, s, v, on, lid);
+    : boxes(kit, s, v, on, lid);
   return kit.html`<div class="lfdln-filter-rail-group" role=${one ? 'radiogroup' : 'group'} aria-labelledby=${lid}
     @keydown=${one ? radioKeys : kit.nothing}><div class="lfdln-filter-rail-label" id=${lid}>${s.label}</div>${body}</div>`;
 }

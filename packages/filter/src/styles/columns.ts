@@ -8,9 +8,10 @@
 // falls back to `panel`. Drawn with the host's Lit (the kit), so the add-on file carries no Lit.
 import type { TemplateResult } from 'lit';
 import { clearKey, setRange } from '../core/draft.ts';
-import { isSet } from '../core/summary.ts';
+import { filteredCount, isSet } from '../core/summary.ts';
+import { rangeOf } from '../core/range.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+import type { FilterSection } from '../core/types.ts';
 import { later } from '../place.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { divider } from '../parts/divider.ts';
@@ -18,8 +19,9 @@ import { menuKeys } from '../parts/menu-keys.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT } from '../parts/parts-css.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { radioKeys, tabStop } from '../parts/radios.ts';
+import { rangeBoxes } from '../parts/range-boxes.ts';
 import { pillName, searchable } from './bar-logic.ts';
-import { columnRows, columnsFallback, columnsSummary, filteredCount, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
+import { columnRows, columnsFallback, columnsSummary, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
 
 
 export const columnsCss = `
@@ -75,9 +77,6 @@ export const columnsCss = `
 
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
-const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
-  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
-
 // The menu is position: fixed, so the table's scrolling box never cuts it off. It goes under its
 // anchor (the funnel's wrapper), or above it near the window's bottom edge, from the anchor's
 // left edge or, for the last two columns, ending at its right edge. It follows the anchor when
@@ -114,15 +113,11 @@ function placeMenu(pop: HTMLElement, end: boolean): void {
 
 // No named ranges: the From and To boxes, applied when one is left or Enter is pressed, and read
 // together so a change in one never loses the other.
-function rangeBoxes(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers, lid: string): TemplateResult {
-  const r = rangeOf(v.value[s.key]);
-  const typed = (e: Event) => {
-    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-col-range')!.querySelectorAll('input');
-    on.onApplyNow(setRange(v.value, s.key, a!.value.trim(), b!.value.trim()));
-  };
-  const box = (word: string, val: string | undefined) => kit.html`<label><span>${word}</span><input type="text"
-    autocomplete="off" inputmode=${s.type === 'date' ? kit.nothing : 'decimal'} .value=${kit.live(val ?? '')} @change=${typed}></label>`;
-  return kit.html`<div class="lfdln-filter-col-range" role="group" aria-labelledby=${lid}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
+function boxes(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers, lid: string): TemplateResult {
+  return rangeBoxes(kit, {
+    cls: 'lfdln-filter-col-range', section: s, range: rangeOf(v.value[s.key]), words: v.words, labelledBy: lid, on: 'change',
+    onRange: (a, b) => on.onApplyNow(setRange(v.value, s.key, a, b)),
+  });
 }
 
 // Several at once: check boxes in a group. One at a time (round boxes): radios in a radiogroup,
@@ -131,7 +126,7 @@ function rows(kit: FilterKit, s: FilterSection, v: FilterStyleView, on: FilterSt
   const list = columnRows(s, v.value, v.words, searchable(s) ? v.optionSearch : '');
   if (!list.length) {
     return s.kind === 'range' && !s.ranges?.length
-      ? rangeBoxes(kit, s, v, on, lid)
+      ? boxes(kit, s, v, on, lid)
       : kit.html`<p class="lfdln-filter-col-empty">${v.words.nothingMatches}</p>`;
   }
   const one = list[0]!.round;
