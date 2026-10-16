@@ -5,7 +5,7 @@
 // all" ends the row while anything is set. The pills are the applied filters, so the host's chips
 // row is off. Drawn with the host's Lit (the kit), so the add-on file carries no Lit of its own.
 import type { TemplateResult } from 'lit';
-import { setBool, setRange, toggleOption } from '../core/draft.ts';
+import { clearKey, setBool, setRange, toggleOption } from '../core/draft.ts';
 import { isSet } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
 import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
@@ -120,7 +120,7 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
   const clear = (e: Event) => {
     returnFocus(e.currentTarget as Element);
     on.onMenu(null);
-    on.onApplyNow(setBool(v.value, s.key, undefined));
+    on.onApplyNow(clearKey(v.value, s.key));
   };
   const menu = open
     ? popover(kit, {

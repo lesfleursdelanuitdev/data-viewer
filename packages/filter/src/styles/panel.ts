@@ -3,7 +3,7 @@
 // many rows Apply would leave. On phones the same content is a bottom sheet. Drawn with the
 // host's Lit (the kit), so the add-on file carries no Lit of its own.
 import type { TemplateResult } from 'lit';
-import { removeChip, setBool, setRange, toggleOption } from '../core/draft.ts';
+import { clearKey, removeChip, setBool, setRange, toggleOption } from '../core/draft.ts';
 import { chipsOf } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
 import type { Chip, FilterRange, FilterSection, FilterValue } from '../core/types.ts';
@@ -69,7 +69,7 @@ function choice(kit: FilterKit, s: Choice, draft: FilterValue, on: FilterStyleHa
       label: s.label,
       options: [{ value: '', label: any }, ...options.map((o) => ({ value: o.value, label: o.label ?? o.value }))],
       value: picked[0] ?? '',
-      onPick: (x) => on.onDraft(x ? { ...draft, [s.key]: [x] } : setBool(draft, s.key, undefined)),
+      onPick: (x) => on.onDraft(x ? { ...draft, [s.key]: [x] } : clearKey(draft, s.key)),
     });
   }
   return kit.html`<div class="lfdln-filter-panel-chips" role="group" aria-label=${s.label}>${options.map((o) => chip(kit, {

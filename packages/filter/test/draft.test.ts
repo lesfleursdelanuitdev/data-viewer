@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clearAll, normalise, normaliseRange, removeChip, setBool, setRange, toggleOption } from '../src/core/draft.ts';
+import { clearAll, clearKey, normalise, normaliseRange, removeChip, setBool, setRange, toggleOption } from '../src/core/draft.ts';
 import type { FilterSection, FilterValue } from '../src/core/types.ts';
 
 const multi: FilterSection = { key: 'status', label: 'Status', kind: 'choice', options: [{ value: 'a' }, { value: 'b' }] };
@@ -31,6 +31,15 @@ test('removeChip: drops one option, and the key with the last one', () => {
   assert.deepEqual(removeChip(v, { key: 'price', label: 'Price: From 1' }), { status: ['a', 'b'], organic: true });
   assert.deepEqual(removeChip(v, { key: 'organic', label: 'Organic: Yes' }), { status: ['a', 'b'], price: { from: '1' } });
   assert.deepEqual(v, { status: ['a', 'b'], price: { from: '1' }, organic: true });
+});
+
+test('clearKey drops a key of any kind and leaves the value it was given alone', () => {
+  const v = { kind: ['Herb'], price: { from: '5' }, stock: true };
+  assert.deepEqual(clearKey(v, 'kind'), { price: { from: '5' }, stock: true });
+  assert.deepEqual(clearKey(v, 'price'), { kind: ['Herb'], stock: true });
+  assert.deepEqual(clearKey(v, 'stock'), { kind: ['Herb'], price: { from: '5' } });
+  assert.deepEqual(clearKey(v, 'nope'), v);
+  assert.deepEqual(v, { kind: ['Herb'], price: { from: '5' }, stock: true });
 });
 
 test('setRange, setBool and clearAll', () => {

@@ -1081,6 +1081,48 @@ test.describe('columns', () => {
     }).toBe(6);
   });
 
+  test('closing the menu takes its scroll and resize listeners away at once', async ({ page }) => {
+    // Count the window's live scroll and resize listeners.
+    await page.addInitScript(() => {
+      const live = new Set<unknown>();
+      const w = window as unknown as { liveListeners: () => number };
+      const add = window.addEventListener.bind(window);
+      const remove = window.removeEventListener.bind(window);
+      const key = (t: string, f: unknown, o: unknown) => `${t}|${typeof o === 'boolean' ? o : Boolean((o as { capture?: boolean } | undefined)?.capture)}|${String(f)}`;
+      const ids = new WeakMap<object, number>();
+      let n = 0;
+      const id = (f: unknown) => (typeof f === 'object' || typeof f === 'function') && f ? (ids.get(f) ?? (ids.set(f, ++n), n)) : 0;
+      window.addEventListener = ((t: string, f: EventListenerOrEventListenerObject, o?: boolean | AddEventListenerOptions) => {
+        if (t === 'scroll' || t === 'resize') live.add(key(t, id(f), o));
+        add(t, f, o);
+      }) as typeof window.addEventListener;
+      window.removeEventListener = ((t: string, f: EventListenerOrEventListenerObject, o?: boolean | EventListenerOptions) => {
+        live.delete(key(t, id(f), o));
+        remove(t, f, o);
+      }) as typeof window.removeEventListener;
+      w.liveListeners = () => live.size;
+    });
+    await open(page);
+    await colsToTop(page);
+    const count = () => page.evaluate(() => (window as unknown as { liveListeners: () => number }).liveListeners());
+    for (const close of ['Escape', 'funnel', 'clear'] as const) {
+      if (close === 'clear') {
+        await page.goto('/filter-styles.html?columns.f.kind=Herb');
+        await colsToTop(page);
+      }
+      const base = await count();
+      await funnel(page, 'Kind').click();
+      await expect(colMenu(page)).toBeVisible();
+      expect(await count()).toBe(base + 2);
+      if (close === 'Escape') await page.keyboard.press('Escape');
+      else if (close === 'funnel') await funnel(page, 'Kind').click();
+      else await colMenu(page).getByRole('button', { name: 'Clear this column' }).click();
+      await expect(colMenu(page)).toHaveCount(0);
+      // No scroll or resize has happened since: the listeners are gone anyway.
+      await expect.poll(count).toBe(base);
+    }
+  });
+
   test('filtered headers get the dot; filtered body cells get dv-filtered', async ({ page }) => {
     await open(page, '?columns.f.kind=Herb&columns.f.stock=yes');
     await expect(colRows(page)).toHaveCount(4);

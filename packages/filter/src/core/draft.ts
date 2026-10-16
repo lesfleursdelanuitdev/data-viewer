@@ -35,6 +35,11 @@ export function setRange(value: FilterValue, key: string, from?: string, to?: st
   return r.from === undefined && r.to === undefined ? without(value, key) : { ...value, [key]: r };
 }
 
+/** Drops a key, whatever kind of section it belongs to ("Clear kind", "Clear this column"). */
+export function clearKey(value: FilterValue, key: string): FilterValue {
+  return without(value, key);
+}
+
 /** Yes (true), no (false) or any (undefined). */
 export function setBool(value: FilterValue, key: string, b: boolean | undefined): FilterValue {
   return b === undefined ? without(value, key) : { ...value, [key]: b };

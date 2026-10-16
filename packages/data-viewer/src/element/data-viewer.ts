@@ -1089,7 +1089,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // A style drawn beside the list (rail) gets a column of its own; the rest go in .dv-main.
     const side = Boolean(styled && this._fStyle!.side);
     // A style drawn in the table's headers (columns) has nothing in the bar, and keeps the
-    // headers even with no rows, so a pick that leaves nothing can be undone there.
+    // headers even with no rows, so a pick that leaves nothing can be undone there. The layout
+    // test looks like a repeat of columns' own cards fallback, but `_pickStyle` (in willUpdate)
+    // only applies a fallback a style declares: a header-hook style without one has no headers
+    // in cards view, so it is drawn in the bar like any other style.
     const inHead = Boolean(styled && this._fStyle!.header && this.layout !== 'cards');
     const main = html`
       ${this.compact ? nothing : this._bar(w, sections, styled, side || inHead)}

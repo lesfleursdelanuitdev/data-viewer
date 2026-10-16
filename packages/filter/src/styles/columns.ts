@@ -7,7 +7,7 @@
 // says "5 of 12 · 1 column filtered", with a ghost "Clear all". In cards view (no headers) it
 // falls back to `panel`. Drawn with the host's Lit (the kit), so the add-on file carries no Lit.
 import type { TemplateResult } from 'lit';
-import { setBool, setRange } from '../core/draft.ts';
+import { clearKey, setRange } from '../core/draft.ts';
 import { isSet } from '../core/summary.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
 import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
@@ -80,25 +80,33 @@ const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
   v && typeof v === 'object' && !Array.isArray(v) ? v : {};
 
 // The menu is position: fixed, so the table's scrolling box never cuts it off. It goes under its
-// anchor (the funnel's wrapper), or above it near the window's bottom edge, from the anchor's left
-// edge or, for the last two columns, ending at its right edge, and follows the anchor when anything scrolls or the window resizes. The
-// listeners go with the first event after the menu has closed.
+// anchor (the funnel's wrapper), or above it near the window's bottom edge, from the anchor's
+// left edge or, for the last two columns, ending at its right edge. It follows the anchor when
+// anything scrolls or the window resizes. The anchor keeps `lfdlnMenuOff`, which takes the
+// listeners away; `header` calls it as soon as the menu is closed or the header goes away.
+type Anchor = HTMLElement & { lfdlnMenuOff?: () => void };
+
 function placeMenu(pop: HTMLElement, end: boolean): void {
+  const anchor = pop.parentElement as Anchor;
   const p = pop as HTMLElement & { lfdlnAt?: () => void };
   if (!p.lfdlnAt) {
     const at = () => {
-      if (!pop.isConnected) {
-        removeEventListener('scroll', at, true);
-        removeEventListener('resize', at);
-        return;
-      }
-      const a = pop.parentElement!.getBoundingClientRect();
+      if (!pop.isConnected) return off();
+      const a = anchor.getBoundingClientRect();
       const room = menuRoom(a, innerHeight);
       pop.style.maxHeight = `${room.max}px`;
       pop.style.top = `${room.up ? a.top - 6 - pop.offsetHeight : a.bottom + 6}px`;
       pop.style.left = `${menuLeft(a, pop.offsetWidth, document.documentElement.clientWidth, end)}px`;
     };
+    const off = () => {
+      removeEventListener('scroll', at, true);
+      removeEventListener('resize', at);
+      delete p.lfdlnAt;
+      if (anchor.lfdlnMenuOff === off) delete anchor.lfdlnMenuOff;
+    };
+    anchor.lfdlnMenuOff?.();
     p.lfdlnAt = at;
+    anchor.lfdlnMenuOff = off;
     addEventListener('scroll', at, { capture: true, passive: true });
     addEventListener('resize', at);
   }
@@ -149,7 +157,7 @@ function header(s: FilterSection, place: { index: number; of: number }, v: Filte
   const clear = (e: Event) => {
     returnFocus(e.currentTarget as Element);
     on.onMenu(null);
-    on.onApplyNow(setBool(v.value, s.key, undefined));
+    on.onApplyNow(clearKey(v.value, s.key));
   };
   const menu = open
     ? popover(kit, {
@@ -165,9 +173,19 @@ function header(s: FilterSection, place: { index: number; of: number }, v: Filte
         : kit.nothing}`,
     })
     : kit.nothing;
-  // Rows coming and going move the header; an open menu follows it after each drawing.
+  // Rows coming and going move the header; an open menu follows it after each drawing. Once the
+  // menu is closed (a drawing with it shut) or the header is gone (the ref is let go), the
+  // listeners go too.
+  let mine: Anchor | undefined;
   const follow = (el?: Element) => {
-    if (el && open && !v.phone) later(() => {
+    if (!el) {
+      const a = mine;
+      if (a) later(() => { if (!a.isConnected) a.lfdlnMenuOff?.(); });
+      return;
+    }
+    mine = el as Anchor;
+    if (!open || v.phone) return mine.lfdlnMenuOff?.();
+    later(() => {
       const pop = el.querySelector<HTMLElement>(':scope > div.lfdln-filter-popover');
       if (pop) placeMenu(pop, end);
     });
