@@ -795,8 +795,8 @@ key in `except`; the bar then reads "53 selected".
 
 - **Browser mode** (every row is on hand): `selected`, `dv-select`'s `keys`, and `dv-batch`'s
   `keys` and `rows`, are every row that matches the search, filters and view, minus `except`.
-- **Server mode**: the list only knows the pages it has shown, so `keys` and `rows` are the ticked
-  rows from the pages seen. Act on everything that matches `detail.query`, minus `detail.except`,
+- **Server mode**: the list only knows the pages it has shown, so `dv-select`'s `keys` and
+  `dv-batch`'s `keys` and `rows` are the ticked rows from the pages seen. Act on everything that matches `detail.query`, minus `detail.except`,
   on your server.
 
 ### Batch actions
@@ -841,7 +841,8 @@ export default {
 ### On phones
 
 At 640 px or less the selection bar is fixed to the bottom of the screen (60 px tall, plus the
-safe area), with 44 px buttons and ✕ first. It holds the count, the first action (cut with "…"
+safe area), with 44 px buttons and ✕ first. It holds the count (a long one is cut to 2 lines with
+"…"; the bar's name keeps the full text), the first action (cut with "…"
 past 40% of the screen) and a ⋯ with all the other actions; with one action there is no ⋯. The
 list gets room under its end, so the bar never covers the last row or the pages. The select-all
 line sits at the top of the list, under where the bar was. Each box's target is at least 44 px.

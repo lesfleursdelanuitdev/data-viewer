@@ -200,7 +200,7 @@ test.describe('with a probe add-on', () => {
     expect(warnings.filter((w) => w === NO_KEY)).toEqual([]);
   });
 
-  test('the built-in card draws headStart first and cls on the card', async ({ page }) => {
+  test('the built-in card draws headStart first and className on the card', async ({ page }) => {
     await openProbe(page);
     const card = page.locator('#probecards li.lfdln-card').first();
     const box = card.locator('.lfdln-card-head > .probe-box');

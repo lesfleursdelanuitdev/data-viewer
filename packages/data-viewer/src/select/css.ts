@@ -50,9 +50,9 @@ export const selectCss: string = `
   :where(.dv-table) :where(.dv-select-cell) { width: 44px; min-width: 44px; padding: 0; text-align: center; }
   :where(.dv-select-hit) { min-width: 44px; min-height: 44px; }
   :where(.lfdln-card-head) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
-  /* Fixed to the bottom of the screen, one line, above the list; the list gets room under its
-     end so nothing stays hidden. It holds ✕, the count, one action and ⋯; it scrolls sideways
-     itself only when even those don't fit (long words). */
+  /* Fixed to the bottom of the screen, 60 px tall, above the list; the list gets room under its
+     end so nothing stays hidden. It holds ✕, the count (at most 2 lines), one action and ⋯; it
+     scrolls sideways itself only when even those don't fit (long words). */
   :where(.dv-select-bar) {
     position: fixed; inset: auto 0 0 0; z-index: 10; min-height: 60px; padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box; margin: 0; flex-wrap: nowrap; overflow-x: auto; border-width: 1px 0 0; border-radius: 0;
