@@ -31,6 +31,7 @@ export type SelectView = {
   actions: MenuItem[]; // batchActions
   words: Partial<SelectWords>; // the page's words; the add-on puts its defaults under them
   num: (n: number) => string; // a number in the list's locale
+  rowKey: string | ((row: never) => string) | undefined; // the list's row-key, for the add-on's missing-key warning
   uid: string; // unique on the page, for ids
 };
 

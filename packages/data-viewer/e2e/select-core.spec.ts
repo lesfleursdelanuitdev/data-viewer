@@ -191,12 +191,13 @@ test.describe('with a probe add-on', () => {
     await expect(page.locator('#probe tbody tr.dv-selected')).toHaveCount(19);
   });
 
-  test('a row without a key gets a disabled box, and one warning', async ({ page }) => {
+  // The warning is the real add-on's (it is given where the boxes are drawn): select.spec.ts.
+  test('a row without a key gets a disabled box, and the viewer itself says nothing', async ({ page }) => {
     const warnings = await openProbe(page);
     await expect(page.locator('#probe .probe-box[aria-label="No id"]')).toBeDisabled();
     await expect(page.locator('#probe .probe-box[aria-label="Rose 1"]')).toBeEnabled();
     await page.waitForTimeout(100);
-    expect(warnings.filter((w) => w === NO_KEY)).toHaveLength(1);
+    expect(warnings.filter((w) => w === NO_KEY)).toEqual([]);
   });
 
   test('the built-in card draws headStart first and cls on the card', async ({ page }) => {
@@ -206,7 +207,8 @@ test.describe('with a probe add-on', () => {
     await expect(box).toHaveCount(1);
     expect(await card.locator('.lfdln-card-head').evaluate((h) => h.firstElementChild?.className)).toBe('probe-box');
     await expect(card).toHaveAttribute('class', 'lfdln-card');
-    await box.check();
+    // The probe's box has no CSS of its own, so the title's ::after covers it: click it directly.
+    await box.evaluate((b: HTMLInputElement) => b.click());
     await expect(card).toHaveAttribute('class', 'lfdln-card dv-selected');
     await expect(page.locator('#probecards .probe-bar')).toHaveText('1');
   });

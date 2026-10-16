@@ -96,7 +96,6 @@ const FILTER_PHONE = '(max-width: 639px)'; // the filter's bottom sheet, as in t
 const DEBOUNCE_MS = 300;
 const warnedKeys = new Set<string>(); // unknown config keys, warned about once per page
 const warnedIds = new Set<string>(); // card-template ids not found, warned about once per page
-let warnedKey = false; // rows without a key, warned about once per page
 
 // What the built-in confirm dialog is asking about.
 type Ask<T> = { item: MenuItem; row: T; button: HTMLElement };
@@ -441,6 +440,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._unStyle?.();
     this._unStyle = undefined;
     this._unSel?.();
+    this._unSel = undefined;
     this._ro?.disconnect();
     this._ro = this._roOn = undefined;
     this._fDraft = null;
@@ -620,7 +620,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const s = this._sel;
     return {
       count: countOf(s, matching), all: s.all, page: pageState(s, keys), pageCount: keys.length, matching,
-      offerAll: false, actions: this.batchActions ?? [], words: this.words, num: (n) => this._num(n), uid: `${this._uid}-x`,
+      offerAll: false, actions: this.batchActions ?? [], words: this.words, rowKey: this.rowKey, num: (n) => this._num(n), uid: `${this._uid}-x`,
     };
   }
 
@@ -1263,10 +1263,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (addon) {
       addon.styles();
       const keys = this._keys(rows);
-      if (keys.length < rows.length && !warnedKey) {
-        warnedKey = true;
-        console.warn(`lfdln-data-viewer: some rows have no key (row-key="${typeof this.rowKey === 'function' ? 'function' : this.rowKey || 'id'}"), so they can't be ticked.`);
-      }
       const v = this._selView(keys, this._adapted && this._mode === 'unknown' ? null : total);
       this._selNow = { a: addon, v, on: this._selOn(keys) };
       if (v.count) selBar = addon.bar(v, this._selNow.on, selectKit);
