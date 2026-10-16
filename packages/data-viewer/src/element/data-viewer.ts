@@ -498,10 +498,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // A new search, "Search in", filters or view clears the selection (sorting and paging don't).
     const oldQ = changed.get('_q') as AddressQuery | undefined;
     if (oldQ && this._sel !== NONE && scopeOf(oldQ) !== scopeOf(this._q)) this._setSel(NONE);
-    // New rows: in server mode they join the rows seen (and "all matching" ticks them); in browser
-    // mode keys whose rows are gone are dropped, with no event.
+    // New rows: in server mode, under "all matching", they join the rows seen (and are ticked); in
+    // browser mode keys whose rows are gone are dropped, with no event.
     if (changed.has('rows')) {
-      if (this._server) this._sel = seen(this._sel, this._keys(this.rows ?? []));
+      if (this._server) { if (this.selectable && this._sel.all) this._sel = seen(this._sel, this._keys(this.rows ?? [])); }
       else if (this._sel !== NONE) this._setSel(keep(this._sel, new Set(this._keys(this.rows ?? []))), false);
     }
     // rememberAs is often set after the element connects; the stored choices still win.
@@ -603,7 +603,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
     this._sel = next;
     if (this._server && next !== NONE) this._keys(this.rows ?? []);
-    if (fire) this.dispatchEvent(new CustomEvent('dv-select', { detail: { keys: [...next.keys], all: next.all, except: [...next.except] }, bubbles: true, composed: true }));
+    if (fire) this.dispatchEvent(new CustomEvent('dv-select', { detail: { keys: this._selKeys(next), all: next.all, except: [...next.except] }, bubbles: true, composed: true }));
   }
 
   // The rows' keys (rows without one left out). In server mode, while anything is ticked, a
@@ -621,14 +621,14 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   // What the add-on draws from, for this page's tickable keys. The select-all line: never in a
   // compact list or without a known total; offered once the page is ticked and more rows match
-  // than it holds, and kept while "all matching" is on.
-  private _selView(keys: string[], matching: number | null): SelectView {
+  // than it holds (all its rows, those without a key too), and kept while "all matching" is on.
+  private _selView(keys: string[], rows: number, matching: number | null): SelectView {
     const s = this._sel;
     const page = pageState(s, keys);
     return {
       count: countOf(s, matching), all: s.all, page, pageCount: keys.length, matching,
-      offerAll: !this.compact && matching !== null && (s.all || (page === 'all' && matching > keys.length)),
-      actions: this.batchActions ?? [], words: this.words, rowKey: this.rowKey, num: (n) => this._num(n), uid: `${this._uid}-x`,
+      offerAll: !this.compact && matching !== null && (s.all || (page === 'all' && matching > rows)),
+      actions: this.batchActions ?? [], words: this.words ?? {}, rowKey: this.rowKey, num: (n) => this._num(n), uid: `${this._uid}-x`,
     };
   }
 
@@ -1282,7 +1282,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     if (addon) {
       addon.styles();
       const keys = this._keys(rows);
-      const v = this._selView(keys, this._adapted && this._mode === 'unknown' ? null : total);
+      const v = this._selView(keys, rows.length, this._adapted && this._mode === 'unknown' ? null : total);
       this._selNow = { a: addon, v, on: this._selOn(keys) };
       if (v.count) selBar = addon.bar(v, this._selNow.on, selectKit);
     }

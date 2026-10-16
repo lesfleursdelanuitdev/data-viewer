@@ -394,7 +394,10 @@ test.describe('select all', () => {
     await expect(line).toHaveText('All 54 are selected. Clear selection');
     await expect(bar(page).locator('.dv-select-count')).toHaveText('54 selected');
     expect(await page.locator('#table').evaluate((t) => (t as HTMLElement & { selectedAll: boolean }).selectedAll)).toBe(true);
-    expect((await events(page, 'dv-select')).at(-1)!.detail).toEqual({ keys: expect.any(Array), all: true, except: [] });
+    // dv-select's keys are `selected`'s: every matching row's.
+    const all = await page.locator('#table').evaluate((t) => (t as HTMLElement & { selected: string[] }).selected);
+    expect(all).toEqual(Array.from({ length: 54 }, (_, i) => String(i + 1)));
+    expect((await events(page, 'dv-select')).at(-1)!.detail).toEqual({ keys: all, all: true, except: [] });
   });
 
   test('unticking after all matching records it in except', async ({ page }) => {
@@ -403,6 +406,13 @@ test.describe('select all', () => {
     await page.locator('#table .dv-select-all').getByRole('button', { name: 'Select all 54 matching' }).click();
     await rowBox(page, 'table', 'Fern 1').uncheck();
     await expect(bar(page).locator('.dv-select-count')).toHaveText('53 selected');
+    // No longer "All 54 are selected.": only the way out.
+    await expect(page.locator('#table .dv-select-all')).toHaveText('Clear selection');
+    const after = (await events(page, 'dv-select')).at(-1)!.detail as { keys: string[]; all: boolean; except: string[] };
+    expect(after.all).toBe(true);
+    expect(after.except).toEqual(['2']);
+    expect(after.keys).toHaveLength(53);
+    expect(after.keys).not.toContain('2');
     await bar(page).getByRole('button', { name: 'Export', exact: true }).click();
     const [b] = await batches(page);
     expect(b!.all).toBe(true);
@@ -437,6 +447,19 @@ test.describe('select all', () => {
     await pageBox(page, 'compact').click();
     await expect(page.locator('#compact .dv-select-count')).toHaveText('5 selected');
     await expect(page.locator('#compact .dv-select-all')).toHaveCount(0);
+  });
+
+  test('no line when the page holds every matching row, some of them without a key', async ({ page }) => {
+    await open(page);
+    // Rose 1 has no key: the page holds all 9 matching rows, 8 of them tickable.
+    await page.locator('#table').evaluate((t) => {
+      (t as HTMLElement & { rowKey: unknown }).rowKey = (r: { id: number }) => (r.id === 1 ? undefined : String(r.id));
+    });
+    await page.locator('#table input[type=search]').fill('Rose');
+    await expect(page.locator('#table tbody tr')).toHaveCount(9);
+    await pageBox(page, 'table').click();
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('8 selected');
+    await expect(page.locator('#table .dv-select-all')).toHaveCount(0);
   });
 
   test('rows set again so that nothing is left ticked under all matching: the selection is none', async ({ page }) => {

@@ -29,7 +29,8 @@ function then(el: Element, fn: () => void): void {
  * The selection bar, in the search bar's place while anything is ticked: the count, the first 3
  * batch actions as buttons and the rest in a ⋯ menu, and ✕. On phones (the CSS picks): the first
  * action only, and a second ⋯ with all the others. Esc in it clears (but Esc in the open
- * menu only closes the menu). Under it, the select-all line when the viewer offers it.
+ * menu only closes the menu). Under it, the select-all line when the viewer offers it; under
+ * "all matching", "All N are selected." only while nothing is unticked, and "Clear selection".
  */
 export function bar(view: SelectView, on: SelectHandlers, kit: SelectKit): TemplateResult {
   const w = wordsOf(view.words);
@@ -57,7 +58,7 @@ export function bar(view: SelectView, on: SelectHandlers, kit: SelectKit): Templ
     <button type="button" class="dv-select-clear" aria-label=${w.clearSelection} title=${w.clearSelection}
       @click=${clear}>✕</button>
   </div>${view.offerAll
-    ? kit.html`<div class="dv-select-all">${view.all ? w.allSelected(m) : w.pageSelected(view.num(view.pageCount))}
+    ? kit.html`<div class="dv-select-all">${view.all ? (view.count === view.matching ? w.allSelected(m) : kit.nothing) : w.pageSelected(view.num(view.pageCount))}
       <button type="button" @click=${view.all ? clear : on.onAll}>${view.all ? w.clearSelection : w.selectAllMatching(m)}</button></div>`
     : kit.nothing}`;
 }
