@@ -47,12 +47,16 @@ npm install @lesfleursdelanuitdev/search-filter lit
       ranges: [{ label: 'Under €5', to: '5' }, { label: 'Over €10', from: '10' }] },
     { key: 'stock', label: 'In stock', kind: 'bool' },
   ];
-  // Optional: how many rows the typed text would leave, for the "Search for" row.
+  // Your page's own searching and filtering (stubs here): show the rows that match, and count them.
+  const showMatches = (search, column, value) => { /* draw the matching rows */ };
+  const countMatches = (search, column, value) => 0; // how many rows match
+
+  // Optional: how many rows the typed text would leave, for the text row of the applied "Search in".
   field.countFor = ({ search, in: column, value }) => countMatches(search, column, value);
 
   field.addEventListener('search-filter-change', (e) => {
-    const { search, value } = e.detail;
-    showMatches(search, field.in, value); // your page's own searching and filtering
+    const { search, in: column, value } = e.detail;
+    showMatches(search, column, value);
   });
 </script>
 ```
@@ -66,7 +70,7 @@ npm install @lesfleursdelanuitdev/search-filter lit
 | `search` | `search` | `''` | The applied search text (the text token) |
 | `in` | `in` | `''` | The applied "Search in" field's key; `''` searches every column |
 | `fields` | none | `[]` | The "Search in" fields, `{ key, label }[]`. Each gets a "Name has “q”" suggestion. None, no such rows |
-| `countFor` | none | none | `({ search, in, value }) => number \| null`: how many rows the typed text would leave. Shown on the "Search for" row; `null` shows none |
+| `countFor` | none | none | `({ search, in, value }) => number \| null`: how many rows the typed text would leave. Shown on the text row for the applied "Search in" (`in`): "Search for" when `in` is `''`, else that field's "Name has" row; `null` shows none |
 | `label` | `label` | `Search or filter` | The name of the field's `role="search"` landmark |
 | `words` | none | English | Any of the words below, and the filter's words |
 
@@ -83,7 +87,7 @@ They bubble and are `composed`. Each change fires its own event first, then the 
 |---|---|---|
 | `search-change` | `{ search, in }` | A text token is added, replaced or removed. Removing it clears `in` too |
 | `filter-change` | `{ value }` | A filter token is added or removed (the filter's own event, same shape) |
-| `search-filter-change` | `{ search, value }` | After either of the above |
+| `search-filter-change` | `{ search, in, value }` | After either of the above (`in` is the applied "Search in", `''` for every column) |
 
 ## How it behaves
 
@@ -94,17 +98,19 @@ They bubble and are `composed`. Each change fires its own event first, then the 
   A long value is cut off with an ellipsis at 16 rem; the token's `title` and its ×'s name
   ("Remove Kind is Herb") have all of it.
 - **Suggestions.** Focus or a click opens them: with nothing typed, every section's options.
-  Typing lists "Search for “q”" (with `countFor`'s number), one "Name has “q”" row per
+  Typing lists "Search for “q”", one "Name has “q”" row per
   `fields` entry, then the filters the text finds, by section: options, named ranges, "≤ 7" and
   "≥ 7" when a number is typed into a number or money range (not a date), and Yes / No for a
-  yes/no section. Case and accents don't matter. Each section lists at most 8. Something already
+  yes/no section. `countFor`'s number shows on the text row for the applied "Search in" ("Search
+  for" with none, else that field's row). Case and accents don't matter. Each section lists at most 8. Something already
   applied isn't offered again. "No filters match. Press Enter to search the text." shows when the
   text finds no filter.
 - **Counts.** An option that would leave nothing dims to 0.45 but can still be picked.
 - **Keys.** The input is a `role="combobox"` with `aria-activedescendant`:
   - ArrowDown and ArrowUp move the active row and wrap (and open the suggestions when closed).
-  - The active row starts on the first filter suggestion that leaves something (a count above
-    0, or no count). When there is none, it starts on the first row ("Search for").
+  - With nothing typed, no row is active (no `aria-activedescendant`) until ArrowDown or
+    ArrowUp, and Enter does nothing. Once text is typed, the active row starts on the first
+    filter suggestion that leaves something (a count above 0, or no count), else on "Search for".
   - Enter picks the active row, and with nothing listed searches the text. Never while an input
     method is composing, and never submitting a form the field sits in.
   - Backspace in the empty input removes the last token.
@@ -118,7 +124,9 @@ They bubble and are `composed`. Each change fires its own event first, then the 
   field (tokens, input and Done) at the top, focused when it opens, because the page behind a
   modal sheet can't be typed into. Its rows and field are 44 px tall and the text 16 px, so
   phones don't zoom in. Esc, Done or the backdrop close it and put focus back in the field. When
-  the width crosses 480 px while the suggestions are open, they close.
+  the width crosses 480 px (or the window 639 px, as when a phone turns) while the suggestions
+  are open, they stay open: the sheet becomes the listbox under the field, or the other way
+  round, and focus and the typed text move to the field that is shown.
 
 ## Words
 
@@ -161,10 +169,19 @@ not the search package's `--search-*`: a token's background is `--filter-accent-
 
 | Size | Value |
 |---|---|
-| The field | at least 40 px tall (44 px on phones), a 1 px ring in `--filter-border`, the accent while focused |
+| The field | at least 40 px tall (44 px on phones), a 1 px ring in `--filter-border`; while focused, a 2 px ring in `--filter-accent` (the input's own outline is off) |
 | A token | 26 px tall (32 px on phones), 6 px corners, at most 16 rem wide |
 | The suggestions | under the field at its full width, at most 380 px tall; rows 32 px, the "Kind is" column 64 px |
 | The sheet's rows | 44 px |
+
+The focus ring is on the field (`:focus-within`), not the input. A page with a global
+`:focus-visible` outline may want to leave the input out of it, so the input doesn't get a
+second ring inside the field (the docs site does this):
+
+```css
+:focus-visible { outline: 2px solid var(--focus); }
+.lfdln-search-filter-input:focus-visible { outline: none; } /* the field has the ring */
+```
 
 ### Class names
 

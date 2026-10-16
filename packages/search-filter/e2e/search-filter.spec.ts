@@ -12,6 +12,9 @@ const field = (page: Page) => sf(page).locator('.lfdln-search-filter-field input
 const tokens = (page: Page) => sf(page).locator('.lfdln-search-filter-field .lfdln-search-filter-token');
 const listbox = (page: Page) => sf(page).getByRole('listbox', { name: 'Suggestions' });
 
+// Two frames: the element's ResizeObserver answers, then its next-frame redraw is done.
+const frames = (page: Page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+
 async function open(page: Page) {
   const problems: string[] = [];
   page.on('pageerror', (e) => problems.push(e.message));
@@ -40,7 +43,7 @@ test.describe('<lfdln-search-filter>', () => {
     await input.press('Enter');
     expect(await events(page)).toEqual([
       { type: 'filter-change', detail: { value: { kind: ['Herb'] } } },
-      { type: 'search-filter-change', detail: { search: '', value: { kind: ['Herb'] } } },
+      { type: 'search-filter-change', detail: { search: '', in: '', value: { kind: ['Herb'] } } },
     ]);
     await expect(input).toHaveValue('');
     await expect(tokens(page)).toHaveCount(1);
@@ -60,7 +63,7 @@ test.describe('<lfdln-search-filter>', () => {
     await input.press('Enter');
     expect(await events(page)).toEqual([
       { type: 'search-change', detail: { search: 'zzz', in: '' } },
-      { type: 'search-filter-change', detail: { search: 'zzz', value: {} } },
+      { type: 'search-filter-change', detail: { search: 'zzz', in: '', value: {} } },
     ]);
     await expect(tokens(page)).toHaveText(['Any column has zzz']);
     await expect(input).toHaveValue('');
@@ -91,7 +94,7 @@ test.describe('<lfdln-search-filter>', () => {
     await input.press('Enter');
     expect(await events(page)).toEqual([
       { type: 'search-change', detail: { search: 'mi', in: 'name' } },
-      { type: 'search-filter-change', detail: { search: 'mi', value: {} } },
+      { type: 'search-filter-change', detail: { search: 'mi', in: 'name', value: {} } },
     ]);
     await expect(tokens(page)).toHaveText(['Name has mi']);
     await expect(tokens(page).locator('.lfdln-search-filter-token-key')).toHaveText('Name');
@@ -99,7 +102,7 @@ test.describe('<lfdln-search-filter>', () => {
     await sf(page).getByRole('button', { name: 'Remove Name has mi' }).click();
     expect((await events(page)).slice(2)).toEqual([
       { type: 'search-change', detail: { search: '', in: '' } },
-      { type: 'search-filter-change', detail: { search: '', value: {} } },
+      { type: 'search-filter-change', detail: { search: '', in: '', value: {} } },
     ]);
   });
 
@@ -166,7 +169,7 @@ test.describe('<lfdln-search-filter>', () => {
     await expect(tokens(page)).toHaveCount(0);
     expect((await events(page)).slice(before)).toEqual([
       { type: 'search-change', detail: { search: '', in: '' } },
-      { type: 'search-filter-change', detail: { search: '', value: {} } },
+      { type: 'search-filter-change', detail: { search: '', in: '', value: {} } },
     ]);
     // Backspace in typed text only deletes a letter.
     await input.pressSequentially('ab');
@@ -196,7 +199,7 @@ test.describe('<lfdln-search-filter>', () => {
     await expect(sf(page).getByRole('button', { name: 'Done' })).toHaveCount(0);
     expect(await events(page)).toEqual([
       { type: 'search-change', detail: { search: 'fern', in: '' } },
-      { type: 'search-filter-change', detail: { search: 'fern', value: {} } },
+      { type: 'search-filter-change', detail: { search: 'fern', in: '', value: {} } },
     ]);
     await expect(tokens(page)).toHaveText(['Any column has fern']);
     await expect(input).toHaveValue('');
@@ -218,7 +221,7 @@ test.describe('<lfdln-search-filter>', () => {
     await expect(input).toBeFocused();
     expect((await events(page)).slice(-2)).toEqual([
       { type: 'filter-change', detail: { value: { light: ['Sun'] } } },
-      { type: 'search-filter-change', detail: { search: '', value: { light: ['Sun'] } } },
+      { type: 'search-filter-change', detail: { search: '', in: '', value: { light: ['Sun'] } } },
     ]);
     // By keyboard too: the last × is the one before the input.
     await page.keyboard.press('Shift+Tab');
@@ -340,7 +343,7 @@ test.describe('<lfdln-search-filter>', () => {
     await page.evaluate(() => {
       (document.querySelector('#box') as HTMLElement).style.width = '470px';
     });
-    await page.waitForTimeout(100);
+    await frames(page);
     await field(page).click();
     const sheet = page.locator('dialog.lfdln-filter-popover[open]');
     await expect(sheet).toBeVisible();
@@ -356,7 +359,7 @@ test.describe('<lfdln-search-filter>', () => {
     await inner.press('Enter');
     expect(await events(page)).toEqual([
       { type: 'filter-change', detail: { value: { kind: ['Herb'] } } },
-      { type: 'search-filter-change', detail: { search: '', value: { kind: ['Herb'] } } },
+      { type: 'search-filter-change', detail: { search: '', in: '', value: { kind: ['Herb'] } } },
     ]);
     await expect(sheet.locator('.lfdln-search-filter-token')).toHaveText(['Kind is Herb']);
     await expect(inner).toHaveValue('');
@@ -376,10 +379,71 @@ test.describe('<lfdln-search-filter>', () => {
     await page.evaluate(() => {
       (document.querySelector('#box') as HTMLElement).style.width = '';
     });
-    await page.waitForTimeout(100);
+    await frames(page);
     await field(page).click();
     await expect(listbox(page)).toBeVisible();
     await expect(page.locator('dialog.lfdln-filter-popover')).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test('focus with nothing typed: no row is active, and Enter applies nothing', async ({ page }) => {
+    await open(page);
+    const input = field(page);
+    await input.click();
+    await expect(listbox(page)).toBeVisible();
+    await expect(listbox(page).locator('[role=option][aria-selected=true]')).toHaveCount(0);
+    await expect(input).not.toHaveAttribute('aria-activedescendant', /.*/);
+    await input.press('Enter');
+    expect(await events(page)).toEqual([]);
+    await expect(tokens(page)).toHaveCount(0);
+    // ArrowDown starts on the first row, ArrowUp from none on the last.
+    const options = listbox(page).getByRole('option');
+    await input.press('ArrowDown');
+    await expect(input).toHaveAttribute('aria-activedescendant', (await options.first().getAttribute('id'))!);
+    // Typing and clearing it again: none is active, and ArrowUp from none goes to the last row.
+    await input.press('x');
+    await input.press('Backspace');
+    await expect(input).not.toHaveAttribute('aria-activedescendant', /.*/);
+    await input.press('ArrowUp');
+    await expect(input).toHaveAttribute('aria-activedescendant', (await options.last().getAttribute('id'))!);
+    expect(await events(page)).toEqual([]);
+  });
+
+  test('crossing 480 px or 639 px with the suggestions open keeps them open and focus in a field', async ({ page }) => {
+    const problems = await open(page);
+    const box = (w: string) => page.evaluate((x) => {
+      (document.querySelector('#box') as HTMLElement).style.width = x;
+    }, w);
+    const sheet = page.locator('dialog.lfdln-filter-popover[open]');
+    const inner = sheet.locator('input[role=combobox]');
+    // The sheet open, then wider than 480 px: the listbox under the page field, focused, text kept.
+    await box('470px');
+    await frames(page);
+    await field(page).click();
+    await expect(inner).toBeFocused();
+    await inner.pressSequentially('su');
+    await box('');
+    await expect(sheet).toHaveCount(0);
+    await expect(listbox(page)).toBeVisible();
+    await expect(field(page)).toBeFocused();
+    await expect(field(page)).toHaveValue('su');
+    await expect(field(page)).toHaveAttribute('aria-expanded', 'true');
+    // The listbox open, then narrower again: the sheet, with its own field focused.
+    await box('470px');
+    await expect(inner).toBeFocused();
+    await expect(inner).toHaveValue('su');
+    // The phone rule (639 px), by the window: the sheet open, then a wider window.
+    await box('');
+    await expect(sheet).toHaveCount(0);
+    await expect(field(page)).toBeFocused();
+    await page.setViewportSize({ width: 600, height: 900 });
+    await expect(inner).toBeFocused();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(sheet).toHaveCount(0);
+    await expect(listbox(page)).toBeVisible();
+    await expect(field(page)).toBeFocused();
+    await field(page).press('Enter');
+    await expect(tokens(page).first()).toBeVisible();
     expect(problems).toEqual([]);
   });
 

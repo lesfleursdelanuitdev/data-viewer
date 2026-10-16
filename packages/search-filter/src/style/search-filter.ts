@@ -22,7 +22,7 @@ export const searchFilterCss = `
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 40px; padding: 5px 10px; cursor: text;
   background: var(--filter-bg); border-radius: var(--filter-radius); box-shadow: 0 0 0 1px var(--filter-border);
 }
-:where(.lfdln-search-filter-field:focus-within) { box-shadow: 0 0 0 1px var(--filter-accent); }
+:where(.lfdln-search-filter-field:focus-within) { box-shadow: 0 0 0 2px var(--filter-accent); }
 :where(.lfdln-search-filter-field) > :where(svg) { flex: none; color: var(--filter-muted); stroke-width: 18; }
 :where(.lfdln-search-filter-input) {
   flex: 1 1 120px; min-width: 120px; height: 28px; margin: 0; padding: 0; font: inherit; font-size: 13.5px;
@@ -124,10 +124,12 @@ function sync(list: HTMLElement | null, input: Input | null): void {
     delete input.dataset.active;
     return;
   }
-  const first = Number(list!.dataset.first ?? 0);
+  const first = Number(list!.dataset.first ?? -1);
   const asked = input.dataset.active === undefined ? first : Number(input.dataset.active);
+  // -1 (nothing typed, no arrow key yet): no row is active.
   const at = asked >= 0 && asked < rows.length ? asked : Math.min(first, rows.length - 1);
   rows.forEach((r, i) => r.setAttribute('aria-selected', i === at ? 'true' : 'false'));
+  if (at < 0) return input.removeAttribute('aria-activedescendant');
   input.setAttribute('aria-activedescendant', rows[at]!.id);
   rows[at]!.scrollIntoView?.({ block: 'nearest' });
 }
@@ -140,7 +142,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
   const tokens = tokensOf(v.sections, v.value, search, w);
   const { text, groups } = suggest(v.sections, v.value, search, typed, w);
   const rows: Suggestion[] = [...text, ...groups.flatMap((g) => g.items)];
-  const first = activeRow(text, groups); // the first filter that leaves something, else "Search for"
+  const first = activeRow(text, groups); // the first filter that leaves something, else "Search for"; none untyped
   const id = `${v.uid}-sf`;
   const listId = `${id}-list`;
   const popId = `${id}-pop`;
@@ -189,7 +191,9 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
       const list = byId<HTMLElement>(listId);
       const now = Number(input.dataset.active ?? first);
       const at = Number.isInteger(now) && now >= 0 && now < rows.length ? now : first;
-      input.dataset.active = String((at + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length);
+      // From no active row, ArrowDown goes to the first and ArrowUp to the last.
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      input.dataset.active = String(at < 0 ? (step > 0 ? 0 : rows.length - 1) : (at + step + rows.length) % rows.length);
       sync(list, input);
     } else if (e.key === 'Enter') {
       // Never while an input method is composing a character, and never a surrounding form's submit.
@@ -197,7 +201,8 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
       e.preventDefault();
       if (!listed) return commit(input);
       const at = Number(input.dataset.active ?? first);
-      pick(rows[at >= 0 && at < rows.length ? at : first]!, input);
+      const row = rows[at >= 0 && at < rows.length ? at : first];
+      if (row) pick(row, input); // no active row (nothing typed): nothing
     } else if (e.key === 'Backspace') {
       if (input.value === '' && tokens.length) remove(tokens[tokens.length - 1]!);
     } else if (e.key === 'Escape') {

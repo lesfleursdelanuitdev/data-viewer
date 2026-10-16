@@ -23,11 +23,14 @@ function nextId(): string {
 /** What `countFor` is asked: the typed text as the search, in the applied "Search in", with the applied filters. */
 export type SearchFilterQuery = { search: string; in: string; value: FilterValue };
 
+/** `search-filter-change`'s detail: the applied search, its "Search in" ('' = every column) and the filters. */
+export type SearchFilterChange = SearchFilterQuery;
+
 /**
  * <lfdln-search-filter>: the list's search and its filters in one field (the `search` filter
  * style on its own). Typing suggests filters; picking one, or searching the text, applies at
  * once: `search-change { search, in }` or `filter-change { value }`, then
- * `search-filter-change { search, value }`. Below 480 px of its own width, or on a phone, the
+ * `search-filter-change { search, in, value }`. Below 480 px of its own width, or on a phone, the
  * suggestions open as a bottom sheet. Counts are the options' own `count`; the "Search for" row's
  * is `countFor`'s. No shadow root.
  */
@@ -72,15 +75,13 @@ export class LfdlnSearchFilter extends LitElement {
   private _width = Infinity;
   private _frame = 0;
   private _narrow = (): boolean => Boolean(this._media?.matches) || this._width < NARROW;
-  // Redraw on the next frame, and only when the phone flag flips.
+  // Redraw on the next frame, and only when the phone flag flips. Open suggestions stay open:
+  // the style moves focus between the sheet's field and the page field (as in the viewer).
   private _check = () => {
     if (this._frame) return;
     this._frame = requestAnimationFrame(() => {
       this._frame = 0;
-      const phone = this._narrow();
-      if (phone === this._phone) return;
-      this._menu = null;
-      this._phone = phone;
+      this._phone = this._narrow();
     });
   };
 
@@ -134,7 +135,7 @@ export class LfdlnSearchFilter extends LitElement {
     if (JSON.stringify(next) === JSON.stringify(normalise(this.sections ?? [], this.value ?? {}))) return;
     this.value = next;
     this._fire('filter-change', { value: this.value });
-    this._fire('search-filter-change', { search: this.search, value: this.value });
+    this._fire('search-filter-change', { search: this.search ?? '', in: this.in ?? '', value: this.value } satisfies SearchFilterChange);
   }
 
   /** Applies a search (in `searchIn`, else the "Search in" already applied); fires search-change, then search-filter-change. Unchanged, nothing. */
@@ -143,7 +144,7 @@ export class LfdlnSearchFilter extends LitElement {
     this.search = text;
     this.in = searchIn;
     this._fire('search-change', { search: this.search, in: this.in });
-    this._fire('search-filter-change', { search: this.search, value: this.value ?? {} });
+    this._fire('search-filter-change', { search: this.search, in: this.in, value: this.value ?? {} } satisfies SearchFilterChange);
   }
 
   protected override render(): TemplateResult {

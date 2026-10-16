@@ -91,11 +91,13 @@ export function suggest(
 }
 
 /**
- * The row Enter picks when no arrow key has moved: the first filter suggestion that leaves
- * something (a count above 0, or no count), else the first row ("Search for" when text is typed).
- * Zero-count rows stay pickable, but are never the default.
+ * The row Enter picks when no arrow key has moved, or -1 for none. With nothing typed (no text
+ * rows) none is active, so Enter picks nothing until ArrowDown. With text: the first filter
+ * suggestion that leaves something (a count above 0, or no count), else the first text row
+ * ("Search for"). Zero-count rows stay pickable, but are never the default.
  */
 export function activeRow(text: Suggestion[], groups: { items: Suggestion[] }[]): number {
+  if (!text.length) return -1;
   const at = groups.flatMap((g) => g.items).findIndex((r) => r.kind === 'filter' && r.count !== 0);
   return at < 0 ? 0 : text.length + at;
 }

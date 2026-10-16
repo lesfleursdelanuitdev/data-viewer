@@ -122,14 +122,16 @@ test('≤ n and ≥ n keep the other end, and are not offered for the end alread
   assert.deepEqual(set[0]?.next.price, { from: '7', to: '7' });
 });
 
-test('the active row by default: the first filter with a count above 0 or unknown, else the first row', () => {
+test('the active row by default: none with nothing typed; else the first filter with a count above 0 or unknown, else "Search for"', () => {
   const text: Suggestion = { kind: 'text', searchIn: '', label: 'Search for “s”', count: 3 };
   const f = (label: string, count?: number): Suggestion => ({ kind: 'filter', section: 'light', group: 'Light', op: 'Light is', label, count, next: {} });
   assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Part shade', 2)] }]), 2);
   assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Sun')] }]), 2); // an unknown count is fine
   assert.equal(activeRow([text], [{ items: [f('Sun', 4)] }]), 1);
   assert.equal(activeRow([text], [{ items: [f('Shade', 0), f('Part shade', 0)] }]), 0); // all zero: "Search for"
-  assert.equal(activeRow([], [{ items: [f('Shade', 0), f('Part shade', 0)] }]), 0); // no text rows: the first row
   assert.equal(activeRow([text], []), 0);
-  assert.equal(activeRow([], []), 0);
+  // Nothing typed (no text rows): no row is active until an arrow key moves, so Enter picks nothing.
+  assert.equal(activeRow([], [{ items: [f('Sun', 4)] }]), -1);
+  assert.equal(activeRow([], [{ items: [f('Shade', 0), f('Part shade', 0)] }]), -1);
+  assert.equal(activeRow([], []), -1);
 });
