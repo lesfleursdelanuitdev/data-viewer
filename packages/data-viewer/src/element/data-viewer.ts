@@ -23,7 +23,7 @@ import { columnsIn } from './column.ts';
 import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
-import { filterStyle, onFilterStyle, pickFilterStyle } from '../core/filter-styles.ts';
+import { filterStyle, onFilterStyle, pickFilterStyle, sameFilterStyle } from '../core/filter-styles.ts';
 import { viewerKit } from './filter-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
@@ -486,10 +486,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   // The filter style for this drawing, after its fallback for the list's width and layout.
   // Another style (a new filter-style, a style registered late, a fallback) closes the filter
-  // and drops its draft.
+  // and drops its draft. Styles are compared by name: rail.js and columns.js each bundle their
+  // own panel, so loading both registers a second "panel" object that is the same style.
   private _pickStyle(): void {
     const style = this._styleFor();
-    if (style !== this._fStyle && this.hasUpdated) {
+    if (!sameFilterStyle(style, this._fStyle) && this.hasUpdated) {
       this._fDraft = null;
       this._fMenu = null;
     }
@@ -795,7 +796,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // which the browser reports as a "ResizeObserver loop" error.
     this._ro = root ? new ResizeObserver(([e]) => {
       this._width = Math.round(e!.contentRect.width);
-      if (this._styleFor() !== this._fStyle) requestAnimationFrame(() => this.isConnected && this.requestUpdate());
+      if (!sameFilterStyle(this._styleFor(), this._fStyle)) requestAnimationFrame(() => this.isConnected && this.requestUpdate());
     }) : undefined;
     this._ro?.observe(root!);
   }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { FilterStyle } from '@lesfleursdelanuitdev/filter';
-import { REGISTRY_KEY, filterStyle, onFilterStyle, pickFilterStyle, registerFilterStyle } from '../src/core/filter-styles.ts';
+import { REGISTRY_KEY, filterStyle, onFilterStyle, pickFilterStyle, registerFilterStyle, sameFilterStyle } from '../src/core/filter-styles.ts';
 
 // A style that draws nothing; only its name and flags matter here.
 const style = (name: string, over: Partial<FilterStyle> = {}): FilterStyle => ({
@@ -78,4 +78,35 @@ test('pickFilterStyle: an unknown style is the dialog and warns once, naming its
   } finally {
     console.warn = warn;
   }
+});
+
+test('registerFilterStyle reads the name in lower case, like the attribute', () => {
+  const s = style('T-Upper');
+  registerFilterStyle('T-Upper', s);
+  assert.equal(filterStyle('t-upper'), s);
+  assert.equal(pickFilterStyle('T-UPPER', { width: 900, layout: 'table' }), s);
+});
+
+test('pickFilterStyle: a fallback name is read in lower case', () => {
+  const small = style('t-small');
+  registerFilterStyle('t-small', small);
+  registerFilterStyle('t-big', style('t-big', { fallback: () => 'T-Small' }));
+  assert.equal(pickFilterStyle('t-big', { width: 300, layout: 'table' }), small);
+});
+
+// The loop guard compares the key the style was found under, not its own `name`.
+// A style registered under another key whose `name` is that of a second style still falls back to it.
+test('pickFilterStyle: the loop guard compares registry keys, not the style\'s own name', () => {
+  const target = style('t-target');
+  registerFilterStyle('t-target', target);
+  const alias = style('t-target', { fallback: () => 't-target' });
+  registerFilterStyle('t-alias', alias);
+  assert.equal(pickFilterStyle('t-alias', { width: 300, layout: 'table' }), target);
+});
+
+test('sameFilterStyle compares by name, so a second bundle\'s copy is the same style', () => {
+  assert.ok(sameFilterStyle(style('panel'), style('panel')));
+  assert.ok(sameFilterStyle(undefined, undefined));
+  assert.ok(!sameFilterStyle(style('panel'), style('rail')));
+  assert.ok(!sameFilterStyle(style('panel'), undefined));
 });

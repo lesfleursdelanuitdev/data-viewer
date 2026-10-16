@@ -296,6 +296,25 @@ test.describe('panel', () => {
     await expect(page.locator('#panel .dv-root')).not.toHaveAttribute('data-filter-open', '');
   });
 
+  // rail.js and columns.js each bundle their own panelStyle, so loading the second registers a
+  // new object under "panel": the open draft must survive (styles are compared by name).
+  test('another add-on registering its own copy of the panel keeps the open draft', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    await toggle(page, 'Herb').click();
+    await expect(show(page)).toHaveText('Show 5 results');
+    await page.evaluate(() => {
+      type R = { styles: Map<string, object>; listeners: Set<(n: string) => void> };
+      const r = (globalThis as unknown as Record<string, R>).__lfdlnDataViewerFilterStyles!;
+      r.styles.set('panel', { ...r.styles.get('panel')! });
+      for (const heard of [...r.listeners]) heard('panel');
+    });
+    await page.waitForTimeout(100);
+    await expect(panelOf(page)).toBeVisible();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'true');
+    await expect(show(page)).toHaveText('Show 5 results');
+  });
+
   test('× on an applied chip while the panel is open drops it from the draft too', async ({ page }) => {
     await open(page, '?panel.f.kind=Herb,Flower');
     await trigger(page).click();

@@ -17,15 +17,22 @@ function registry(): Registry {
   return (g[REGISTRY_KEY] ??= { styles: new Map(), listeners: new Set() });
 }
 
-/** Makes a style usable as `filter-style="name"`. A later one under the same name replaces it. */
+// Names are keys in lower case, as the attribute and a fallback are read.
+const keyOf = (name: string | null | undefined) => (name ?? '').trim().toLowerCase();
+
+/**
+ * Makes a style usable as `filter-style="name"` (read in lower case). A later one under the same
+ * name replaces it.
+ */
 export function registerFilterStyle(name: string, style: FilterStyle): void {
   const r = registry();
-  r.styles.set(name, style);
-  for (const heard of [...r.listeners]) heard(name);
+  const key = keyOf(name);
+  r.styles.set(key, style);
+  for (const heard of [...r.listeners]) heard(key);
 }
 
 export function filterStyle(name: string): FilterStyle | undefined {
-  return registry().styles.get(name);
+  return registry().styles.get(keyOf(name));
 }
 
 /**
@@ -53,8 +60,8 @@ function warnMissing(name: string): void {
   else check();
 }
 
-// A style by name; none for empty or "dialog", and none (with a warning) when not loaded.
-function find(name: string | null | undefined): FilterStyle | undefined {
+// A style by key; none for empty or "dialog", and none (with a warning) when not loaded.
+function find(name: string): FilterStyle | undefined {
   if (!name || name === 'dialog') return undefined;
   const style = filterStyle(name);
   if (!style) warnMissing(name);
@@ -67,7 +74,16 @@ function find(name: string | null | undefined): FilterStyle | undefined {
  * styles can't send each other round in a loop.
  */
 export function pickFilterStyle(attr: string | undefined, ctx: { width: number; layout: 'table' | 'cards' }): FilterStyle | undefined {
-  const style = find((attr ?? '').trim().toLowerCase());
-  const next = style?.fallback?.(ctx);
-  return next && next !== style!.name ? find(next) : style;
+  const key = keyOf(attr);
+  const style = find(key);
+  const next = keyOf(style?.fallback?.(ctx));
+  return next && next !== key ? find(next) : style;
+}
+
+/**
+ * Whether two picks are the same style. By name, not object: rail.js and columns.js each bundle
+ * their own panel, so loading both registers a second "panel" object that is the same style.
+ */
+export function sameFilterStyle(a: FilterStyle | undefined, b: FilterStyle | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined && keyOf(a.name) === keyOf(b.name));
 }
