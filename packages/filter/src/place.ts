@@ -24,6 +24,11 @@ export function watchOutside(doc: Document): void {
   }, true);
 }
 
+/** Closes every other open popover on the page (today's dialog's and the styles'), so only one is open. */
+export function closeOthers(el: Element): void {
+  for (const p of el.ownerDocument.querySelectorAll<Closable>(POPOVERS)) if (p !== el) p.lfdlnClose?.();
+}
+
 /** Under its anchor, kept on screen: shifted left when it would run off the right edge. */
 export function place(pop: HTMLElement): void {
   pop.style.left = '0px';

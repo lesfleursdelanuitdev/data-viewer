@@ -1,6 +1,6 @@
 import type { TemplateResult } from 'lit';
 import type { FilterKit } from '../core/style-types.ts';
-import { POPOVERS, later, place, watchOutside, type Closable } from '../place.ts';
+import { closeOthers, later, place, watchOutside } from '../place.ts';
 
 export type PopoverOptions = {
   phone: boolean; // a bottom sheet (a modal <dialog>) instead of a popover under its anchor
@@ -23,11 +23,6 @@ export function returnFocus(from: Element): void {
   const pop = from.closest<HTMLElement>('.lfdln-filter-popover');
   if (pop instanceof HTMLDialogElement && pop.open) pop.close();
   pop?.parentElement?.querySelector<HTMLElement>(':scope > [aria-haspopup]')?.focus();
-}
-
-// Opening one closes every other popover on the page (today's dialog's too), so only one is open.
-function closeOthers(el: Element): void {
-  for (const p of el.ownerDocument.querySelectorAll<Closable>(POPOVERS)) if (p !== el) p.lfdlnClose?.();
 }
 
 function mountPop(el?: Element): void {

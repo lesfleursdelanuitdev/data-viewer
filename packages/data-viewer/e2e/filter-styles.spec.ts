@@ -1266,6 +1266,18 @@ test.describe('columns', () => {
     expect(c2).toBe(c1);
     expect(problems).toEqual([]);
   });
+
+  // No pointerdown when the dialog opens by keyboard, so it must close the others itself.
+  test("opening another list's dialog by keyboard closes #bar2's menu", async ({ page }) => {
+    const { problems } = await open(page);
+    await page.locator('#bar2 .lfdln-filter-pill[data-key="kind"]').click();
+    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toBeVisible();
+    await page.locator('#plants .lfdln-filter-button').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#plants .lfdln-filter-pop')).toBeVisible();
+    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
 });
 
 test.describe('columns on a phone', () => {

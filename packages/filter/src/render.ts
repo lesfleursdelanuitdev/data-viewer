@@ -5,7 +5,7 @@ import { chipsOf, sectionSummary, summarise } from './core/summary.ts';
 import type { Chip, FilterSection, FilterValue, FilterWords } from './core/types.ts';
 import { chevronLeft, chevronRight, close, closeSmall, funnel, reset } from './icons.ts';
 import { renderSection } from './render-sections.ts';
-import { later, place, watchOutside } from './place.ts';
+import { closeOthers, later, place, watchOutside } from './place.ts';
 
 /** What one drawing of the filter shows. */
 export type FilterView = {
@@ -36,6 +36,8 @@ function mountPop(el?: Element): void {
   if (!(el instanceof HTMLElement)) return;
   later(() => {
     if (!el.isConnected) return;
+    // Opening by keyboard has no pointerdown outside to close another list's popover.
+    closeOthers(el);
     watchOutside(el.ownerDocument);
     place(el);
     el.focus();
