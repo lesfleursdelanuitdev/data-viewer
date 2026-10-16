@@ -951,6 +951,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         results,
         total: this._server ? null : (this.rows ?? []).length,
         menu: this._fMenu,
+        // The list's box, for a style's popovers (the panel right-aligns against it).
+        bounds: () => (this.querySelector(':scope > .dv-root') ?? this).getBoundingClientRect(),
       },
       on: {
         ...this._filterHandlers(sections),

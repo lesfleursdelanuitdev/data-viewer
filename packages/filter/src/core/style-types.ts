@@ -17,6 +17,9 @@ export type FilterStyleView = FilterView & {
   results: number | null;    // rows the applied filters leave (rail "N results", columns "N of M")
   total: number | null;      // rows before any filter (columns' M); null in server mode
   menu: string | null;       // the open pill/header menu's section key, for instant styles
+  // The list's box in the window, for placing a popover against the list (the panel right-aligns
+  // to a trigger in the list's right half). Read when a popover opens. None: the window.
+  bounds?: () => { left: number; right: number };
 };
 
 export type FilterStyleHandlers = FilterHandlers & {

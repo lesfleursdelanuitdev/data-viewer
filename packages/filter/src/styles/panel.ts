@@ -77,15 +77,14 @@ function choice(kit: FilterKit, s: Choice, draft: FilterValue, on: FilterStyleHa
   }))}</div>`;
 }
 
-// The list the panel belongs to: the viewer's .dv-root, else the window (the panel on its own).
-// Right-aligned to its trigger when that sits in the list's right half (see panelLeft); only the
-// panel does this, today's dialog keeps place().
-function placePanel(pop: HTMLElement): void {
+// The list the panel belongs to: the box the host gives (view.bounds), else the window (the
+// panel on its own). Right-aligned to its trigger when that sits in the list's right half (see
+// panelLeft); only the panel does this, today's dialog keeps place().
+function placePanel(pop: HTMLElement, bounds: FilterStyleView['bounds']): void {
   const trigger = pop.parentElement?.querySelector(':scope > .lfdln-filter-trigger');
   if (!trigger) return;
   const vw = document.documentElement.clientWidth;
-  const listEl = pop.closest('.dv-root');
-  const list = listEl ? listEl.getBoundingClientRect() : { left: 0, right: vw };
+  const list = bounds?.() ?? { left: 0, right: vw };
   pop.style.left = '0px';
   const base = pop.getBoundingClientRect();
   pop.style.left = `${panelLeft(trigger.getBoundingClientRect(), list, base.width, vw) - base.left}px`;
@@ -165,7 +164,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
 
   const panel = open
     ? popover(kit, {
-      phone: v.phone, id: pid, labelledBy: hid, cls: 'lfdln-filter-panel', onClose: on.onClose, place: placePanel,
+      phone: v.phone, id: pid, labelledBy: hid, cls: 'lfdln-filter-panel', onClose: on.onClose, place: (el) => placePanel(el, v.bounds),
       content: kit.html`${v.phone ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div>` : kit.nothing}
         <div class="lfdln-filter-panel-head"><h2 class="lfdln-filter-panel-title" id=${hid}>${v.heading ?? w.heading}</h2>${Object.keys(draft).length
           ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${() => on.onDraft({})}>${w.reset}</button>`
