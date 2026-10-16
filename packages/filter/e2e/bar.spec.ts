@@ -16,16 +16,16 @@ test.describe('<lfdln-filter-bar>', () => {
     await expect(b.getByRole('group', { name: 'Filter plants' })).toBeVisible();
     await b.locator('.lfdln-filter-bar-pill[data-key="kind"]').click();
     await expect(b.getByRole('dialog', { name: 'Kind' })).toBeVisible();
-    await b.getByRole('menuitemcheckbox', { name: /Herb/ }).click();
+    await b.getByRole('checkbox', { name: /Herb/ }).click();
     expect(await events(page)).toEqual([{ value: { kind: ['Herb'] } }]);
-    await b.getByRole('menuitemcheckbox', { name: /Flower/ }).click();
+    await b.getByRole('checkbox', { name: /Flower/ }).click();
     expect((await events(page)).at(-1)).toEqual({ value: { kind: ['Herb', 'Flower'] } });
     await expect(b.locator('.lfdln-filter-bar-pill[data-key="kind"]')).toHaveAccessibleName('Kind: Herb, Flower');
     // A single choice is round rows; picking replaces.
     await b.locator('.lfdln-filter-bar-pill[data-key="size"]').click();
     await expect(b.getByRole('dialog', { name: 'Kind' })).toHaveCount(0);
-    await b.getByRole('menuitemradio', { name: 'Small' }).click();
-    await b.getByRole('menuitemradio', { name: 'Large' }).click();
+    await b.getByRole('radio', { name: 'Small' }).click();
+    await b.getByRole('radio', { name: 'Large' }).click();
     expect((await events(page)).at(-1)).toEqual({ value: { kind: ['Herb', 'Flower'], size: ['l'] } });
     await page.keyboard.press('Escape');
     await expect(b.locator('.lfdln-filter-bar-pill[data-key="size"]')).toBeFocused();
@@ -50,5 +50,24 @@ test.describe('<lfdln-filter-bar>', () => {
     await expect(b.locator('.lfdln-filter-check-row[data-value="Foliage"]')).toBeFocused();
     await page.keyboard.press('Space');
     expect(await events(page)).toEqual([{ value: { kind: ['Foliage'] } }]);
+  });
+
+  test('a single choice is a radio group with one tab stop; arrows move and pick', async ({ page }) => {
+    await page.goto('/bar.html');
+    const b = page.locator('#b');
+    await b.locator('.lfdln-filter-bar-pill[data-key="size"]').click();
+    const size = b.getByRole('radiogroup', { name: 'Size' });
+    await expect(size.getByRole('radio')).toHaveCount(2);
+    expect(await size.getByRole('radio').evaluateAll((els) => els.map((el) => el.getAttribute('tabindex')))).toEqual(['0', '-1']);
+    // Down from the menu goes to the group's tab stop; arrows then move and pick, as radios do.
+    await page.keyboard.press('ArrowDown');
+    await expect(size.getByRole('radio', { name: 'Small' })).toBeFocused();
+    expect(await events(page)).toEqual([]);
+    await page.keyboard.press('ArrowDown');
+    await expect(size.getByRole('radio', { name: 'Large' })).toBeFocused();
+    await expect(size.getByRole('radio', { name: 'Large' })).toHaveAttribute('aria-checked', 'true');
+    expect(await events(page)).toEqual([{ value: { size: ['l'] } }]);
+    // The picked one is now the tab stop.
+    expect(await size.getByRole('radio').evaluateAll((els) => els.map((el) => el.getAttribute('tabindex')))).toEqual(['-1', '0']);
   });
 });

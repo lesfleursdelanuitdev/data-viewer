@@ -550,6 +550,9 @@ test.describe('bar', () => {
     await expect(pill(page, 'kind')).toHaveAttribute('aria-expanded', 'true');
     await expect(menuOf(page)).toHaveCount(1);
     await expect(menuOf(page).locator('.lfdln-filter-check-label')).toHaveText(['Flower', 'Foliage', 'Herb', 'Tree']);
+    // Several at once: check boxes in a group named by the section, as in the columns' menus.
+    await expect(menuOf(page).getByRole('group', { name: 'Kind' }).getByRole('checkbox')).toHaveCount(4);
+    await expect(menuOf(page).locator('[role^=menu]')).toHaveCount(0);
     expect(Math.round((await menuOf(page).boundingBox())!.width)).toBe(240);
     // The menu sits under its pill.
     const [p, m] = await Promise.all([pill(page, 'kind').boundingBox(), menuOf(page).boundingBox()]);
@@ -564,7 +567,10 @@ test.describe('bar', () => {
     await expect(menuOf(page)).toHaveCount(0);
     await pill(page, 'price').click();
     await expect(menuOf(page).locator('.lfdln-filter-check-row')).toHaveCount(3);
-    await expect(menuOf(page).locator('.lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemradio');
+    // Named ranges: radios in a radiogroup, one tab stop (the first while none is picked).
+    const ranges = menuOf(page).getByRole('radiogroup', { name: 'Price' });
+    await expect(ranges.getByRole('radio')).toHaveCount(3);
+    expect(await ranges.getByRole('radio').evaluateAll((els) => els.map((el) => el.getAttribute('tabindex')))).toEqual(['0', '-1', '-1']);
     await page.keyboard.press('Escape');
     await expect(menuOf(page)).toHaveCount(0);
     await expect(pill(page, 'price')).toBeFocused();
@@ -1280,8 +1286,9 @@ test.describe('columns', () => {
     await expect(colRows(page)).toHaveCount(12);
     await expect(page.locator('#bar2 .dv-filtered, #bar2 .lfdln-filter-col, #bar2 .lfdln-filter-col-summary')).toHaveCount(0);
     await expect(cols(page).locator('.lfdln-filter-bar-row')).toHaveCount(0);
-    // #bar2's menu rows are still the bar's (menu items, not the columns' check boxes).
-    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu .lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemcheckbox');
+    // #bar2's menu is still the bar's (its own list, not the columns' one).
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu .lfdln-filter-bar-pill-list')).toHaveAttribute('role', 'group');
+    await expect(page.locator('#bar2 .lfdln-filter-col-list')).toHaveCount(0);
     // Same cell colour for #bar2's filtered Kind as for an unfiltered one.
     const c2 = await page.locator('#bar2 tbody tr').first().locator('td').nth(0).evaluate((el) => getComputedStyle(el).color);
     const c1 = await page.locator('#bar2 tbody tr').first().locator('td').nth(1).evaluate((el) => getComputedStyle(el).color);

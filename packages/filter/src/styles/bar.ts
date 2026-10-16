@@ -9,11 +9,12 @@ import { clearKey, setBool, setRange, toggleOption } from '../core/draft.ts';
 import { anySet, isSet } from '../core/summary.ts';
 import { rangeOf, rangePressed } from '../core/range.ts';
 import type { FilterKit, FilterStyle, FilterStyleHandlers, FilterStyleView } from '../core/style-types.ts';
-import type { FilterSection } from '../core/types.ts';
+import type { FilterSection, FilterValue } from '../core/types.ts';
 import { checkRow } from '../parts/check-row.ts';
 import { divider } from '../parts/divider.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT, SOFT } from '../parts/parts-css.ts';
 import { menuKeys } from '../parts/menu-keys.ts';
+import { radioKeys, tabStop } from '../parts/radios.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { rangeBoxes } from '../parts/range-boxes.ts';
 import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
@@ -72,26 +73,35 @@ export const barCss = `
 type Choice = Extract<FilterSection, { kind: 'choice' }>;
 type Range = Extract<FilterSection, { kind: 'range' }>;
 
+// Several at once: check boxes in a group. One at a time (a single choice, named ranges): radios
+// in a radiogroup, one tab stop, arrow keys move and pick; a tick on the picked one unpicks it.
+// As in the columns' menus.
+type Row = { label: string; value?: string; count?: number; on: boolean; next: FilterValue };
+function list(kit: FilterKit, s: FilterSection, rows: Row[], one: boolean, on: FilterStyleHandlers): TemplateResult {
+  const picked = rows.map((r) => r.on);
+  return kit.html`<div class="lfdln-filter-bar-pill-list" role=${one ? 'radiogroup' : 'group'} aria-label=${s.label}
+    @keydown=${one ? radioKeys : kit.nothing}>${rows.map((r, i) => checkRow(kit, {
+    label: r.label, value: r.value, count: r.count, on: r.on, round: one, role: one ? 'radio' : 'checkbox',
+    tabIndex: one ? tabStop(picked, i) : undefined, onToggle: () => on.onApplyNow(r.next),
+  }))}</div>`;
+}
+
 function choiceRows(kit: FilterKit, s: Choice, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const picked = Array.isArray(v.value[s.key]) ? (v.value[s.key] as string[]) : [];
   const rows = menuOptions(s, v.value, searchable(s) ? v.optionSearch : '');
   if (!rows.length) return kit.html`<p class="lfdln-filter-bar-pill-empty">${v.words.nothingMatches}</p>`;
-  return kit.html`<div class="lfdln-filter-bar-pill-list" role="menu" aria-label=${s.label}>${rows.map((o) => checkRow(kit, {
-    label: o.label ?? o.value, value: o.value, count: o.count, on: picked.includes(o.value), round: Boolean(s.single),
-    onToggle: () => on.onApplyNow(toggleOption(v.value, s, o.value)),
-  }))}</div>`;
+  return list(kit, s, rows.map((o) => ({
+    label: o.label ?? o.value, value: o.value, count: o.count, on: picked.includes(o.value), next: toggleOption(v.value, s, o.value),
+  })), Boolean(s.single), on);
 }
 
 function rangeRows(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const r = rangeOf(v.value[s.key]);
   if (s.ranges?.length) {
-    return kit.html`<div class="lfdln-filter-bar-pill-list" role="menu" aria-label=${s.label}>${s.ranges.map((p) => {
+    return list(kit, s, s.ranges.map((p) => {
       const pressed = rangePressed(p, r);
-      return checkRow(kit, {
-        label: p.label, count: p.count, on: pressed, round: true,
-        onToggle: () => on.onApplyNow(pressed ? setRange(v.value, s.key) : setRange(v.value, s.key, p.from, p.to)),
-      });
-    })}</div>`;
+      return { label: p.label, count: p.count, on: pressed, next: pressed ? setRange(v.value, s.key) : setRange(v.value, s.key, p.from, p.to) };
+    }), true, on);
   }
   // No ranges: the From and To boxes, applied when one is left or Enter is pressed (not on every key).
   return rangeBoxes(kit, {
