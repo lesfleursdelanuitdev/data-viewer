@@ -1937,3 +1937,317 @@ test.describe('saved views store', () => {
     await expect(page.locator('#test .dv-empty')).toHaveText('Nothing to show.'); // a style without empty()
   });
 });
+
+// #views: filter-style="views" on the plants, remember-as="views-demo", no page views (so "All"
+// is added). #views-page: the same with page views All / Herbs for sun and no remember-as.
+test.describe('views', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  const nav = (page: Page, id = 'views') => page.locator(`#${id} nav.lfdln-filter-views-tabs`);
+  const tabs = (page: Page, id = 'views') => nav(page, id).locator('.lfdln-filter-views-tab');
+  const tab = (page: Page, label: string, id = 'views') =>
+    nav(page, id).locator('.lfdln-filter-views-tab', { has: page.locator('.lfdln-filter-views-label', { hasText: new RegExp(`^${label}$`) }) });
+  const labels = (page: Page, id = 'views') => nav(page, id).locator('.lfdln-filter-views-label');
+  const newView = (page: Page, id = 'views') => page.locator(`#${id} .lfdln-filter-views-new`);
+  const builder = (page: Page, id = 'views') => page.locator(`#${id} form.lfdln-filter-views-builder`);
+  const chip = (page: Page, key: string, value: string, id = 'views') =>
+    builder(page, id).locator(`.lfdln-filter-views-row[data-key="${key}"] .lfdln-filter-toggle[data-value="${value}"]`);
+  const saveButton = (page: Page, id = 'views') => builder(page, id).locator('.lfdln-filter-views-save');
+  const toast = (page: Page, id = 'views') => page.locator(`#${id} .lfdln-filter-views [role="status"]`);
+  const more = (page: Page, label: string, id = 'views') => nav(page, id).getByRole('button', { name: `More for ${label}` });
+  const pick = async (page: Page, label: string, item: 'Rename' | 'Delete', id = 'views') => {
+    await more(page, label, id).click();
+    await page.getByRole('menuitem', { name: item }).click();
+  };
+  const saveView = async (page: Page, kind: string, name = '', id = 'views') => {
+    await newView(page, id).click();
+    await chip(page, 'kind', kind, id).click();
+    await builder(page, id).getByRole('textbox', { name: 'Name this view' }).fill(name);
+    await saveButton(page, id).click();
+    await expect(builder(page, id)).toHaveCount(0);
+  };
+  const focused = (page: Page) => page.evaluate(() => {
+    const a = document.activeElement as HTMLElement | null;
+    return a === document.body || !a ? 'body' : (a.querySelector('.lfdln-filter-views-label')?.textContent ?? a.textContent ?? '').trim();
+  });
+
+  test('tabs with counts, All added, "+ New view" last', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(nav(page)).toHaveAttribute('aria-label', 'Views');
+    await expect(labels(page)).toHaveText(['All']);
+    await expect(tabs(page).first().locator('.lfdln-filter-views-count')).toHaveText('12');
+    await expect(tabs(page).first()).toHaveAttribute('aria-current', 'true');
+    await expect(nav(page).locator(':scope > :last-child')).toHaveText('New view');
+    await expect(newView(page)).toHaveAttribute('aria-expanded', 'false');
+    // The style draws the views: no .dv-views nav; it sits above the bar, which keeps the search box.
+    await expect(page.locator('#views .dv-views')).toHaveCount(0);
+    await expect(page.locator('#views .dv-above + .dv-bar .dv-search input')).toBeVisible();
+    await expect(page.locator('#views .lfdln-filter-views .lfdln-menu-button')).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test('New view opens the builder with the applied filters; the list previews the draft', async ({ page }) => {
+    await open(page);
+    const before = page.url();
+    await newView(page).click();
+    await expect(newView(page)).toHaveAttribute('aria-expanded', 'true');
+    await expect(builder(page)).toBeVisible();
+    await expect(builder(page)).toHaveAttribute('aria-label', 'New view');
+    await expect(newView(page)).toHaveAttribute('aria-controls', (await builder(page).getAttribute('id'))!);
+    await expect(builder(page).locator('.lfdln-filter-views-row-label')).toHaveText(['Kind', 'Light', 'Price', 'In stock']);
+    await expect(builder(page).locator('.lfdln-filter-views-row[data-key="stock"] .lfdln-filter-toggle')).toHaveText(['Yes', 'No']);
+    await chip(page, 'kind', 'Herb').click();
+    await expect(chip(page, 'kind', 'Herb')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#views tbody tr')).toHaveCount(5);
+    await expect(saveButton(page)).toHaveText('Save · 5 results');
+    await expect(page.locator('#views .dv-root')).not.toHaveAttribute('data-filter-open', /.*/); // previewed, not dimmed
+    expect(page.url()).toBe(before);
+    await chip(page, 'stock', 'No').click();
+    await expect(saveButton(page)).toHaveText('Save · 1 result');
+    await chip(page, 'stock', 'Yes').click(); // one at a time
+    await expect(chip(page, 'stock', 'No')).toHaveAttribute('aria-pressed', 'false');
+    await expect(saveButton(page)).toHaveText('Save · 4 results');
+
+    // Applied filters are copied in.
+    await open(page, '?views.f.light=Sun');
+    await newView(page).click();
+    await expect(chip(page, 'light', 'Sun')).toHaveAttribute('aria-pressed', 'true');
+    await chip(page, 'kind', 'Herb').click();
+    await expect(saveButton(page)).toHaveText('Save · 4 results');
+  });
+
+  test('Save adds a current tab and applies it; Cancel and Esc drop the draft and refocus New view', async ({ page }) => {
+    await open(page);
+    await saveView(page, 'Herb', 'Herbs');
+    await expect(labels(page)).toHaveText(['All', 'Herbs']);
+    await expect(tab(page, 'Herbs')).toHaveAttribute('aria-current', 'true');
+    await expect(tab(page, 'All')).not.toHaveAttribute('aria-current', /.*/);
+    await expect(tab(page, 'Herbs').locator('.lfdln-filter-views-count')).toHaveText('5');
+    await expect(tab(page, 'Herbs')).toBeFocused();
+    await expect(newView(page)).toHaveAttribute('aria-expanded', 'false');
+    expect(new URL(page.url()).searchParams.get('views.f.kind')).toBe('Herb');
+    await expect(page.locator('#views tbody tr')).toHaveCount(5);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('views-demo.views')!).map((v: { label: string }) => v.label))).toEqual(['Herbs']);
+
+    // Cancel: the draft goes, the list shows the applied filters again, focus on New view.
+    const url = page.url();
+    await newView(page).click();
+    await chip(page, 'kind', 'Tree').click();
+    await expect(page.locator('#views tbody tr')).toHaveCount(6); // Herb + Tree previewed
+    await builder(page).getByRole('button', { name: 'Cancel' }).click();
+    await expect(builder(page)).toHaveCount(0);
+    await expect(newView(page)).toBeFocused();
+    await expect(page.locator('#views tbody tr')).toHaveCount(5);
+    expect(page.url()).toBe(url);
+    // Esc, from anywhere in the builder.
+    await newView(page).click();
+    await chip(page, 'kind', 'Tree').click();
+    await page.keyboard.press('Escape');
+    await expect(builder(page)).toHaveCount(0);
+    await expect(newView(page)).toBeFocused();
+    await expect(page.locator('#views tbody tr')).toHaveCount(5);
+    // New view again toggles it shut.
+    await newView(page).click();
+    await newView(page).click();
+    await expect(builder(page)).toHaveCount(0);
+
+    // Enter in the name saves; an empty name is "View n".
+    await newView(page).click();
+    await chip(page, 'kind', 'Herb').click(); // off: Tree alone
+    await chip(page, 'kind', 'Tree').click();
+    await builder(page).getByRole('textbox', { name: 'Name this view' }).fill('Trees');
+    await page.keyboard.press('Enter');
+    await expect(tab(page, 'Trees')).toHaveAttribute('aria-current', 'true');
+    await saveView(page, 'Foliage');
+    await expect(labels(page)).toHaveText(['All', 'Herbs', 'Trees', 'View 3']);
+    // A tab is a whole state: All clears the filters.
+    await tab(page, 'All').click();
+    await expect(page.locator('#views tbody tr')).toHaveCount(12);
+    await expect(tab(page, 'All')).toHaveAttribute('aria-current', 'true');
+  });
+
+  test('a view with no filters and no search can\'t be saved, so All stays current', async ({ page }) => {
+    await open(page);
+    await newView(page).click();
+    const save = saveButton(page);
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(save).toHaveAccessibleDescription('Pick a filter or search for something first.');
+    await save.click({ force: true }); // aria-disabled: Playwright would wait for it to be enabled
+    await builder(page).getByRole('textbox', { name: 'Name this view' }).press('Enter');
+    await expect(builder(page)).toBeVisible();
+    await expect(labels(page)).toHaveText(['All']);
+    await chip(page, 'kind', 'Herb').click();
+    await expect(save).not.toHaveAttribute('aria-disabled', /.*/);
+    await chip(page, 'kind', 'Herb').click(); // back to nothing
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await page.keyboard.press('Escape');
+    await expect(tab(page, 'All')).toHaveAttribute('aria-current', 'true');
+    // A search alone is something to save.
+    await open(page, '?views.search=mint');
+    await newView(page).click();
+    await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', /.*/);
+    await saveButton(page).click();
+    await expect(labels(page)).toHaveText(['All', 'View 1']);
+    await expect(tab(page, 'View 1')).toHaveAttribute('aria-current', 'true');
+  });
+
+  test('the ⋯ menu renames in place: Enter saves, Esc cancels, empty keeps the name', async ({ page }) => {
+    await open(page);
+    await saveView(page, 'Herb', 'Herbs');
+    await expect(more(page, 'Herbs')).toHaveCount(1);
+    await pick(page, 'Herbs', 'Rename');
+    const input = nav(page).getByRole('textbox', { name: 'Rename Herbs' });
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue('Herbs');
+    await input.fill('Sunny herbs');
+    await input.press('Enter');
+    await expect(labels(page)).toHaveText(['All', 'Sunny herbs']);
+    await expect(tab(page, 'Sunny herbs')).toBeFocused();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('views-demo.views')!)[0].label)).toBe('Sunny herbs');
+    // Esc cancels.
+    await pick(page, 'Sunny herbs', 'Rename');
+    await nav(page).getByRole('textbox').fill('Nope');
+    await page.keyboard.press('Escape');
+    await expect(labels(page)).toHaveText(['All', 'Sunny herbs']);
+    await expect(tab(page, 'Sunny herbs')).toBeFocused();
+    // Empty keeps the name.
+    await pick(page, 'Sunny herbs', 'Rename');
+    await nav(page).getByRole('textbox').fill('  ');
+    await page.keyboard.press('Enter');
+    await expect(labels(page)).toHaveText(['All', 'Sunny herbs']);
+    // Leaving the box saves.
+    await pick(page, 'Sunny herbs', 'Rename');
+    await nav(page).getByRole('textbox').fill('Leafy');
+    await page.keyboard.press('Tab');
+    await expect(labels(page)).toHaveText(['All', 'Leafy']);
+    expect(await focused(page)).not.toBe('body');
+  });
+
+  test('Delete removes at once and offers Undo for 5 s', async ({ page }) => {
+    await page.clock.install();
+    await open(page);
+    await saveView(page, 'Herb', 'Herbs');
+    await pick(page, 'Herbs', 'Delete');
+    await expect(labels(page)).toHaveText(['All']);
+    // The filters stay applied, shown by the chips row.
+    expect(new URL(page.url()).searchParams.get('views.f.kind')).toBe('Herb');
+    await expect(page.locator('#views tbody tr')).toHaveCount(5);
+    await expect(page.locator('#views .lfdln-filter-chips')).toContainText('Herb');
+    await expect(toast(page)).toContainText('Deleted “Herbs”');
+    await expect(toast(page).getByRole('button', { name: 'Undo' })).toBeFocused();
+    expect(await page.evaluate(() => localStorage.getItem('views-demo.views'))).toBe('[]');
+    await page.clock.runFor(5000);
+    await expect(toast(page)).toHaveText('');
+    await expect(tab(page, 'All')).toBeFocused();
+
+    // Undo within 5 s puts the tab back in its old place.
+    await tab(page, 'All').click();
+    await saveView(page, 'Herb', 'Herbs');
+    await saveView(page, 'Tree', 'Trees');
+    await pick(page, 'Herbs', 'Delete');
+    await expect(labels(page)).toHaveText(['All', 'Trees']);
+    await page.clock.runFor(1000);
+    await toast(page).getByRole('button', { name: 'Undo' }).click();
+    await expect(labels(page)).toHaveText(['All', 'Herbs', 'Trees']);
+    await expect(toast(page)).toHaveText('');
+    await expect(tab(page, 'Trees')).toBeFocused(); // the current tab
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('views-demo.views')!).map((v: { label: string }) => v.label))).toEqual(['Herbs', 'Trees']);
+  });
+
+  test('after the Undo toast, focus goes to the first tab when none is current', async ({ page }) => {
+    await page.clock.install();
+    await open(page);
+    // Page views without '' and no view picked: no tab is current.
+    await page.locator('#views-page').evaluate((el) => {
+      (el as unknown as { views: unknown }).views = [
+        { key: 'sun', label: 'Sunny', where: (p: { light: string }) => p.light === 'Sun' },
+        { key: 'shade', label: 'Shady', where: (p: { light: string }) => p.light === 'Shade' },
+      ];
+    });
+    await expect(labels(page, 'views-page')).toHaveText(['Sunny', 'Shady']);
+    await expect(nav(page, 'views-page').locator('[aria-current]')).toHaveCount(0);
+    await saveView(page, 'Herb', 'Herbs', 'views-page');
+    await pick(page, 'Herbs', 'Delete', 'views-page');
+    await expect(toast(page, 'views-page').getByRole('button', { name: 'Undo' })).toBeFocused();
+    await expect(nav(page, 'views-page').locator('[aria-current]')).toHaveCount(0);
+    await page.clock.runFor(5000);
+    await expect(toast(page, 'views-page')).toHaveText('');
+    await expect(tab(page, 'Sunny', 'views-page')).toBeFocused();
+  });
+
+  test('page views have no ⋯ menu', async ({ page }) => {
+    await open(page);
+    await expect(labels(page, 'views-page')).toHaveText(['All', 'Herbs for sun']);
+    await expect(nav(page, 'views-page').locator('.lfdln-filter-views-count')).toHaveText(['12', '4']);
+    await expect(nav(page, 'views-page').locator('.lfdln-menu-button')).toHaveCount(0);
+    await saveView(page, 'Tree', 'Trees', 'views-page');
+    await expect(nav(page, 'views-page').locator('.lfdln-menu-button')).toHaveCount(1);
+    await expect(more(page, 'Trees', 'views-page')).toHaveCount(1);
+    // A page view is a whole state: no filters.
+    await tab(page, 'Herbs for sun', 'views-page').click();
+    await expect(page.locator('#views-page tbody tr')).toHaveCount(4);
+    await expect(tab(page, 'Herbs for sun', 'views-page')).toHaveAttribute('aria-current', 'true');
+  });
+
+  test('a stored view with a vanished value shows 0, applies, and its chip clears', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('views-demo.views',
+      JSON.stringify([{ key: 'u-cactus', label: 'Cacti', filter: { kind: ['Cactus'] } }])));
+    const { problems } = await open(page);
+    await expect(labels(page)).toHaveText(['All', 'Cacti']);
+    await expect(tab(page, 'Cacti').locator('.lfdln-filter-views-count')).toHaveText('0');
+    await tab(page, 'Cacti').click();
+    await expect(tab(page, 'Cacti')).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('#views tbody tr')).toHaveCount(0);
+    await expect(page.locator('#views .dv-empty')).toBeVisible();
+    await expect(page.locator('#views .lfdln-filter-chips')).toContainText('Cactus');
+    await page.locator('#views .lfdln-filter-chips .lfdln-filter-chip-x').first().click();
+    await expect(page.locator('#views tbody tr')).toHaveCount(12);
+    await expect(tab(page, 'All')).toHaveAttribute('aria-current', 'true');
+    await expect(tab(page, 'Cacti')).not.toHaveAttribute('aria-current', /.*/);
+    expect(problems).toEqual([]);
+  });
+
+  test('zero-count chips in the builder dim to 0.45 and stay clickable', async ({ page }) => {
+    await open(page);
+    await newView(page).click();
+    await chip(page, 'kind', 'Tree').click();
+    const shade = chip(page, 'light', 'Shade');
+    await expect(shade.locator('.lfdln-filter-toggle-count')).toHaveText('0');
+    await expect(shade).toHaveCSS('opacity', '0.45');
+    await shade.click();
+    await expect(shade).toHaveAttribute('aria-pressed', 'true');
+    await expect(saveButton(page)).toHaveText('Save · 0 results');
+    await expect(page.locator('#views tbody tr')).toHaveCount(0);
+  });
+
+  test.describe('phone', () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+    test('20 views with 40-character names scroll inside the tabs row; no sideways page scroll; 44 px targets', async ({ page }) => {
+      await page.addInitScript(() => localStorage.setItem('views-demo.views', JSON.stringify(Array.from({ length: 20 }, (_, i) => ({
+        key: `u-${i}`, label: `Plants for a sunny kitchen window no. ${String(i + 1).padStart(2, '0')}`, filter: { kind: ['Herb'] },
+      })))));
+      await open(page);
+      await expect(labels(page)).toHaveCount(21);
+      expect(await labels(page).nth(1).textContent()).toHaveLength(40);
+      const row = await nav(page).evaluate((n) => ({ sw: n.scrollWidth, cw: n.clientWidth }));
+      expect(row.sw).toBeGreaterThan(row.cw);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      for (const loc of [tabs(page).first(), tabs(page).nth(1), more(page, 'Plants for a sunny kitchen window no. 01'), newView(page)]) {
+        await loc.scrollIntoViewIfNeeded();
+        const box = (await loc.boundingBox())!;
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.width).toBeGreaterThanOrEqual(44);
+      }
+      await newView(page).click();
+      await expect(builder(page)).toBeVisible();
+      for (const loc of [chip(page, 'kind', 'Herb'), chip(page, 'stock', 'Yes'), saveButton(page), builder(page).getByRole('textbox')]) {
+        expect((await loc.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      const card = (await builder(page).boundingBox())!;
+      expect(card.x).toBeGreaterThanOrEqual(0);
+      expect(card.x + card.width).toBeLessThanOrEqual(390);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    });
+  });
+});

@@ -32,7 +32,7 @@ const columns: Column<Plant>[] = [
   { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
 ];
 
-for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side', 'bar2', 'vprobe', 'vprobe-page']) {
+for (const id of ['plants', 'test', 'missing', 'panel', 'rail', 'side', 'bar2', 'vprobe', 'vprobe-page', 'views', 'views-page']) {
   const list = document.querySelector(`#${id}`) as LfdlnDataViewer<Plant>;
   list.columns = columns;
   list.rows = plants;
@@ -123,6 +123,12 @@ registerFilterStyle('probe-side', {
   { key: '', label: 'All plants' },
   { key: 'sun', label: 'Sunny', where: (p) => p.light === 'Sun' },
   { key: 'cheap', label: 'Cheap', count: 99, where: (p) => p.price < 5 },
+];
+
+// #views-page: page views (filter-style="views" adds no "All" then).
+(document.querySelector('#views-page') as LfdlnDataViewer<Plant>).views = [
+  { key: '', label: 'All' },
+  { key: 'sun-herbs', label: 'Herbs for sun', where: (p) => p.kind === 'Herb' && p.light === 'Sun' },
 ];
 
 // #vprobe, #vprobe-page, #vprobe-server: a test style for the saved views store (drawsViews,

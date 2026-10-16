@@ -1,4 +1,4 @@
-// The filter package's Lit-free subpaths (the shared parts and the four styles) draw with the
+// The filter package's Lit-free subpaths (the shared parts and the styles) draw with the
 // kit a host passes in, so none of them, nor any chunk they import, may import Lit. Run after
 // the filter package's library build.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const dist = new URL('../packages/filter/dist/', import.meta.url);
-const ENTRIES = ['parts.js', 'panel.js', 'bar.js', 'rail.js', 'columns.js'];
+const ENTRIES = ['parts.js', 'panel.js', 'bar.js', 'rail.js', 'columns.js', 'views.js'];
 
 // Every module an entry pulls in, by its relative imports, with the bare imports each one makes.
 function bareImports(entry) {

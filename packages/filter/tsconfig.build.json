@@ -10,5 +10,5 @@
     "types": []
   },
   "include": [],
-  "files": ["src/index.ts", "src/parts.ts", "src/panel.ts", "src/panel-element.ts", "src/bar.ts", "src/bar-element.ts", "src/rail.ts", "src/rail-element.ts", "src/columns.ts"]
+  "files": ["src/index.ts", "src/parts.ts", "src/panel.ts", "src/panel-element.ts", "src/bar.ts", "src/bar-element.ts", "src/rail.ts", "src/rail-element.ts", "src/columns.ts", "src/views.ts"]
 }

@@ -55,6 +55,10 @@
   <lfdln-data-viewer id="vprobe-page" label="Plants (views probe, page views)" url-state="vprobepage" filter-style="vprobe" layout="table"></lfdln-data-viewer>
   <h2>The same on recipes from /api/recipes (json adapter, server mode)</h2>
   <lfdln-data-viewer id="vprobe-server" label="Recipes (views probe, server)" adapter="json" src="/api/recipes" filter-style="vprobe" layout="table" data-draft='{"cuisine":["Indian"]}'></lfdln-data-viewer>
+  <h2>Saved views first (filter-style="views"), kept under remember-as="views-demo"</h2>
+  <lfdln-data-viewer id="views" label="Plants (views)" url-state="views" remember-as="views-demo" filter-style="views" layout="table"></lfdln-data-viewer>
+  <h2>The same with page views (All, Herbs for sun) and no remember-as</h2>
+  <lfdln-data-viewer id="views-page" label="Plants (views, page views)" url-state="viewspage" filter-style="views" layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
   <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
   <script type="module">import "../src/filter-styles/panel.ts";</script>
@@ -66,5 +70,7 @@
   <script type="module">import "../src/filter-styles/columns.ts";</script>
   <!-- The search style (and the panel), as a page would add data-viewer-filter-search.js. -->
   <script type="module">import "../src/filter-styles/search.ts";</script>
+  <!-- The views style (and its saved views store), as a page would add data-viewer-filter-views.js. -->
+  <script type="module">import "../src/filter-styles/views.ts";</script>
 </body>
 </html>

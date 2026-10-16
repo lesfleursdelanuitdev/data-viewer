@@ -59,6 +59,10 @@
       "types": "./dist/types/columns.d.ts",
       "import": "./dist/columns.js"
     },
+    "./views": {
+      "types": "./dist/types/views.d.ts",
+      "import": "./dist/views.js"
+    },
     "./standalone": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.standalone.js"

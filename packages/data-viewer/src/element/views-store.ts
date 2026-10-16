@@ -3,6 +3,7 @@
 // style draws from them, and the handlers that pick, save, rename, delete and undo. It lives in
 // the views add-on, not in the standalone viewer: a style attaches it as `store` (see
 // ViewerFilterStyle), and the viewer only calls draw() and stop().
+import { defaultViewsWords } from '@lesfleursdelanuitdev/filter/views';
 import { normalise, type FilterSection, type FilterStyleHandlers, type FilterStyleViews, type FilterValue, type SavedView, type ViewTab } from '@lesfleursdelanuitdev/filter/parts';
 import type { AddressQuery } from '../core/address.ts';
 import type { Query, View } from '../core/types.ts';
@@ -100,14 +101,18 @@ export function viewsStore(host: ViewsHost): ViewsStore {
     host._change({ view, filters: structuredClone(filters), search, page: 1 });
   };
 
-  // The toast goes; focus that was in it moves to the current tab (PLANNER CHOICE 8).
+  // The toast goes; focus that was in it moves to the current tab (PLANNER CHOICE 8), or to the
+  // first tab (a style marks its tabs data-view-key) when none is current, never to the page.
   const endUndo = () => {
     clearTimeout(timer);
     const focus = document.activeElement;
     const inToast = Boolean(focus && host.contains(focus) && focus.closest('[role="status"]'));
     undo = null;
     host.requestUpdate();
-    if (inToast) void host.updateComplete.then(() => host.querySelector<HTMLElement>('[aria-current="true"]')?.focus());
+    if (inToast) {
+      void host.updateComplete.then(() => (host.querySelector<HTMLElement>('[aria-current="true"]')
+        ?? host.querySelector<HTMLElement>('[data-view-key]'))?.focus());
+    }
   };
 
   let sections: FilterSection[] = []; // the last drawing's, for Save
@@ -162,7 +167,7 @@ export function viewsStore(host: ViewsHost): ViewsStore {
       const q = host._q;
       const server = host.total !== undefined && host.total !== null;
       const mine = currentUserView(list, q, last);
-      const pages = host.views?.length ? host.views : [{ key: '', label: host.text.allViews ?? 'All' }];
+      const pages = host.views?.length ? host.views : [{ key: '', label: host.text.allViews ?? defaultViewsWords.allViews }];
       const tabs: ViewTab[] = [
         ...pages.map((v) => ({
           key: v.key,
