@@ -18,29 +18,31 @@ import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
 export { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
+// Every rule for the row and its pills goes through .lfdln-filter-bar-row: today's dialog draws its
+// quick ranges as .lfdln-filter-pills / .lfdln-filter-pill too, and the bar must not restyle them.
 export const barCss = `
-:where(.lfdln-filter-pills) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+:where(.lfdln-filter-bar-row) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 :where(.lfdln-filter-pill-anchor) { position: relative; display: flex; min-width: 0; max-width: 100%; }
-:where(.lfdln-filter-pill) {
+:where(.lfdln-filter-bar-row .lfdln-filter-pill) {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: min(16rem, 100%); margin: 0; padding: 0 10px 0 12px;
   font-size: 13px; white-space: nowrap; color: var(--filter-text); background: transparent;
   border: 1px solid var(--filter-border); border-radius: 999px; -webkit-tap-highlight-color: transparent;
 }
 :where(.lfdln-filter-pill-toggle) { padding-left: 10px; }
-:where(.lfdln-filter-pill:hover, .lfdln-filter-pill-clear:hover) { background: ${HOVER}; }
-:where(.lfdln-filter-pill[aria-expanded=true]) { border-color: var(--filter-accent); }
+:where(.lfdln-filter-bar-row .lfdln-filter-pill:hover, .lfdln-filter-pill-clear:hover) { background: ${HOVER}; }
+:where(.lfdln-filter-bar-row .lfdln-filter-pill[aria-expanded=true]) { border-color: var(--filter-accent); }
 :where(.lfdln-filter-pill-on) { color: ${ON_TEXT}; background: ${SOFT}; border-color: var(--filter-accent); }
 :where(.lfdln-filter-pill-on:hover) { background: color-mix(in srgb, var(--filter-accent) 24%, var(--filter-bg)); }
 :where(.lfdln-filter-pill-key) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 :where(.lfdln-filter-pill-on:not(.lfdln-filter-pill-toggle)) > :where(.lfdln-filter-pill-key) { color: var(--filter-accent); }
 :where(.lfdln-filter-pill-value) { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-:where(.lfdln-filter-pill) > :where(svg) { stroke-width: 22; opacity: 0.7; }
+:where(.lfdln-filter-bar-row .lfdln-filter-pill) > :where(svg) { stroke-width: 22; opacity: 0.7; }
 :where(.lfdln-filter-pill-toggle) > :where(svg) { stroke-width: 20; opacity: 0.35; }
 :where(.lfdln-filter-pill-toggle[aria-pressed=true]) > :where(svg) { opacity: 1; }
-:where(.lfdln-filter-pill, .lfdln-filter-pill-clear, .lfdln-filter-pill-search, .lfdln-filter-pill-range input):where(:focus-visible) {
+:where(.lfdln-filter-bar-row .lfdln-filter-pill, .lfdln-filter-pill-clear, .lfdln-filter-pill-search, .lfdln-filter-pill-range input):where(:focus-visible) {
   outline: 2px solid var(--filter-accent); outline-offset: 2px;
 }
-:where(.lfdln-filter-pills) > :where(.lfdln-filter-btn) { height: 32px; padding: 0 10px; font-size: 12.5px; }
+:where(.lfdln-filter-bar-row) > :where(.lfdln-filter-btn) { height: 32px; padding: 0 10px; font-size: 12.5px; }
 :where(.lfdln-filter-pill-menu) { display: flex; flex-direction: column; gap: 1px; padding: 6px; }
 :where(div.lfdln-filter-pill-menu) { width: 240px; max-height: 320px; }
 :where(.lfdln-filter-pill-title) { margin: 0; padding: 6px 8px 10px; font-size: 15px; font-weight: 500; }
@@ -59,7 +61,7 @@ export const barCss = `
   background: transparent; border: 0; border-radius: 6px; cursor: pointer;
 }
 @media (max-width: 639px) {
-  :where(.lfdln-filter-pill, .lfdln-filter-pills > .lfdln-filter-btn) { height: 44px; }
+  :where(.lfdln-filter-bar-row .lfdln-filter-pill, .lfdln-filter-bar-row > .lfdln-filter-btn) { height: 44px; }
   :where(dialog.lfdln-filter-pill-menu) { padding: 0 10px 14px; }
   :where(.lfdln-filter-pill-search, .lfdln-filter-pill-range input) { height: 44px; font-size: 16px; }
   :where(.lfdln-filter-pill-clear) { height: 44px; font-size: 14px; }
@@ -170,7 +172,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
     on.onMenu(null);
     on.onApplyNow({});
   };
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-pills" role="group" aria-label=${v.label ?? v.words.filter}>${v.sections.map((s) =>
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-pills lfdln-filter-bar-row" role="group" aria-label=${v.label ?? v.words.filter}>${v.sections.map((s) =>
     s.kind === 'bool' ? togglePill(kit, s, v, on) : menuPill(kit, s, v, on))}${any
     ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${clearAll}>${v.words.clearAll}</button>`
     : kit.nothing}</div>`;

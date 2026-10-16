@@ -484,6 +484,22 @@ const barQueries = (page: Page) => page.evaluate(() => (window as unknown as { b
 test.describe('bar', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
+  test("the bar's rules stay off the dialog's quick ranges on the same page", async ({ page }) => {
+    await open(page);
+    await expect(bar(page)).toBeVisible();
+    await expect(page.locator('#lfdln-filter-bar-style')).toHaveCount(1);
+    // #plants is today's dialog: its Price quick ranges share the class lfdln-filter-pill.
+    await page.locator('#plants .lfdln-filter-button').click();
+    await page.locator('#plants .lfdln-filter-row', { hasText: 'Price' }).click();
+    const quick = page.locator('#plants .lfdln-filter-detail .lfdln-filter-pill').first();
+    await expect(quick).toBeVisible();
+    const look = await quick.evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { whiteSpace: c.whiteSpace, maxWidth: c.maxWidth, display: c.display };
+    });
+    expect(look).toEqual({ whiteSpace: 'normal', maxWidth: 'none', display: 'block' });
+  });
+
   test('one pill per section; clicking opens its menu; one menu at a time', async ({ page }) => {
     const { problems } = await open(page);
     await expect(bar(page).locator('.lfdln-filter-pill-key')).toHaveText(['Kind', 'Light', 'Price', 'In stock', 'Cared for by']);
