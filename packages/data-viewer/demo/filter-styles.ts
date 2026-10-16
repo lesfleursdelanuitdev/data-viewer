@@ -31,7 +31,7 @@ const columns: Column<Plant>[] = [
   { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
 ];
 
-for (const id of ['plants', 'test', 'missing', 'panel']) {
+for (const id of ['plants', 'test', 'missing', 'panel', 'rail']) {
   const list = document.querySelector(`#${id}`) as LfdlnDataViewer<Plant>;
   list.columns = columns;
   list.rows = plants;

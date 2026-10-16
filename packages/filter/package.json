@@ -43,6 +43,14 @@
       "types": "./dist/types/bar-element.d.ts",
       "import": "./dist/bar-element.js"
     },
+    "./rail": {
+      "types": "./dist/types/rail.d.ts",
+      "import": "./dist/rail.js"
+    },
+    "./rail-element": {
+      "types": "./dist/types/rail-element.d.ts",
+      "import": "./dist/rail-element.js"
+    },
     "./standalone": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.standalone.js"
@@ -60,9 +68,9 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && vite build --mode standalone-panel && vite build --mode standalone-bar && npm run types && npm run size",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-panel && vite build --mode standalone-bar && vite build --mode standalone-rail && npm run types && npm run size",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/filter.standalone.js=20480 dist/filter-panel.standalone.js=20480 dist/filter-bar.standalone.js=20480",
+    "size": "node ../../scripts/size.mjs dist/filter.standalone.js=20480 dist/filter-panel.standalone.js=20480 dist/filter-bar.standalone.js=20480 dist/filter-rail.standalone.js=20480",
     "e2e": "playwright test"
   },
   "peerDependencies": {

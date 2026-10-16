@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>filter rail demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--filter-bg); color: var(--filter-text); }
+    lfdln-filter-rail { display: block; width: 190px; }
+  </style>
+  <script type="module" src="/filter-rail.standalone.js"></script>
+</head>
+<body>
+  <h1>&lt;lfdln-filter-rail&gt;</h1>
+  <lfdln-filter-rail id="r"></lfdln-filter-rail>
+  <pre id="log" aria-live="polite"></pre>
+
+  <script type="module">
+    const sections = [
+      { key: 'kind', label: 'Kind', kind: 'choice', options: [{ value: 'Flower', count: 1 }, { value: 'Foliage', count: 0 }, { value: 'Herb', count: 2 }] },
+      { key: 'size', label: 'Size', kind: 'choice', single: true, options: [{ value: 's', label: 'Small' }, { value: 'l', label: 'Large' }] },
+      { key: 'height', label: 'Height', kind: 'range', type: 'number' },
+      { key: 'stock', label: 'In stock', kind: 'bool', hint: 'Hide plants that are sold out' },
+    ];
+    const events = [];
+    window.events = events;
+    const el = document.querySelector('#r');
+    el.sections = sections;
+    el.addEventListener('filter-change', (e) => {
+      events.push(e.detail);
+      document.querySelector('#log').textContent = events.map((x) => JSON.stringify(x)).join('\n');
+    });
+  </script>
+</body>
+</html>

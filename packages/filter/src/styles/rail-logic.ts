@@ -1,0 +1,53 @@
+// The rail's pure helpers: no DOM, no Lit, tested with node:test.
+import { setRange, toggleOption } from '../core/draft.ts';
+import { choiceOptions } from '../core/options.ts';
+import { isSet } from '../core/summary.ts';
+import type { FilterRange, FilterSection, FilterValue } from '../core/types.ts';
+
+/** Narrower than this (the list's own width, not the window's), the rail becomes the panel. */
+export const RAIL_MIN_WIDTH = 720;
+
+/** The rail's fallback: 'panel' when the list is narrower than 720 px, else none. */
+export function railFallback(ctx: { width: number; layout: 'table' | 'cards' }): string | null {
+  return ctx.width < RAIL_MIN_WIDTH ? 'panel' : null;
+}
+
+/** One check row in the rail, with the value a tick on it leaves. */
+export type RailRow = { value: string; label: string; count?: number; on: boolean; round: boolean; next: FilterValue };
+
+const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
+  v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+
+/**
+ * A section's check rows: a choice's options (and any picked value it no longer offers, count 0),
+ * round for a single choice; a range's named ranges, round, one at a time. None for a range with
+ * no named ranges (it has the From and To boxes) or a yes/no section (a switch).
+ */
+export function railRows(section: FilterSection, value: FilterValue): RailRow[] {
+  if (section.kind === 'choice') {
+    const v = value[section.key];
+    const picked = Array.isArray(v) ? v : [];
+    return choiceOptions(section, value).map((o) => ({
+      value: o.value, label: o.label ?? o.value, count: o.count, on: picked.includes(o.value), round: Boolean(section.single),
+      next: toggleOption(value, section, o.value),
+    }));
+  }
+  if (section.kind === 'range' && section.ranges?.length) {
+    const r = rangeOf(value[section.key]);
+    const from = (r.from ?? '').trim();
+    const to = (r.to ?? '').trim();
+    return section.ranges.map((p) => {
+      const on = (p.from ?? '') === from && (p.to ?? '') === to;
+      return {
+        value: p.label, label: p.label, count: p.count, on, round: true,
+        next: on ? setRange(value, section.key) : setRange(value, section.key, p.from, p.to),
+      };
+    });
+  }
+  return [];
+}
+
+/** Whether any section narrows the list (the rail's Clear shows then). */
+export function anySet(sections: FilterSection[], value: FilterValue): boolean {
+  return sections.some((s) => isSet(s, value[s.key]));
+}

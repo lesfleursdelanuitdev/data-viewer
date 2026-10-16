@@ -125,7 +125,7 @@ export const css: string = `
   display: block; width: 100%; height: 100%; max-height: none; object-fit: cover; border-radius: 0;
 }
 
-:where(.dv-root) > :where(.lfdln-pagination-nav) { margin-top: 0.75rem; }
+:where(.dv-root, .dv-main) > :where(.lfdln-pagination-nav) { margin-top: 0.75rem; }
 :where(.dv-empty, .dv-error) { padding: 1.5rem; text-align: center; color: var(--dv-muted); border: 1px dashed var(--dv-border); border-radius: var(--dv-radius); }
 :where(.dv-error) { color: var(--dv-danger); margin-bottom: 0.75rem; }
 

@@ -23,7 +23,7 @@ import { columnsIn } from './column.ts';
 import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
-import { onFilterStyle, pickFilterStyle } from '../core/filter-styles.ts';
+import { filterStyle, onFilterStyle, pickFilterStyle } from '../core/filter-styles.ts';
 import { viewerKit } from './filter-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
@@ -244,6 +244,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // when a style is registered (it may be the one asked for, or its fallback).
   private _fStyle: FilterStyle | undefined;
   private _unStyle: (() => void) | undefined;
+  // The list's width (.dv-root's), for a style's fallback: watched by a ResizeObserver only while
+  // the style asked for has a fallback; before its first answer, the element's own width.
+  private _width: number | undefined;
+  private _ro: ResizeObserver | undefined;
+  private _roOn: Element | undefined;
   declare _configuring: boolean;
   declare _failReason: string | undefined;
   // Config: the newest setup wins; its on handlers are kept so they can be taken off again.
@@ -386,6 +391,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._fMedia?.removeEventListener('change', this._onFMedia);
     this._unStyle?.();
     this._unStyle = undefined;
+    this._ro?.disconnect();
+    this._ro = this._roOn = undefined;
     this._fDraft = null;
     this._countFor.stop();
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
@@ -477,16 +484,22 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // Another style (a new filter-style, a style registered late, a fallback) closes the filter
   // and drops its draft.
   private _pickStyle(): void {
-    // No filter-style: no lookup, and no width read (it forces a layout).
-    const style = this.filterStyle
-      ? pickFilterStyle(this.filterStyle, { width: this.clientWidth, layout: this.layout === 'cards' ? 'cards' : 'table' })
-      : undefined;
+    const style = this._styleFor();
     if (style !== this._fStyle && this.hasUpdated) {
       this._fDraft = null;
       this._fMenu = null;
     }
     this._fStyle = style;
     style?.styles();
+  }
+
+  // No filter-style: no lookup, and no width read (it forces a layout). Before the observer's
+  // first answer the width is .dv-root's, or before the first drawing the parent's (the element
+  // itself is inline, so it has none of its own).
+  private _styleFor(): FilterStyle | undefined {
+    if (!this.filterStyle) return undefined;
+    const width = this._width ?? (this.querySelector(':scope > .dv-root') ?? this.parentElement)?.clientWidth ?? 0;
+    return pickFilterStyle(this.filterStyle, { width, layout: this.layout === 'cards' ? 'cards' : 'table' });
   }
 
   /** The words in use: the defaults with the page's own on top. */
@@ -760,6 +773,25 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   protected override updated(): void {
     this._custom.after();
+    this._watchWidth();
+  }
+
+  // A ResizeObserver on .dv-root while the style asked for has a fallback (rail: the panel under
+  // 720 px), so a list that narrows or widens without a new drawing switches; none otherwise.
+  private _watchWidth(): void {
+    const asked = this.filterStyle ? filterStyle(this.filterStyle.trim().toLowerCase()) : undefined;
+    const root = (asked?.fallback && this.querySelector(':scope > .dv-root')) || undefined;
+    if (root === this._roOn) return;
+    this._ro?.disconnect();
+    this._roOn = root;
+    // A new width draws again only when it changes the style (every pixel would redraw the list),
+    // and on the next frame: drawing inside the callback resizes .dv-root again in the same frame,
+    // which the browser reports as a "ResizeObserver loop" error.
+    this._ro = root ? new ResizeObserver(([e]) => {
+      this._width = Math.round(e!.contentRect.width);
+      if (this._styleFor() !== this._fStyle) requestAnimationFrame(() => this.isConnected && this.requestUpdate());
+    }) : undefined;
+    this._ro?.observe(root!);
   }
 
   private _open(row: T): void {
@@ -985,7 +1017,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // focus moves to the current page (focusable from script only) instead of being lost.
   private _goTo(page: number, number: boolean): void {
     this._change({ page });
-    void this.updateComplete.then(() => focusCurrentPage(this.querySelector(':scope > .dv-root > .lfdln-pagination-nav'), number));
+    void this.updateComplete.then(() => focusCurrentPage(this.querySelector(':scope > .dv-root > .lfdln-pagination-nav, :scope > .dv-root > .dv-main > .lfdln-pagination-nav'), number));
   }
 
   private _setLayout(layout: Layout): void {
@@ -1044,9 +1076,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       : undefined;
     // A style's open draft (not one that applies at once) dims the results behind it.
     const dim = this._fStyle && !this._fStyle.instant && this._fDraft !== null;
-    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}>
-      ${this.compact ? nothing : this._bar(w, sections, styled)}
-      ${this.compact ? nothing : this._chips(w, sections)}
+    // A style drawn beside the list (rail) gets a column of its own; the rest go in .dv-main.
+    const side = Boolean(styled && this._fStyle!.side);
+    const main = html`
+      ${this.compact ? nothing : this._bar(w, sections, side ? undefined : styled, side)}
+      ${this.compact ? nothing : styled && this._fStyle!.summary ? this._fStyle!.summary(styled.view, styled.on, viewerKit) : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
             <p>${this._failReason ?? w.loadFailed}</p>
@@ -1060,15 +1094,17 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           : this.layout === 'cards'
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
-      ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}
-      ${this._confirm(w)}
-    </div>`;
+      ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}`;
+    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}
+      data-filter-side=${side ? '' : nothing}>${side
+        ? html`<div class="dv-side">${this._filter(w, sections, styled)}</div><div class="dv-main">${main}</div>`
+        : main}${this._confirm(w)}</div>`;
   }
 
-  private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
+  private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, side = false): TemplateResult {
     return html`<div class="dv-bar">
       <div class="dv-search">${this._searchBox(w)}</div>
-      ${sections.length ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
+      ${sections.length && !side ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
       ${this.views?.length
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {

@@ -687,3 +687,150 @@ test.describe('bar on a phone', () => {
     await expect(page.locator('#bar dialog.lfdln-filter-pill-menu input[type=search]')).toHaveCSS('font-size', '16px');
   });
 });
+
+// #rail: the 12 plants with filter-style="rail" (the add-on registers rail and panel), in #rail-box.
+const rail = (page: Page) => page.locator('#rail .lfdln-filter-rail');
+const railRow = (page: Page, value: string) => rail(page).locator(`.lfdln-filter-check-row[data-value="${value}"]`);
+const results = (page: Page) => page.locator('#rail .lfdln-filter-rail-results');
+
+test.describe('rail', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('the rail is always open beside the list; ticks apply at once', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(rail(page)).toBeVisible();
+    await expect(rail(page).locator('.lfdln-filter-rail-title')).toHaveText('Filters');
+    await expect(rail(page).locator('.lfdln-filter-rail-label')).toHaveText(['Kind', 'Light', 'Price']);
+    await expect(rail(page).getByRole('switch', { name: 'In stock' })).toBeVisible();
+    // No button, no dialog, no chips row: the rail is the filter.
+    await expect(page.locator('#rail .lfdln-filter-button, #rail .lfdln-filter-trigger')).toHaveCount(0);
+    await expect(page.locator('#rail .dv-root > .lfdln-filter-chips')).toHaveCount(0);
+    // The 190 px | 1fr grid, 22 px apart: the rail on the left, the bar and the list on the right.
+    const [r, table, barBox] = await Promise.all([
+      rail(page).boundingBox(), page.locator('#rail .dv-table-wrap').boundingBox(), page.locator('#rail .dv-bar').boundingBox(),
+    ]);
+    expect(Math.round(r!.width)).toBe(190);
+    expect(Math.round(table!.x - (r!.x + r!.width))).toBe(22);
+    expect(Math.round(barBox!.x)).toBe(Math.round(table!.x));
+    expect(barBox!.y).toBeLessThan(table!.y);
+    // 28 px rows with 14 px boxes, as check boxes (not menu items).
+    await expect(railRow(page, 'Herb')).toHaveAttribute('role', 'checkbox');
+    expect(Math.round((await railRow(page, 'Herb').boundingBox())!.height)).toBe(28);
+    expect(Math.round((await railRow(page, 'Herb').locator('.lfdln-filter-box').boundingBox())!.width)).toBe(14);
+    // A tick applies at once; the rail stays open.
+    await railRow(page, 'Herb').click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(5);
+    await expect(railRow(page, 'Herb')).toHaveAttribute('aria-checked', 'true');
+    expect(new URL(page.url()).searchParams.get('rail.f.kind')).toBe('Herb');
+    // Counts follow: no herb likes shade, so Shade dims to 0.45 and stays clickable.
+    await expect(railRow(page, 'Shade')).toHaveClass(/lfdln-filter-dim/);
+    expect(await railRow(page, 'Shade').evaluate((el) => getComputedStyle(el).opacity)).toBe('0.45');
+    // A named range is one at a time.
+    await railRow(page, 'Under €5').click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(5);
+    await expect(railRow(page, 'Under €5')).toHaveAttribute('aria-checked', 'true');
+    // The switch: Space toggles it.
+    const sw = rail(page).getByRole('switch', { name: 'In stock' });
+    await sw.focus();
+    await page.keyboard.press('Space');
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('#rail tbody tr')).toHaveCount(4);
+    expect(problems).toEqual([]);
+  });
+
+  test('the results header shows "N results" and removable chips', async ({ page }) => {
+    await open(page, `?rail.f.kind=${encodeURIComponent('Herb,Flower')}`);
+    await expect(page.locator('#rail tbody tr')).toHaveCount(8);
+    await expect(results(page).locator('.lfdln-filter-rail-count')).toHaveText('8 results');
+    await expect(results(page).locator('.lfdln-filter-tag-label')).toHaveText(['Herb', 'Flower']);
+    // Above the list, in the right-hand column.
+    const [h, table] = await Promise.all([results(page).boundingBox(), page.locator('#rail .dv-table-wrap').boundingBox()]);
+    expect(h!.y + h!.height).toBeLessThanOrEqual(table!.y);
+    expect(Math.round(h!.x)).toBe(Math.round(table!.x));
+    // × removes at once; the rail follows. The last chip gone, focus goes to the one before it.
+    await results(page).getByRole('button', { name: 'Remove Flower' }).click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(5);
+    await expect(results(page).locator('.lfdln-filter-rail-count')).toHaveText('5 results');
+    await expect(railRow(page, 'Flower')).toHaveAttribute('aria-checked', 'false');
+    await expect(results(page).getByRole('button', { name: 'Remove Herb' })).toBeFocused();
+    await railRow(page, 'Tree').click();
+    await expect(results(page).locator('.lfdln-filter-tag-label')).toHaveText(['Herb', 'Tree']);
+    await results(page).getByRole('button', { name: 'Remove Herb' }).click();
+    await expect(results(page).locator('.lfdln-filter-rail-count')).toHaveText('1 result');
+    // Not the last: the same × now removes the next chip, and keeps focus.
+    await expect(results(page).getByRole('button', { name: 'Remove Tree' })).toBeFocused();
+    // The last chip gone: focus goes to the count, which stays.
+    await results(page).getByRole('button', { name: 'Remove Tree' }).click();
+    await expect(results(page).locator('.lfdln-filter-tag')).toHaveCount(0);
+    await expect(results(page).locator('.lfdln-filter-rail-count')).toHaveText('12 results');
+    await expect(results(page).locator('.lfdln-filter-rail-count')).toBeFocused();
+    // A bookmarked value that no longer exists shows as a chip and a ticked row, and clears.
+    await page.goto('/filter-styles.html?rail.f.kind=Cactus');
+    await expect(results(page).locator('.lfdln-filter-tag-label')).toHaveText(['Cactus']);
+    await expect(railRow(page, 'Cactus')).toHaveAttribute('aria-checked', 'true');
+    await railRow(page, 'Cactus').click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(12);
+  });
+
+  test('Clear in the rail empties every filter', async ({ page }) => {
+    await open(page);
+    const clear = rail(page).getByRole('button', { name: 'Clear' });
+    await expect(clear).toHaveCount(0);
+    await railRow(page, 'Herb').click();
+    await railRow(page, 'Sun').click();
+    await rail(page).getByRole('switch', { name: 'In stock' }).click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(3);
+    await expect(clear).toBeVisible();
+    await clear.click();
+    await expect(page.locator('#rail tbody tr')).toHaveCount(12);
+    await expect(clear).toHaveCount(0);
+    await expect(rail(page).locator('[aria-checked=true]')).toHaveCount(0);
+    await expect(results(page).locator('.lfdln-filter-tag')).toHaveCount(0);
+    expect([...new URL(page.url()).searchParams.keys()].filter((k) => k.startsWith('rail.f.'))).toEqual([]);
+    // Clear leaves; focus goes to the rail's first row, which stays.
+    await expect(railRow(page, 'Flower')).toBeFocused();
+  });
+
+  test('narrower than 720 px it becomes the panel, and back when wider', async ({ page }) => {
+    // Window errors that are not page errors (a ResizeObserver loop is one) are kept too.
+    await page.addInitScript(() => {
+      const w = window as unknown as { errors: string[] };
+      w.errors = [];
+      addEventListener('error', (e) => w.errors.push(e.message));
+    });
+    const { problems } = await open(page, '?rail.f.kind=Herb');
+    await expect(rail(page)).toBeVisible();
+    // The page narrows the list's container (#rail-box), not the window.
+    const width = (px: number) => page.locator('#rail-box').evaluate((el, w) => {
+      (el as HTMLElement).style.width = `${w}px`;
+    }, px);
+    await width(700);
+    await expect(page.locator('#rail .lfdln-filter-trigger')).toBeVisible();
+    await expect(rail(page)).toHaveCount(0);
+    await expect(page.locator('#rail .dv-root')).not.toHaveAttribute('data-filter-side', /.*/);
+    // The applied filter carries over: the panel's badge and chip.
+    await expect(page.locator('#rail .lfdln-filter-badge')).toHaveText('1');
+    await expect(page.locator('#rail tbody tr')).toHaveCount(5);
+    await width(900);
+    await expect(rail(page)).toBeVisible();
+    await expect(page.locator('#rail .lfdln-filter-trigger')).toHaveCount(0);
+    await expect(railRow(page, 'Herb')).toHaveAttribute('aria-checked', 'true');
+    expect(page.viewportSize()!.width).toBe(1280);
+    await width(700);
+    await expect(page.locator('#rail .lfdln-filter-trigger')).toBeVisible();
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    expect(problems).toEqual([]);
+    expect(await page.evaluate(() => (window as unknown as { errors: string[] }).errors)).toEqual([]);
+  });
+});
+
+test.describe('rail on a phone', () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test('phone: the rail is the panel', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#rail .lfdln-filter-trigger')).toBeVisible();
+    await expect(rail(page)).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  });
+});

@@ -31,6 +31,10 @@ export type FilterStyle = {
   showsApplied: boolean; // draws applied filters itself, so the chips row is off
   styles(): void;        // injects its <style> once
   fallback?(ctx: { width: number; layout: 'table' | 'cards' }): string | null; // another style's name, or null
+  // Drawn in a column of its own beside the list (rail), not in the bar; the host's root becomes a grid.
+  side?: boolean;
   render(view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
+  // Drawn above the list, in the chips row's place (rail's "N results" and chips).
+  summary?(view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
   header?(section: FilterSection, place: { index: number; of: number }, view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
 };
