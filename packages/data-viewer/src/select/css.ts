@@ -29,9 +29,12 @@ export const selectCss: string = `
 :where(.dv-select-bar) :where(button:not([role=menuitem]):focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
 :where(.dv-select-clear) { min-width: 2.25rem; }
 :where(.dv-select-action) { white-space: nowrap; }
+:where(.dv-select-action) > :where(span) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 :where(.dv-select-action[data-danger]) { color: var(--dv-danger); }
 :where(.dv-select-action[aria-disabled=true]) { opacity: 0.5; cursor: default; }
 :where(.dv-select-more) { display: inline-flex; }
+/* Wide screens: the first 3 actions and a ⋯ with the rest; phones: the first and a ⋯ with the rest. */
+:where(.dv-select-bar) :where([data-only=phone]) { display: none; }
 :where(.dv-select-all) {
   display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: center; margin: -0.25rem 0 0.75rem; color: var(--dv-muted);
 }
@@ -44,8 +47,9 @@ export const selectCss: string = `
   :where(.dv-table) :where(.dv-select-cell) { width: 44px; min-width: 44px; padding: 0; text-align: center; }
   :where(.dv-select-hit) { min-width: 44px; min-height: 44px; }
   :where(.lfdln-card-head) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
-  /* Fixed to the bottom of the screen, one line (it scrolls sideways itself when the actions
-     don't fit), above the list; the list gets room under its end so nothing stays hidden. */
+  /* Fixed to the bottom of the screen, one line, above the list; the list gets room under its
+     end so nothing stays hidden. It holds ✕, the count, one action and ⋯; it scrolls sideways
+     itself only when even those don't fit (long words). */
   :where(.dv-select-bar) {
     position: fixed; inset: auto 0 0 0; z-index: 10; min-height: 60px; padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box; margin: 0; flex-wrap: nowrap; overflow-x: auto; border-width: 1px 0 0; border-radius: 0;
@@ -54,6 +58,9 @@ export const selectCss: string = `
   /* ✕ first, so it stays on screen when the actions scroll. */
   :where(.dv-select-clear) { order: -1; }
   :where(.dv-select-bar) :where(button:not([role=menuitem])) { min-height: 44px; min-width: 44px; flex: none; }
+  :where(.dv-select-bar) :where([data-only=wide]) { display: none; }
+  :where(.dv-select-bar) :where(.dv-select-more[data-only=phone]) { display: inline-flex; }
+  :where(.dv-select-action) { max-width: 40vw; }
   :where(.dv-root[data-selecting]) { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
   :where(.dv-select-all) { margin-top: 0; }
   :where(.dv-select-all) :where(button) { min-height: 44px; }

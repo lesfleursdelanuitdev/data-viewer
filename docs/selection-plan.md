@@ -63,8 +63,8 @@ selectable; they show the boxes and the selection bar but no "Select all matchin
   places it, not the template.
 - **Selection bar.** While at least one row is ticked, a bar replaces the search, filter and layout
   bar (they come back when the selection clears). It reads "3 selected" (a polite live region),
-  then the actions as buttons, then a ✕ named "Clear selection". After 3 actions the rest go into
-  a ⋯ menu (the menu package). `danger` actions use `--dv-danger`. On phones (640 px or less) the
+  then the actions as buttons, then a ✕ named "Clear selection". The first 3 (first 1 on phones)
+  are buttons; the rest go into a ⋯ menu (the menu package). `danger` actions use `--dv-danger`. On phones (640 px or less) the
   bar is fixed to the bottom of the screen with 44 px buttons, and the list gets bottom padding so
   the bar doesn't cover the last row.
 - **Select all line.** When every row on the page is ticked and `total` is larger than the page,

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // demo/select.html, with the select add-on: #table (54 rows, 20 per page, phone-layout="table"),
-// #cards (built-in cards, open-event), #tpl (cardTemplate), #mount (cardMount), #compact (5 rows),
+// #cards (built-in cards, open-event, 3 actions), #cardof (cardOf, 1 action), #tpl (cardTemplate), #mount (cardMount), #compact (5 rows),
 // #nokey (two rows and one with no id). window.events collects { type, detail } for each
 // dv-select, dv-open and dv-batch. demo/select-late.html: #late, the add-on imported after 300 ms.
 test.use({ viewport: { width: 1280, height: 900 } });
@@ -232,8 +232,18 @@ test.describe('batch actions', () => {
     const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
     await expect(more).toHaveCount(1);
     await more.click();
-    const items = await page.locator('#table .lfdln-menu-list').getByRole('menuitem').allTextContents();
+    const items = await page.locator('#table .lfdln-menu-list[id$="-sel-more"]').getByRole('menuitem').allTextContents();
     expect(items.map((t) => t.trim()).sort()).toEqual(["Can't do this", 'Delete']);
+  });
+
+  test('wide screens: 3 actions are 3 buttons and no ⋯; 1 action is 1 button', async ({ page }) => {
+    await open(page);
+    await rowBox(page, 'cards', 'Rose 1').check();
+    await expect(bar(page, 'cards').locator('button.dv-select-action:visible')).toHaveText(['Export', 'Mark as shipped', 'Delete']);
+    await expect(bar(page, 'cards').getByRole('button', { name: 'More actions', exact: true })).toHaveCount(0);
+    await rowBox(page, 'cardof', 'Rose 1').check();
+    await expect(bar(page, 'cardof').locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    await expect(bar(page, 'cardof').getByRole('button', { name: 'More actions', exact: true })).toHaveCount(0);
   });
 
   test('a danger action is drawn in --dv-danger', async ({ page }) => {
@@ -331,10 +341,10 @@ test.describe('batch actions', () => {
     await tick3(page);
     const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
     await more.click();
-    await expect(page.locator('#table .lfdln-menu-list')).toBeVisible();
-    await expect(page.locator('#table .lfdln-menu-list [role=menuitem]:focus')).toHaveCount(1);
+    await expect(page.locator('#table .lfdln-menu-list[id$="-sel-more"]')).toBeVisible();
+    await expect(page.locator('#table .lfdln-menu-list[id$="-sel-more"] [role=menuitem]:focus')).toHaveCount(1);
     await page.keyboard.press('Escape');
-    await expect(page.locator('#table .lfdln-menu-list')).toBeHidden();
+    await expect(page.locator('#table .lfdln-menu-list[id$="-sel-more"]')).toBeHidden();
     await expect(more).toBeFocused();
     await expect(bar(page).locator('.dv-select-count')).toHaveText('3 selected');
     await page.keyboard.press('Escape');
@@ -527,8 +537,8 @@ test.describe('the phone bar', () => {
     const b = (await bar(page).boundingBox())!;
     expect(Math.round(b.y + b.height)).toBe(844);
     expect(b.height).toBeGreaterThanOrEqual(60);
-    const buttons = bar(page).locator('button:not([role=menuitem])');
-    expect(await buttons.count()).toBeGreaterThanOrEqual(5);
+    const buttons = bar(page).locator('button:not([role=menuitem]):visible');
+    expect(await buttons.count()).toBeGreaterThanOrEqual(3);
     for (const box of await buttons.all()) expect((await box.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     // Scrolled to the end of #table: its last row and its pager sit above the bar.
@@ -541,5 +551,70 @@ test.describe('the phone bar', () => {
     // The bar is drawn above the boxes it covers.
     const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.dv-select-bar') !== null, [b.x + 5, b.y + b.height / 2]);
     expect(hit).toBe(true);
+  });
+  // Every child of the bar ends on screen, and the bar itself doesn't scroll sideways.
+  async function fits(page: Page, list: string) {
+    const b = bar(page, list);
+    const rights = await b.evaluate((el) => [...el.children]
+      .filter((c) => getComputedStyle(c).display !== 'none')
+      .map((c) => c.getBoundingClientRect().right));
+    for (const r of rights) expect(r).toBeLessThanOrEqual(390);
+    const [sw, cw] = await b.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+    expect(sw).toBe(cw);
+    await expect(b.locator('.dv-select-clear')).toBeInViewport();
+    await expect(b.locator('.dv-select-count')).toBeInViewport();
+  }
+
+  test('5 actions: the bar shows ✕, the count, the first action and a ⋯ with the other 4, and fits', async ({ page }) => {
+    await open(page);
+    await rowBox(page, 'table', 'Rose 1').check();
+    await expect(bar(page).locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
+    await expect(more).toHaveCount(1);
+    await fits(page, 'table');
+    // The first action is cut with an ellipsis at 40 vw at most.
+    const w = (await bar(page).locator('button.dv-select-action:visible').boundingBox())!.width;
+    expect(w).toBeLessThanOrEqual(390 * 0.4 + 0.5);
+    await more.click();
+    const phoneMenu = page.locator('#table .lfdln-menu-list[id$="-sel-more-phone"]');
+    await expect(phoneMenu).toBeVisible();
+    const items = await phoneMenu.getByRole('menuitem').allTextContents();
+    expect(items.map((t) => t.trim()).sort()).toEqual(['Archive', "Can't do this", 'Delete', 'Mark as shipped']);
+    await phoneMenu.getByRole('menuitem', { name: 'Archive' }).click();
+    expect((await batches(page)).map((d) => d.action)).toEqual(['archive']);
+  });
+
+  test('3 actions: the first is a button and the other 2 are in the ⋯', async ({ page }) => {
+    await open(page);
+    await rowBox(page, 'cards', 'Rose 1').check();
+    await expect(bar(page, 'cards').locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    await bar(page, 'cards').getByRole('button', { name: 'More actions', exact: true }).click();
+    const phoneMenu = page.locator('#cards .lfdln-menu-list[id$="-sel-more-phone"]');
+    await expect(phoneMenu).toBeVisible();
+    const items = await phoneMenu.getByRole('menuitem').allTextContents();
+    expect(items.map((t) => t.trim()).sort()).toEqual(['Delete', 'Mark as shipped']);
+    await fits(page, 'cards');
+  });
+
+  test('1 action: no ⋯', async ({ page }) => {
+    await open(page);
+    await rowBox(page, 'cardof', 'Rose 1').check();
+    await expect(bar(page, 'cardof').locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    await expect(bar(page, 'cardof').getByRole('button', { name: 'More actions', exact: true })).toHaveCount(0);
+    await fits(page, 'cardof');
+  });
+
+  test('a long first action is cut with an ellipsis at 40 vw', async ({ page }) => {
+    await open(page);
+    await page.locator('#cardof').evaluate((el) => {
+      (el as HTMLElement & { batchActions: unknown }).batchActions = [{ id: 'export', label: 'Export every ticked plant to a spreadsheet' }];
+    });
+    await rowBox(page, 'cardof', 'Rose 1').check();
+    const action = bar(page, 'cardof').locator('button.dv-select-action');
+    expect((await action.boundingBox())!.width).toBeLessThanOrEqual(390 * 0.4 + 0.5);
+    const label = action.locator('span');
+    expect(await label.evaluate((e) => getComputedStyle(e).textOverflow)).toBe('ellipsis');
+    expect(await label.evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
+    await fits(page, 'cardof');
   });
 });

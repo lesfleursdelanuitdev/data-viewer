@@ -31,6 +31,9 @@ for (const el of [list('table'), server]) {
   el.batchActions = actions;
   el.addEventListener('dv-batch', (e) => (window as unknown as { keep?: boolean }).keep === true && e.preventDefault());
 }
+// #cards: 3 actions; #cardof: 1 (on phones: the first as a button, the rest in a ⋯).
+list('cards').batchActions = [actions[0]!, actions[1]!, actions[3]!];
+list('cardof').batchActions = [actions[0]!];
 for (const type of ['dv-select', 'dv-batch']) {
   server.addEventListener(type, (e) => events.push({ type, detail: (e as CustomEvent).detail }));
 }
