@@ -463,6 +463,28 @@ test.describe('panel', () => {
   });
 });
 
+// The trigger sits at the bar's right end, so the 400 px panel opens right-aligned to it, inside
+// the list, not hanging past the list's right edge.
+for (const width of [1280, 1024]) {
+  test.describe(`panel anchoring at ${width} px`, () => {
+    test.use({ viewport: { width, height: 900 } });
+
+    test('the panel stays inside the list, right-aligned to its trigger', async ({ page }) => {
+      await open(page);
+      const trigger = page.locator('#panel .lfdln-filter-trigger');
+      await trigger.click();
+      const panel = page.locator('#panel .lfdln-filter-panel');
+      await expect(panel).toBeVisible();
+      const [p, t, list] = await page.locator('#panel').evaluate((el) => ['.lfdln-filter-panel', '.lfdln-filter-trigger', '.dv-root']
+        .map((s) => el.querySelector(s)!.getBoundingClientRect().toJSON() as DOMRect));
+      expect(t!.x + t!.width / 2).toBeGreaterThan(list!.x + list!.width / 2);
+      expect(p!.right).toBeLessThanOrEqual(list!.right + 1);
+      expect(Math.abs(p!.right - t!.right)).toBeLessThanOrEqual(1);
+      expect(p!.left).toBeGreaterThanOrEqual(8);
+    });
+  });
+}
+
 test.describe('panel on a phone', () => {
   test.use({ viewport: { width: 390, height: 800 } });
 

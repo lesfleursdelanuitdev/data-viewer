@@ -44,3 +44,15 @@ export function histogramBars(section: FilterSection, range: FilterRange | undef
     return { height: Math.max(3, Math.round((n / max) * 40)), on: n > 0 && meets };
   });
 }
+
+/**
+ * The panel's left edge in the window, `width` px wide, for a trigger at `trigger` in a list at
+ * `list`, in a window `vw` wide: under the trigger's left edge, or right-aligned to the trigger
+ * when the trigger's middle is in the list's right half (it then sits at the bar's right end, and
+ * a left-aligned 400 px panel would hang past the list). Always 8 px inside the window.
+ */
+export function panelLeft(trigger: { left: number; right: number }, list: { left: number; right: number }, width: number, vw: number): number {
+  const end = (trigger.left + trigger.right) / 2 > (list.left + list.right) / 2;
+  const left = end ? trigger.right - width : trigger.left;
+  return Math.max(8, Math.min(left, vw - 8 - width));
+}

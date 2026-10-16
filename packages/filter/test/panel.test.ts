@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appliedCount, choiceOptions, histogramBars, showLabel, useSeg } from '../src/styles/panel-logic.ts';
+import { appliedCount, choiceOptions, histogramBars, panelLeft, showLabel, useSeg } from '../src/styles/panel-logic.ts';
 import { defaultFilterWords as w } from '../src/core/summary.ts';
 import type { FilterSection } from '../src/core/types.ts';
 
@@ -65,4 +65,14 @@ test('histogramBars: 40 px at the tallest, at least 3 px, accent inside the draf
   // From 11: only the last.
   assert.deepEqual(histogramBars(price, { from: '11' }).map((b, i) => (b.on ? i : -1)).filter((i) => i >= 0), [11]);
   assert.deepEqual(histogramBars(stock, undefined), []);
+});
+
+test('panelLeft: under the trigger in the left half, right-aligned to it in the right half, 8 px inside the window', () => {
+  const list = { left: 20, right: 1260 };
+  assert.equal(panelLeft({ left: 40, right: 140 }, list, 400, 1280), 40);
+  assert.equal(panelLeft({ left: 1100, right: 1200 }, list, 400, 1280), 800);
+  // Right-aligned but the window is narrow: kept 8 px from its left edge.
+  assert.equal(panelLeft({ left: 250, right: 350 }, { left: 0, right: 360 }, 400, 360), 8);
+  // Left-aligned near the right edge: shifted back inside.
+  assert.equal(panelLeft({ left: 900, right: 960 }, { left: 0, right: 2000 }, 400, 1280), 872);
 });
