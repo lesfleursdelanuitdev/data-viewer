@@ -2317,6 +2317,12 @@ test.describe('sentence', () => {
     const { problems } = await open(page);
     await expect(text(page)).toHaveText('Show all plants in any light, at any price, including sold out.');
     await expect(rows(page)).toHaveCount(19);
+    // The server demos above it load late and push the page down; once they are in, the sentence
+    // goes to the top of the window, so the menu has room to open below its phrase.
+    for (const id of ['panel-server', 'search-server', 'search-equals', 'vprobe-server']) {
+      await expect(page.locator(`#${id} tbody tr`).first()).toBeVisible();
+    }
+    await text(page).evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await phrase(page, 'kind').click();
     const m = menus(page);
     await expect(m).toBeVisible();
@@ -2336,6 +2342,9 @@ test.describe('sentence', () => {
     await m.getByRole('checkbox', { name: /Perennial/ }).click();
     await expect(rows(page)).toHaveCount(6);
     await expect(m).toBeVisible(); // it applies and stays open
+    // The menu's last button clears the section; it reads the unset phrase, capitalised.
+    await expect(m.getByRole('button').last()).toHaveText('All plants');
+    await expect(m.getByRole('button', { name: 'Clear this column' })).toHaveCount(0);
     await expect(phrase(page, 'kind')).toHaveText('perennials');
     await expect.poll(() => said(page)).toBe('Show perennials in any light, at any price, including sold out.');
     expect(new URL(page.url()).searchParams.get('sentence.f.kind')).toBe('Perennial');
@@ -2349,6 +2358,7 @@ test.describe('sentence', () => {
     await phrase(page, 'price').click();
     await menus(page).getByRole('radio', { name: /Under €5/ }).click();
     await expect(phrase(page, 'price')).toHaveText('under €5');
+    await expect(menus(page).getByRole('button').last()).toHaveText('At any price');
     await phrase(page, 'stock').click();
     await menus(page).getByRole('radio', { name: 'Yes' }).click();
     await expect.poll(() => said(page)).toBe('Show perennials and ferns in any light, under €5, in stock only.');
@@ -2391,11 +2401,15 @@ test.describe('sentence', () => {
       resolved(page, 'var(--filter-accent-text, color-mix(in srgb, var(--filter-accent) 70%, var(--filter-text)))')]);
     const look = (key: string) => phrase(page, key).evaluate((el) => {
       const s = getComputedStyle(el);
-      return { line: s.textDecorationLine, color: s.textDecorationColor, thick: s.textDecorationThickness, offset: s.textUnderlineOffset, text: s.color };
+      return {
+        line: s.textDecorationLine, color: s.textDecorationColor, thick: s.textDecorationThickness, offset: s.textUnderlineOffset, text: s.color,
+        weight: s.fontWeight, wrap: s.whiteSpace,
+      };
     });
-    expect(await look('light')).toEqual({ line: 'underline', color: accent, thick: '1px', offset: '6px', text: onText });
+    // Set phrases are 500; phrases wrap like the text around them.
+    expect(await look('light')).toEqual({ line: 'underline', color: accent, thick: '1px', offset: '6px', text: onText, weight: '500', wrap: 'normal' });
     const unset = await look('kind');
-    expect(unset).toMatchObject({ line: 'underline', color: muted, thick: '1px', offset: '6px' });
+    expect(unset).toMatchObject({ line: 'underline', color: muted, thick: '1px', offset: '6px', weight: '400', wrap: 'normal' });
     expect(unset.text).not.toBe(onText);
     // The sentence itself is muted.
     expect(await text(page).evaluate((el) => getComputedStyle(el).color)).toBe(muted);
@@ -2440,6 +2454,7 @@ test.describe('sentence', () => {
     await menus(page, 'sentence-plain').getByRole('checkbox', { name: /Ana/ }).click();
     await menus(page, 'sentence-plain').getByRole('checkbox', { name: /Dev/ }).click();
     await expect.poll(() => said(page, 'sentence-plain')).toBe('Show all plants in any light, at any price, including sold out, Owner: ana and dev.');
+    await expect(menus(page, 'sentence-plain').getByRole('button').last()).toHaveText('Owner: any');
     await expect(phrase(page, 'owner', 'sentence-plain')).toHaveText('ana and dev');
     await expect(phrase(page, 'owner', 'sentence-plain')).toHaveAccessibleName('Owner: ana and dev');
     expect(problems).toEqual([]);
@@ -2490,15 +2505,29 @@ test.describe('sentence', () => {
   test.describe('phone', () => {
     test.use({ viewport: { width: 390, height: 800 } });
 
-    test('phone 390 px: wraps with no sideways scroll; phrase buttons at least 44 px tall', async ({ page }) => {
+    test('phone 390 px: wraps like text with no sideways scroll; each line of a phrase is a 44 px target', async ({ page }) => {
       const { problems } = await open(page, '?sentence.f.kind=Perennial,Shrub,Fern,Herb,Climber&sentence.f.light=Part%20shade');
       await expect(text(page)).toHaveText('Show perennials, shrubs, ferns, herbs and climbers for part shade, at any price, including sold out.');
-      expect(await text(page).evaluate((el) => getComputedStyle(el).fontSize)).toBe('18px');
+      expect(await text(page).evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).lineHeight])).toEqual(['18px', '44px']);
       for (const key of ['kind', 'light', 'price', 'stock']) {
-        const b = (await phrase(page, key).boundingBox())!;
-        expect(Math.round(b.height)).toBeGreaterThanOrEqual(44);
-        expect(b.x + b.width).toBeLessThanOrEqual(390);
+        // Inline, so a long phrase wraps inside the text; each of its line boxes is 44 px tall
+        // (content + padding) and inside the screen.
+        const lines = await phrase(page, key).evaluate((el) => [getComputedStyle(el).display,
+          [...el.getClientRects()].map((r) => ({ h: r.height, right: r.right }))] as const);
+        expect(lines[0]).toBe('inline');
+        for (const r of lines[1]) {
+          expect(Math.round(r.h)).toBeGreaterThanOrEqual(44);
+          expect(r.right).toBeLessThanOrEqual(390);
+        }
       }
+      // "Show" is not alone on its line: the five kinds start beside it and wrap.
+      const [first, rects] = await phrase(page, 'kind').evaluate((el) => {
+        const p = el.closest('p')!.getBoundingClientRect();
+        const rs = [...el.getClientRects()];
+        return [rs[0]!.top - p.top, rs.length] as const;
+      });
+      expect(first).toBeLessThan(10);
+      expect(rects).toBeGreaterThan(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
       const so = (await startOver(page).boundingBox())!;
       expect(Math.round(so.height)).toBeGreaterThanOrEqual(44);

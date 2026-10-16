@@ -12,7 +12,7 @@ import type { FilterSection, FilterWords } from '../core/types.ts';
 import { checkMenu, checkMenuCss } from '../parts/check-menu.ts';
 import { addPartsStyles, addStyle, HOVER, ON_TEXT, SOFT } from '../parts/parts-css.ts';
 import { followMenu, placeMenu } from '../parts/place-menu.ts';
-import { defaultSentenceWords, phraseName, SENTENCE_NARROW, sentenceParts, type SentencePart, type SentenceWords } from './sentence-logic.ts';
+import { clearPhrase, defaultSentenceWords, phraseName, SENTENCE_NARROW, sentenceParts, type SentencePart, type SentenceWords } from './sentence-logic.ts';
 
 type Words = FilterWords & SentenceWords;
 
@@ -24,38 +24,48 @@ export const sentenceCss = `
   max-width: 100%; margin: 0; font-size: 22px; line-height: 1.7; letter-spacing: -0.01em; color: var(--filter-muted); overflow-wrap: break-word;
 }
 :where(.lfdln-filter-sentence-phrase) {
-  max-width: 100%; margin: 0; padding: 0 2px; font: inherit; letter-spacing: inherit; white-space: nowrap; color: var(--filter-text);
-  background: transparent; border: 0; border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  padding: 0 2px; color: var(--filter-text); border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
   text-decoration: underline 1px var(--filter-muted); text-underline-offset: 6px;
 }
 :where(.lfdln-filter-sentence-phrase:hover) { background: ${HOVER}; }
-:where(.lfdln-filter-sentence-on) { color: ${ON_TEXT}; text-decoration-color: var(--filter-accent); }
+:where(.lfdln-filter-sentence-on) { font-weight: 500; color: ${ON_TEXT}; text-decoration-color: var(--filter-accent); }
 :where(.lfdln-filter-sentence-phrase[aria-expanded=true]) { background: ${SOFT}; }
 :where(.lfdln-filter-sentence-phrase):where(:focus-visible) { outline: 2px solid var(--filter-accent); outline-offset: 2px; }
-:where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-phrase) { white-space: normal; text-align: left; }
+/* Phones and below 480 px: each line of a phrase is a 44 px target (the line, plus padding). */
+:where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-text) { line-height: 44px; }
+:where(.lfdln-filter-sentence-narrow) :where(.lfdln-filter-sentence-phrase) {
+  padding-block: 12px; -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
 :where(.lfdln-filter-sentence) > :where(.lfdln-filter-btn) { height: 26px; padding: 0 8px; font-size: 12px; }
 ${checkMenuCss}
 @media (max-width: 639px) {
   :where(.lfdln-filter-sentence-text) { font-size: 18px; }
-  :where(.lfdln-filter-sentence-phrase) { min-height: 44px; white-space: normal; text-align: left; }
   :where(.lfdln-filter-sentence) > :where(.lfdln-filter-btn) { height: 44px; font-size: 14px; }
 }
 `;
 
 // One phrase: the text before its button, the button and its menu (in an anchor of their own,
-// which the menu is placed against and follows), then the text after it.
-function phrase(kit: FilterKit, s: FilterSection, p: SentencePart, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
+// which the menu is placed against and follows), then the text after it. The button is an inline
+// span with role=button (a <button> is always an inline-block), so a long phrase wraps with the
+// text around it.
+const press = (e: KeyboardEvent) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  (e.currentTarget as HTMLElement).click();
+};
+
+function phrase(kit: FilterKit, s: FilterSection, p: SentencePart, v: FilterStyleView, on: FilterStyleHandlers, w: Words): TemplateResult {
   const open = v.menu === s.key;
   const mid = `${v.uid}-sentence-${s.key}`;
-  return kit.html`${p.before}<span class="lfdln-filter-sentence-anchor" ${kit.ref(followMenu(open && !v.phone, false))}><button type="button"
+  return kit.html`${p.before}<span class="lfdln-filter-sentence-anchor" ${kit.ref(followMenu(open && !v.phone, false))}><span role="button" tabindex="0"
     class=${`lfdln-filter-sentence-phrase${isSet(s, v.value[s.key]) ? ' lfdln-filter-sentence-on' : ''}`} data-key=${s.key}
     aria-haspopup="dialog" aria-expanded=${open ? 'true' : 'false'} aria-controls=${open ? mid : kit.nothing} aria-label=${phraseName(s, p)}
-    @click=${() => {
+    @keydown=${press} @click=${() => {
       if (open) return on.onMenu(null);
       on.onOptionSearch('');
       on.onMenu(s.key);
-    }}>${p.button}</button>${open
-    ? checkMenu(kit, s, v, on, { id: mid, place: (el) => placeMenu(el, false), onClose: () => on.onMenu(null) })
+    }}>${p.button}</span>${open
+    ? checkMenu(kit, s, v, on, { id: mid, place: (el) => placeMenu(el, false), onClose: () => on.onMenu(null), clear: clearPhrase(s, w) })
     : kit.nothing}</span>${p.after}`;
 }
 
@@ -70,7 +80,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
   };
   return kit.html`<div class=${`lfdln-filter-root lfdln-filter-sentence lfdln-filter-style-root${v.phone ? ' lfdln-filter-sentence-narrow' : ''}`}
     role="group" aria-label=${v.label ?? w.filter}><p class="lfdln-filter-sentence-text">${w.sentenceStart}${parts.length
-    ? kit.html` ${parts.map((p, i) => phrase(kit, v.sections[i]!, p, v, on))}` : w.sentenceEnd}</p>${anySet(v.sections, v.value)
+    ? kit.html` ${parts.map((p, i) => phrase(kit, v.sections[i]!, p, v, on, w))}` : w.sentenceEnd}</p>${anySet(v.sections, v.value)
     ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${startOver}>${w.startOver}</button>`
     : kit.nothing}</div>`;
 }

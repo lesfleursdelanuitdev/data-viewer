@@ -55,6 +55,17 @@ function valuesOf(s: FilterSection, v: FilterValue[string] | undefined, words: F
   return s.kind === 'bool' ? sectionSummary(s, v, words).toLowerCase() : lower(sectionSummary(s, v, words));
 }
 
+/** A section's unset phrase: its phraseAny, else "{label}: any". */
+export function anyPhrase(s: FilterSection, words: SentenceWords): string {
+  return s.phraseAny ?? `${s.label}: ${words.anyValue}`;
+}
+
+/** The menu's clear button: the unset phrase, capitalised ("At any price", "All plants", "Owner: any"). */
+export function clearPhrase(s: FilterSection, words: SentenceWords): string {
+  const p = anyPhrase(s, words);
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
 /**
  * The sentence's parts, one per section in order (PLANNER CHOICES 13-15): a set section reads its
  * phrase (none, or a bool set to no: "{label}: {values}") with {values} as the button; an unset
@@ -66,7 +77,7 @@ export function sentenceParts(sections: FilterSection[], value: FilterValue, wor
     const v = value[s.key];
     const set = isSet(s, v);
     const join = i === last ? words.sentenceEnd : i === 0 ? ' ' : i === last - 1 ? `${words.listComma} ` : `${words.comma} `;
-    if (!set) return { key: s.key, before: '', button: s.phraseAny ?? `${s.label}: ${words.anyValue}`, after: join, set };
+    if (!set) return { key: s.key, before: '', button: anyPhrase(s, words), after: join, set };
     const phrase = (s.kind !== 'bool' || v === true) && s.phrase ? s.phrase : `${s.label}: ${VALUES}`;
     const at = phrase.indexOf(VALUES);
     if (at < 0) return { key: s.key, before: '', button: phrase, after: join, set };

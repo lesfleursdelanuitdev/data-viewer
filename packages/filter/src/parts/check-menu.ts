@@ -1,6 +1,6 @@
 // The 220 px check menu of one section (handoff 2a, shared by 2c): "Show kind", the option search
 // for a long list, check rows with counts (a range's named ranges and a yes/no section's Yes and
-// No one at a time, else From and To boxes), and "Clear this column" when set. Every change
+// No one at a time, else From and To boxes), and "Clear this column" (or the caller's label) when set. Every change
 // applies at once. A popover (a bottom sheet on phones); the caller places it and says how it
 // closes. Drawn with the kit, so no Lit inside.
 import type { TemplateResult } from 'lit';
@@ -60,6 +60,8 @@ export type CheckMenuOptions = {
   id: string;                    // the menu's id; its label is `${id}-label`
   place(el: HTMLElement): void;  // the desktop popover's placing
   onClose(): void;               // Esc, a click outside, Clear
+  heading?: string;              // the menu's heading; else words.showColumn(label), "Show kind"
+  clear?: string;                // the last button's label; else words.clearColumn, "Clear this column"
 };
 
 // No named ranges: the From and To boxes, applied when one is left or Enter is pressed, and read
@@ -101,12 +103,12 @@ export function checkMenu(kit: FilterKit, s: FilterSection, v: FilterStyleView, 
   return popover(kit, {
     phone: v.phone, id: o.id, cls: 'lfdln-filter-col-menu', labelledBy: lid, onClose: o.onClose, onKey: menuKeys, place: o.place,
     content: kit.html`${v.phone ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div>` : kit.nothing}<div
-      class="lfdln-filter-col-label" id=${lid}>${w.showColumn(s.label)}</div>${searchable(s)
+      class="lfdln-filter-col-label" id=${lid}>${o.heading ?? w.showColumn(s.label)}</div>${searchable(s)
       ? kit.html`<input class="lfdln-filter-col-search" type="search" autocomplete="off" aria-label=${w.searchOptions(s.label)}
           placeholder=${w.searchOptions(s.label)} .value=${kit.live(v.optionSearch)}
           @input=${(e: Event) => on.onOptionSearch((e.target as HTMLInputElement).value)}>`
       : kit.nothing}${rows(kit, s, v, on, lid)}${isSet(s, v.value[s.key])
-      ? kit.html`${divider(kit)}<button type="button" class="lfdln-filter-col-clear" @click=${clear}>${w.clearColumn}</button>`
+      ? kit.html`${divider(kit)}<button type="button" class="lfdln-filter-col-clear" @click=${clear}>${o.clear ?? w.clearColumn}</button>`
       : kit.nothing}`,
   });
 }

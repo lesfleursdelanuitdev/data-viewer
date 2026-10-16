@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultSentenceWords, joinValues, sentenceParts, sentenceText } from '../src/styles/sentence-logic.ts';
+import { clearPhrase, defaultSentenceWords, joinValues, sentenceParts, sentenceText } from '../src/styles/sentence-logic.ts';
 import { defaultFilterWords } from '../src/core/summary.ts';
 import type { FilterSection, FilterValue } from '../src/core/types.ts';
 
@@ -106,6 +106,14 @@ test('phraseName: the section, then what the phrase says', async () => {
   // A part that already starts with its label is not named twice.
   assert.equal(phraseName(stock, s!), 'In stock: no');
   assert.equal(phraseName(owner, o!), 'Owner: any');
+});
+
+test("clearPhrase: the menu's clear button reads the unset phrase, capitalised", () => {
+  const owner: FilterSection = { key: 'owner', label: 'Owner', kind: 'choice', options: [{ value: 'ana', label: 'Ana' }] };
+  assert.equal(clearPhrase(price, w), 'At any price');
+  assert.equal(clearPhrase(kind, w), 'All plants');
+  assert.equal(clearPhrase(owner, w), 'Owner: any');
+  assert.equal(clearPhrase(owner, { ...w, anyValue: 'whoever' }), 'Owner: whoever');
 });
 
 test('sentenceStyle: instant, above the bar, the sheet under 480 px, its own empty line', async () => {
