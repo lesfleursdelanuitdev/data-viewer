@@ -23,7 +23,7 @@ npm install @lesfleursdelanuitdev/filter lit
 |---|---|---|
 | `@lesfleursdelanuitdev/filter` (`dist/filter.js`) | apps with a bundler; Lit is left out | No: call `define()` |
 | `dist/filter.standalone.js` | plain pages; Lit is inside (about 14 KB gzipped) | Yes, on load |
-| `dist/filter-panel.standalone.js`, `-bar`, `-rail` | plain pages: one [filter style](#filter-styles-on-their-own) each, Lit inside | Yes, on load |
+| `dist/filter-panel.standalone.js`, `-bar`, `-rail`, `-sentence` | plain pages: one [filter style](#filter-styles-on-their-own) each, Lit inside | Yes, on load |
 
 `define(name, chipsName)` registers them under other names. A name that is taken already is
 left alone, so loading this script next to the data viewer's standalone script is safe.
@@ -57,11 +57,13 @@ left alone, so loading this script next to the data viewer's standalone script i
 
 ```ts
 type FilterOption = { value: string; label?: string; count?: number; description?: string };
-type FilterSection =
+type FilterSection = SectionPhrases & (
   | { key: string; label: string; kind: 'choice'; options: FilterOption[]; single?: boolean }
   | { key: string; label: string; kind: 'range'; type?: 'number' | 'money' | 'date';
       ranges?: { label: string; from?: string; to?: string }[]; format?: { currency?: string; locale?: string } }
-  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string };
+  | { key: string; label: string; kind: 'bool'; yes?: string; no?: string });
+// How a section reads in the sentence style; every other style ignores them.
+type SectionPhrases = { phrase?: string; phraseAny?: string; plural?: Record<string, string> };
 type FilterValue = Record<string, string[] | { from?: string; to?: string } | boolean>;
 ```
 
@@ -75,6 +77,18 @@ type FilterValue = Record<string, string[] | { from?: string; to?: string } | bo
 
 A value can name an option that is not among the options (an old bookmark, say): its chip shows
 the value itself, so it can still be seen and removed.
+
+**Phrases** are for [`<lfdln-filter-sentence>`](#filter-styles-on-their-own), which writes the
+filter out as a sentence:
+
+- `phrase`: how the section reads when it is set, `{values}` standing for what is picked:
+  `'for {values}'` reads "for shade". Without one: "Light: shade".
+- `phraseAny`: how it reads when nothing is picked: `'in any light'`. Without one: "Light: any".
+- `plural`: a choice's values as the sentence says them, `{ Fern: 'ferns' }`. A value not
+  listed reads as its label in lower case.
+
+A yes/no section reads its `phrase` when yes (`'in stock only'`) and "In stock: no" when no. A
+range reads its summary with a lower-case first letter ("under €5", "from 7").
 
 ## Properties and attributes
 
@@ -157,21 +171,25 @@ the value itself, so it can still be seen and removed.
 
 ## Filter styles on their own
 
-Three of the data viewer's [filter styles](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/data-viewer#filter-styles)
+Four of the data viewer's [filter styles](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/data-viewer#filter-styles)
 are elements of their own too, for a list that isn't a data viewer. They take the same
 `sections` and `value` as `<lfdln-filter>` and fire the same `filter-change` with `{ value }`.
-`columns` has no element, because it needs the viewer's table.
+`columns` has no element, because it needs the viewer's table, and `views` has none, because it
+needs a host that keeps the saved views (the data viewer's views add-on).
 
 | Element | Style | Applies | Plain page | npm |
 |---|---|---|---|---|
 | `<lfdln-filter-panel>` | A Filter button with a count badge and the applied chips beside it; one 400 px panel with every section | A draft, then "Show 12 results" | `dist/filter-panel.standalone.js` | `@lesfleursdelanuitdev/filter/panel-element`, then `definePanel()` |
 | `<lfdln-filter-bar>` | One pill per section, each with a 240 px menu; a yes/no pill toggles | At once | `dist/filter-bar.standalone.js` | `@lesfleursdelanuitdev/filter/bar-element`, then `defineBar()` |
 | `<lfdln-filter-rail>` | Every section open, in a column | At once | `dist/filter-rail.standalone.js` | `@lesfleursdelanuitdev/filter/rail-element`, then `defineRail()` |
+| `<lfdln-filter-sentence>` | The filter as one sentence, "Show perennials and ferns for shade, at any price, including sold out."; each underlined part opens a 220 px menu, and "Start over" clears it | At once | `dist/filter-sentence.standalone.js` | `@lesfleursdelanuitdev/filter/sentence-element`, then `defineSentence()` |
 
 Each standalone file has Lit inside (16 to 18 KB gzipped) and registers its element when it loads.
-`definePanel(name)`, `defineBar(name)` and `defineRail(name)` register it under another name; a
-name that is taken already is left alone. On phones (639 px or narrower) the panel and the bar's
-menus are bottom sheets, and every target is at least 44 px.
+`definePanel(name)`, `defineBar(name)`, `defineRail(name)` and `defineSentence(name)` register it
+under another name; a name that is taken already is left alone. On phones (639 px or narrower)
+the panel and the bar's and the sentence's menus are bottom sheets, and every target is at least
+44 px. The sentence's menus are bottom sheets too while the element itself is narrower than
+480 px.
 
 ```html
 <script type="module" src="/js/filter-panel.standalone.js"></script>
@@ -194,10 +212,10 @@ menus are bottom sheets, and every target is at least 44 px.
 
 | Property | Attribute | On | What it does |
 |---|---|---|---|
-| `sections` | none | all three | The sections, in order |
-| `value` | none | all three | The applied filters. Setting it fires nothing |
-| `words` | none | all three | Any of the [words](#words) |
-| `label` | `label` | all three | The panel's button text (default `Filter`); the bar's and the rail's name for screen readers (the rail shows it as its title, default `Filters`) |
+| `sections` | none | all four | The sections, in order (the sentence's with their [phrases](#sections-and-values)) |
+| `value` | none | all four | The applied filters. Setting it fires nothing |
+| `words` | none | all four | Any of the [words](#words) (the sentence's too) |
+| `label` | `label` | all four | The panel's button text (default `Filter`); the bar's, the rail's and the sentence's name for screen readers (the rail shows it as its title, default `Filters`; the sentence's default is `Filter`) |
 | `heading` | `heading` | panel | The panel's title (default `Filter`) |
 | `countFor` | none | panel | `(draft) => number \| null`: how many rows the draft would leave. `null` or no function: "Show results" |
 
@@ -205,19 +223,52 @@ menus are bottom sheets, and every target is at least 44 px.
 |---|---|
 | `apply(value)` | Tidies a value, sets `value` and fires `filter-change` |
 
+```html
+<script type="module" src="/js/filter-sentence.standalone.js"></script>
+
+<lfdln-filter-sentence id="plant-sentence" label="Filter plants"></lfdln-filter-sentence>
+
+<script type="module">
+  const sentence = document.querySelector('#plant-sentence');
+  sentence.sections = [
+    { key: 'kind', label: 'Kind', kind: 'choice', phrase: '{values}', phraseAny: 'all plants',
+      plural: { Perennial: 'perennials', Fern: 'ferns' },
+      options: [{ value: 'Perennial', count: 6 }, { value: 'Fern', count: 2 }] },
+    { key: 'light', label: 'Light', kind: 'choice', phrase: 'for {values}', phraseAny: 'in any light',
+      options: [{ value: 'Sun' }, { value: 'Shade' }] },
+    { key: 'stock', label: 'In stock', kind: 'bool', phrase: 'in stock only', phraseAny: 'including sold out' },
+  ];
+  // "Show all plants in any light, including sold out." until something is picked.
+  sentence.addEventListener('filter-change', (e) => showMatching(e.detail.value));
+</script>
+```
+
+The sentence's words:
+
+| Key | Default |
+|---|---|
+| `sentenceStart`, `sentenceEnd` | `Show`, `.` |
+| `and` | `and` (before the last value in a phrase: "perennials, shrubs and ferns") |
+| `comma`, `listComma` | `,` (between other values and phrases), `,` (before the last phrase; `''` leaves a space) |
+| `anyValue` | `any` ("Owner: any", for a section with no `phraseAny`) |
+| `startOver` | `Start over` |
+| `things`, `sentenceNone(things)` | `results`, `No ${things} match that sentence. Change one of the underlined parts.` (the data viewer's empty line) |
+
 The counts on the options are the options' own `count`, as with `<lfdln-filter>`. A bool section
 can carry `hint`, a line under its switch. A range entry can carry `count`, and a range section
 `histogram: { from, to, buckets }` (the panel draws it as bars).
 
 The styles themselves are Lit-free modules for other hosts: `@lesfleursdelanuitdev/filter/panel`
 (`panelStyle`, and everything in `/parts`), `/bar` (`barStyle`), `/rail` (`railStyle`,
-`railFallback`) and `/columns` (`columnsStyle`, `columnsFallback`). Each is a `FilterStyle`: a
+`railFallback`), `/columns` (`columnsStyle`, `columnsFallback`), `/sentence` (`sentenceStyle`,
+`sentenceParts`, `sentenceText`, `defaultSentenceWords`) and `/views` (`viewsStyle`,
+`defaultViewsWords`, and the `SavedView` type; it draws saved views a host keeps). Each is a `FilterStyle`: a
 `render(view, handlers, kit)` function that draws with the Lit the host passes in, so a file that
 holds one carries no Lit of its own.
 
 ### Shared parts
 
-`@lesfleursdelanuitdev/filter/parts` holds what the four styles are drawn from, also with no Lit
+`@lesfleursdelanuitdev/filter/parts` holds what the styles are drawn from, also with no Lit
 inside. Each part takes the host's `kit` first.
 
 | Export | What it is |
@@ -226,6 +277,7 @@ inside. Each part takes the host's `kit` first.
 | `popover`, `returnFocus` | A popover under its anchor, or a bottom sheet on phones, closed by Esc and a click outside, one open per page; and putting focus back on the button that opened it |
 | `rangeBoxes`, `rangeOf`, `rangePressed`, `anySet`, `filteredCount` | A range's From and To boxes (drafted on every key, or applied when a box is left), a section's value as a range, whether a named range is the one set, and whether (or how many) sections narrow the list |
 | `menuKeys`, `radioKeys`, `tabStop` | Arrow keys in a menu of check rows and in a radio group, and a radio group's one tab stop |
+| `checkMenu`, `checkMenuCss` | One section's 220 px check menu ("Show kind", the options with counts, and a clear button whose label the caller may set), shared by `columns` and `sentence`, and its look |
 | `addPartsStyles`, `addStyle`, `partsCss`, `HOVER`, `ON_TEXT`, `SOFT` | The parts' look (once per page), injecting a style's own `<style>`, and the hover, "on" text and "on" background colours |
 | `clearKey`, `removeChip`, `setBool`, `setRange`, `toggleOption`, `chipsOf`, `isSet`, `sectionSummary`, `choiceOptions`, `matchingOptions`, `SEARCH_ABOVE`, `defaultFilterWords`, `later` | Reading and changing a value, the option lists and their search, the words, and waiting for a part to be in the page |
 
@@ -244,7 +296,7 @@ inside. Each part takes the host's `kit` first.
 `<style id="lfdln-filter-style">` goes first in `<head>`, every rule inside `:where()`. The
 filter styles add theirs right after it, once per page: `lfdln-filter-parts-style` (the parts they
 share), then `lfdln-filter-panel-style`, `lfdln-filter-bar-style`, `lfdln-filter-rail-style` or
-`lfdln-filter-columns-style`.
+`lfdln-filter-columns-style`, `lfdln-filter-views-style` or `lfdln-filter-sentence-style`.
 
 | Variable | Light | Dark |
 |---|---|---|
@@ -306,7 +358,11 @@ used: set either one on any element to replace it there.
 | `lfdln-filter-trigger`, `lfdln-filter-panel`, `lfdln-filter-panel-title`, `lfdln-filter-panel-section`, `lfdln-filter-hist`, `lfdln-filter-hist-bar`, `lfdln-filter-hist-bar-on`, `lfdln-filter-panel-foot`, `lfdln-filter-show` | panel: the button, the panel, its title, a section, the histogram, one of its bars (in the drafted range: `-on`), the footer and "Show 12 results" |
 | `lfdln-filter-bar-row`, `lfdln-filter-bar-pill`, `lfdln-filter-bar-pill-on`, `lfdln-filter-bar-pill-key`, `lfdln-filter-bar-pill-value`, `lfdln-filter-bar-pill-toggle`, `lfdln-filter-bar-pill-menu`, `lfdln-filter-bar-pill-search` | bar: the row, a pill (set: `-on`), its key and value, the yes/no pill, a menu and its search |
 | `lfdln-filter-rail`, `lfdln-filter-rail-title`, `lfdln-filter-rail-group`, `lfdln-filter-rail-label`, `lfdln-filter-rail-results`, `lfdln-filter-rail-count` | rail: the column, its title, a section and its label, the "12 results" line and its count |
-| `lfdln-filter-col`, `lfdln-filter-col-btn`, `lfdln-filter-col-dot`, `lfdln-filter-col-menu`, `lfdln-filter-col-label`, `lfdln-filter-col-clear`, `lfdln-filter-col-summary`, `lfdln-filter-col-summary-text` | columns: the header's funnel and dot, the menu, its "Show kind" label and "Clear this column", the summary line |
+| `lfdln-filter-col`, `lfdln-filter-col-btn`, `lfdln-filter-col-dot`, `lfdln-filter-col-menu`, `lfdln-filter-col-label`, `lfdln-filter-col-clear`, `lfdln-filter-col-summary`, `lfdln-filter-col-summary-text` | columns: the header's funnel and dot, the menu, its "Show kind" label and "Clear this column", the summary line (the sentence's menus use the same menu classes) |
+| `lfdln-filter-views`, `lfdln-filter-views-tabs`, `lfdln-filter-views-item`, `lfdln-filter-views-tab`, `lfdln-filter-views-label`, `lfdln-filter-views-count`, `lfdln-filter-views-new`, `lfdln-filter-views-rename` | views: the root, the tabs row (a `<nav>`), one tab with its ⋯, the tab button (current: `aria-current="true"`), its label and count, "+ New view", the rename box |
+| `lfdln-filter-views-builder`, `lfdln-filter-views-row`, `lfdln-filter-views-row-label`, `lfdln-filter-views-chips`, `lfdln-filter-views-range`, `lfdln-filter-views-foot`, `lfdln-filter-views-name`, `lfdln-filter-views-save`, `lfdln-filter-views-hint` | views: the builder card, a row with its label and chips (or From and To boxes), the footer, the name box, Save and the "nothing to save" line |
+| `lfdln-filter-views-toasts`, `lfdln-filter-views-toast`, `lfdln-filter-views-undo` | views: the live region, "Deleted “Herbs”" and its Undo |
+| `lfdln-filter-sentence`, `lfdln-filter-sentence-text`, `lfdln-filter-sentence-anchor`, `lfdln-filter-sentence-phrase`, `lfdln-filter-sentence-on`, `lfdln-filter-sentence-narrow` | sentence: the root, the paragraph, a phrase with its menu, the phrase (`role="button"`; set: `-on`), the root below 480 px or on a phone |
 
 The bar's classes are its own: the dialog's quick ranges (`lfdln-filter-pills`, `lfdln-filter-pill`)
 and the bar's pills (`lfdln-filter-bar-row`, `lfdln-filter-bar-pill`) share no class, so a rule for

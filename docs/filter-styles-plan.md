@@ -1,6 +1,6 @@
 # Filter styles: the redesigned filters as choices (plan)
 
-Status: stage 1 BUILT 2026-10-16, merged into `main` and pushed (46afafd). Stage 2 BUILT 2026-10-16 on branch `search-filter` (off `main` at 46afafd), not merged, deployed or pushed. Proposed 2026-10-15. Source: monadelanuit's handoff
+Status: stage 1 BUILT 2026-10-16, merged into `main` and pushed (46afafd). Stage 2 BUILT 2026-10-16 on branch `search-filter` (off `main` at 46afafd), not merged, deployed or pushed. Stage 3 BUILT 2026-10-16 on branch `stage3` (off `search-filter` at 17c4be0), not merged, deployed or pushed. Proposed 2026-10-15. Source: monadelanuit's handoff
 `Data Viewer redesign (1).zip` → `design_handoff_filter_redesign/` (README + `Filter Redesign.dc.html`).
 
 ## What we're doing and why
@@ -386,3 +386,68 @@ What differs from the spec, the decisions or the handoff:
   - A column gets a `phrase` setting, for example `phrase="for {values}"`.
   - Each column also needs a plural name, used for choices.
   - The joining words ("and" / "or") go in the words.
+- **Open for stage 3** (both decided in `docs/filter-styles-stages-2-3-decisions.md`): the store
+  is the browser under `remember-as`, with `savedViews` and `views-change` for pages that keep
+  views elsewhere (S3-D1); user views can be renamed and deleted, page views can't (S3-D2).
+
+### What changed from the spec (stage 3)
+
+Stage 3 was built from `docs/plan-filter-styles-stage3.md` and the decisions S3-D1..S3-D8. The
+plan's PLANNER CHOICES were all kept:
+
+- **Which tab is current** (choice 1): a user view while the applied filters and search equal its
+  own; else the page view whose key is the view. **Changed in review:** a page tab is current
+  only while no filter and no search is applied, so "All" is not marked while something narrows
+  the list (after a deleted view leaves its filters, no tab is current).
+- **A tab is a whole state** (choice 2); **`savedViews` turns storage off** (choice 3); a view
+  saves the applied search, left out when empty (choice 4); the draft previews in browser mode
+  only (choice 5); tab counts in browser mode, page `count`s only in server mode (choice 6);
+  rename in place (choice 7); after Delete focus goes to Undo, then to the current tab
+  (choice 8); the ⋯ menu through `kit.menu` (choice 9).
+- **Words live with their styles** (choice 10): `defaultViewsWords` and `defaultSentenceWords`,
+  merged under the viewer's `words`; the viewer's `Words` type gains them as types only.
+- `views` keeps the viewer's chips row (choice 11). Both styles draw above the bar, full width,
+  and `views` replaces the bar's `.dv-views` (choice 12).
+- **The sentence** (choices 13-16): a set phrase's `{values}` is the button and the rest is plain
+  text; an unset section's whole `phraseAny` is the button; the handoff's joining rule; bool and
+  range values; `words.things` for the empty line. Start over keeps the search (choice 17).
+  `plural` is parsed like `ranges` (choice 18). `<lfdln-filter-sentence>` exists and `views` has
+  no element (choice 19).
+
+What differs from the spec, the decisions or the handoff:
+
+- **The store is attached by the style.** The saved-views store (`views-store.ts`) and its pure
+  helpers live in the views add-on, not the viewer; the add-on registers
+  `{ ...viewsStyle, store: viewsStore }` and the viewer calls `style.store(this)` once. The store
+  reaches the viewer through a typed `ViewsHost` (no cast): `_change` is no longer `private` and
+  is marked as an add-on contract. In the types a style with `drawsViews` must bring a `store`
+  (`ViewsFilterStyle`, `ViewerFilterStyle`).
+- **An empty state can't be saved.** With no filter and no search, Save has `aria-disabled` and
+  points to "Pick a filter or search for something first." (`nothingToSave`, a word the plan
+  didn't list, like `views`, the tabs row's name).
+- **The tabs are a `<nav>` of buttons with `aria-current`**, not a `tablist` (they own no panels)
+  and not links (user views have no address of their own). "+ New view" toggles the builder.
+  On phones the builder's rows stack (label above chips).
+- **The ⋯ menu's id is keyed by the view's key**, not its place, so a delete never hands one
+  view's menu to another.
+- **Phrase buttons are named "Label: value"** ("Kind: perennials and ferns", "Price: at any
+  price"), not the whole phrase; a part that already reads "Owner: any" is not doubled.
+- **The sentence's menu is the `columns` style's check menu**, moved into `parts/check-menu.ts`
+  and shared. It sits inside the paragraph (its anchor is the phrase's parent, for focus return
+  and outside clicks). It shows "Show kind" as its heading, and its last button clears the
+  section, labelled by the unset phrase capitalised ("At any price", "All plants", "Owner: any")
+  instead of "Clear this column", which `columns` keeps.
+- **Phrases are inline `<span role="button">`s**, not `<button>`s: a `<button>` is always an
+  inline-block, so a long phrase couldn't wrap with the text. Phrases never `nowrap`. Below
+  480 px and on phones the paragraph's line-height is 44 px and phrases get 12 px block padding
+  with `box-decoration-break: clone`, so each line of a phrase is a 44 px target and "Show" is
+  never alone on its line. Set phrases are `font-weight: 500`.
+- **"Start over" sits under the sentence**, not beside a count.
+- **Docs site:** "Views" and "Sentence" tabs on `/docs/filter-styles/` (`#views`, `#sentence`),
+  code tabs "Saved views" and "Sentence", and the events strip shows `views-change` as the saved
+  views' labels. The live list's columns carry phrases; the views last until reload there (no
+  `remember-as`).
+- **Sizes (gzipped):** `data-viewer.standalone.js` 43724 bytes (+279 for stage 3 over
+  43445, ceiling 44045, limit 46080), `data-viewer-filter-views.js` 7610 (limit 8192),
+  `data-viewer-filter-sentence.js` 7638 (limit 8192), `filter-sentence.standalone.js`
+  18168 (limit 20480).

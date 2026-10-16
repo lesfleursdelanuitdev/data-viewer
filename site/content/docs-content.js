@@ -432,7 +432,7 @@ export function Plants() {
   filterStyles: {
     nav: 'Filter styles', kicker: 'The list', title: 'Filter styles',
     wide: true,
-    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, menus in the column headers, or one field that searches and filters. Each style is one more script. Without one you get today’s dialog.',
+    intro: 'Pick how the list’s filter looks with `filter-style`: a panel with a live count, a bar of pills, a rail beside the list, menus in the column headers, one field that searches and filters, saved views as tabs, or the filter written out as a sentence. Each style is one more script. Without one you get today’s dialog.',
     tabs: [
       { label: 'HTML', code: `<!-- The viewer, then the file for your style. -->
 <script type="module" src="/js/data-viewer.standalone.js"></script>
@@ -464,7 +464,7 @@ export function Plants() {
       { label: 'npm', code: `import { define } from '@lesfleursdelanuitdev/data-viewer';
 // Importing a style registers it: filter-style="bar" now works.
 import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar';
-// The others: …/filter-styles/panel, …/filter-styles/rail, …/filter-styles/columns, …/filter-styles/search.
+// The others: …/filter-styles/panel, …/rail, …/columns, …/search, …/views and …/sentence.
 
 define();
 
@@ -508,19 +508,68 @@ define();
     showMatches(search, column, value);
   });
 </script>` },
+      { label: 'Saved views', code: `<!-- Tabs of saved views above the list. remember-as keeps the visitor's views in this browser. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-views.js"></script>
+
+<lfdln-data-viewer id="plants" label="Plants" filter-style="views" remember-as="plants"
+  adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  // Or keep the views on your server: setting savedViews turns the browser's copy off.
+  const list = document.querySelector('#plants');
+  list.savedViews = await (await fetch('/api/views')).json();
+  // After every save, rename, delete and undo: the whole list of views.
+  list.addEventListener('views-change', (e) => {
+    fetch('/api/views', { method: 'PUT', body: JSON.stringify(e.detail.views) });
+  });
+  // Each view is { key, label, filter, search? }, such as
+  // { key: 'u-m2x9k1', label: 'Herbs for sun', filter: { kind: ['Herb'], light: ['Sun'] } }
+</script>` },
+      { label: 'Sentence', code: `<!-- The filter as a sentence: each column says how it reads. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-filter-sentence.js"></script>
+
+<lfdln-data-viewer id="plants" label="Plants" filter-style="sentence" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge" filterable
+    phrase="{values}" phrase-any="all plants"
+    plural="Perennial:perennials,Shrub:shrubs,Fern:ferns,Herb:herbs"></lfdln-dv-column>
+  <lfdln-dv-column key="light" label="Light" filterable
+    phrase="for {values}" phrase-any="in any light"></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.." phrase-any="at any price"></lfdln-dv-column>
+  <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
+    phrase="in stock only" phrase-any="including sold out"></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  // "No plants match that sentence." when nothing is left.
+  document.querySelector('#plants').words = { things: 'plants' };
+</script>` },
     ],
     notes: [
-      'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js`, `-columns.js` or `-search.js`. The rail, columns and search files hold the panel too.',
+      'One file per style: `data-viewer-filter-panel.js`, `-bar.js`, `-rail.js`, `-columns.js`, `-search.js`, `-views.js` or `-sentence.js`. The rail, columns and search files hold the panel too.',
+      'Views shows tabs above the list. “+ New view” opens a builder: pick filters, watch the list follow, name it and save. Rename and Delete are in a saved tab’s ⋯ menu; Delete can be undone for 5 seconds. Here the views last until you reload; with `remember-as` they stay in this browser.',
+      'Sentence writes the filter out: “Show herbs for sun, at any price, including sold out.” Each underlined part opens its menu. Below 480 px of list width the menus are a bottom sheet.',
       'Search puts the search and the filters in one field, in place of the search box. Type “her” and press Enter for Kind is Herb; Backspace removes the last token. Below 480 px of list width the suggestions open as a bottom sheet.',
       'A style that isn’t loaded shows the dialog, with one console warning naming the file to add. If the file loads later, the list switches to it.',
       'The rail becomes the panel when the list is narrower than 720 px. Columns become the panel in cards view.',
-      'Bar, rail, columns and search apply each change at once. The panel keeps a draft until “Show N results”.',
+      'Bar, rail, columns, search and sentence apply each change at once. The panel keeps a draft until “Show N results”, and a new view until Save.',
       'The list’s `dv-query` carries `filters` in the same shape for every style.',
     ],
     // The strip shows dv-query, with its filters only.
-    events: { 'dv-query': (d) => ({ filters: d.filters }) },
+    // views-change shows the saved views' labels.
+    events: { 'dv-query': (d) => ({ filters: d.filters }), 'views-change': (d) => ({ views: d.views.map((v) => v.label) }) },
     mount: (host) => {
-      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['search', 'Search'], ['dialog', 'Dialog']];
+      const STYLES = [['panel', 'Panel'], ['bar', 'Bar'], ['rail', 'Rail'], ['columns', 'Columns'], ['search', 'Search'], ['views', 'Views'], ['sentence', 'Sentence'], ['dialog', 'Dialog']];
       host.innerHTML = `<div class="fs-tabs" role="tablist" aria-label="Filter style">${STYLES.map(([name, label], i) =>
         `<button type="button" class="tab" role="tab" id="fs-tab-${name}" aria-controls="fs-demo" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ''} data-style="${name}">${label}</button>`).join('')}</div>
         <div class="fs-demo" id="fs-demo" role="tabpanel" aria-labelledby="fs-tab-panel">
@@ -532,17 +581,20 @@ define();
       let style = 'panel';
       let loaded = false;
       const useStyle = () => { if (loaded) list.setAttribute('filter-style', style); };
-      Promise.all(['panel', 'bar', 'rail', 'columns', 'search'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
+      Promise.all(['panel', 'bar', 'rail', 'columns', 'search', 'views', 'sentence'].map((name) => import(`/js/data-viewer-filter-${name}.js`))).then(() => {
         loaded = true;
         useStyle();
       });
+      // phrase, phraseAny and plural are how each column reads in the sentence; other styles ignore them.
       list.columns = [
         { key: 'name', label: 'Plant', sortable: true, searchable: true },
-        { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true },
-        { key: 'light', label: 'Light', sortable: true, filterable: true },
-        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true, filterable: true,
+        { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true, phrase: '{values}', phraseAny: 'all plants',
+          plural: { Perennial: 'perennials', Shrub: 'shrubs', Fern: 'ferns', Herb: 'herbs' } },
+        { key: 'light', label: 'Light', sortable: true, filterable: true, phrase: 'for {values}', phraseAny: 'in any light' },
+        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true, filterable: true, phraseAny: 'at any price',
           ranges: [{ label: 'Under €5', to: '5' }, { label: '€5–€10', from: '5', to: '10' }, { label: 'Over €10', from: '10' }] },
-        { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out' },
+        { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out',
+          phrase: 'in stock only', phraseAny: 'including sold out' },
       ];
       list.words = {
         heading: 'Filter plants',
@@ -552,6 +604,7 @@ define();
         resultsCount: (n) => `${n} ${n === 1 ? 'plant' : 'plants'}`,
         resultsOf: (n, m) => `${n} of ${m} plants`,
         allResults: (m) => `All ${m} plants`,
+        things: 'plants',
       };
       list.rows = copy(PLANTS);
       const tabs = [...host.querySelectorAll('[role="tab"]')];
@@ -573,7 +626,7 @@ define();
           else if (step) { e.preventDefault(); pick((i + step + tabs.length) % tabs.length, true); }
         });
       });
-      // An address ending in a style's name (#search) opens on that tab.
+      // An address ending in a style's name (#search, #views, #sentence) opens on that tab.
       const asked = STYLES.findIndex(([name]) => `#${name}` === location.hash);
       if (asked > 0) pick(asked, false);
     },

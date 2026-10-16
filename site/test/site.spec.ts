@@ -215,6 +215,8 @@ const STYLES: [string, string, string][] = [
   ['Rail', 'rail', '.lfdln-filter-rail'],
   ['Columns', 'columns', '.lfdln-filter-col-btn'],
   ['Search', 'search', '.lfdln-search-filter-field'],
+  ['Views', 'views', '.lfdln-filter-views'],
+  ['Sentence', 'sentence', '.lfdln-filter-sentence'],
   ['Dialog', 'dialog', '.lfdln-filter-button'],
 ];
 const styleTabs = (page: Page) => page.getByRole('tablist', { name: 'Filter style' });
@@ -238,8 +240,8 @@ test.describe('filter styles', () => {
     }
     // Arrow keys move between the style tabs, and pick.
     await styleTabs(page).getByRole('tab', { name: 'Dialog' }).press('ArrowLeft');
-    await expect(styleTabs(page).getByRole('tab', { name: 'Search' })).toBeFocused();
-    await expect(list).toHaveAttribute('filter-style', 'search');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Sentence' })).toBeFocused();
+    await expect(list).toHaveAttribute('filter-style', 'sentence');
     await page.waitForLoadState('networkidle');
     expect(problems).toEqual([]);
   });
@@ -352,6 +354,96 @@ test.describe('filter styles', () => {
     const box = (await sheet.boundingBox())!;
     expect(box.width).toBeLessThanOrEqual(390);
     const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(scroll).toBeLessThanOrEqual(inner);
+  });
+
+  // Saved views (2b): tabs above the bar, "+ New view" opens the builder, Save adds a tab.
+  test('the Views tab: #views opens it; a new view is built, saved and picked', async ({ page }) => {
+    const problems = watch(page);
+    await page.goto('/docs/filter-styles/#views');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Views', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(list).toHaveAttribute('filter-style', 'views');
+    const tabs = list.getByRole('navigation', { name: 'Views' });
+    await expect(tabs.getByRole('button', { name: 'All 18' })).toHaveAttribute('aria-current', 'true');
+    await tabs.getByRole('button', { name: 'New view' }).click();
+    const builder = list.getByRole('form', { name: 'New view' });
+    await expect(builder).toBeVisible();
+    await builder.locator('.lfdln-filter-toggle', { hasText: 'Herb' }).click();
+    await builder.locator('.lfdln-filter-toggle', { hasText: 'Sun' }).click();
+    // The list previews what the view will show; Save counts it.
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(5);
+    await builder.getByRole('textbox', { name: 'Name this view' }).fill('Herbs for sun');
+    await builder.getByRole('button', { name: 'Save · 5 results' }).click();
+    await expect(builder).toHaveCount(0);
+    await expect(tabs.getByRole('button', { name: 'Herbs for sun 5' })).toHaveAttribute('aria-current', 'true');
+    const strip = page.locator('[data-events] .event');
+    await expect(strip.filter({ hasText: 'views-change' }).first().locator('.event-detail')).toHaveText('{"views":["Herbs for sun"]}');
+    await expect(strip.filter({ hasText: 'dv-query' }).first().locator('.event-detail')).toHaveText('{"filters":{"kind":["Herb"],"light":["Sun"]}}');
+    // All shows every plant again.
+    await tabs.getByRole('button', { name: 'All 18' }).click();
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(8);
+    await page.waitForLoadState('networkidle');
+    expect(problems).toEqual([]);
+  });
+
+  // The sentence (2c): the filter as one paragraph; each underlined part opens a menu.
+  test('the Sentence tab: #sentence opens it; a phrase menu filters and rewrites the sentence', async ({ page }) => {
+    const problems = watch(page);
+    await page.goto('/docs/filter-styles/#sentence');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await expect(styleTabs(page).getByRole('tab', { name: 'Sentence', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(list).toHaveAttribute('filter-style', 'sentence');
+    const text = list.locator('p.lfdln-filter-sentence-text');
+    await expect(text).toHaveText('Show all plants in any light, at any price, including sold out.');
+    await list.getByRole('button', { name: 'Kind: all plants' }).click();
+    const menu = list.locator('.lfdln-filter-col-menu');
+    await expect(menu.locator('.lfdln-filter-col-label')).toHaveText('Show kind');
+    await menu.getByRole('checkbox', { name: /Herb/ }).click();
+    await menu.getByRole('checkbox', { name: /Fern/ }).click();
+    await page.keyboard.press('Escape');
+    await expect(text).toHaveText('Show herbs and ferns in any light, at any price, including sold out.');
+    await expect(list.locator('.dv-table tbody tr')).toHaveCount(8);
+    await list.getByRole('button', { name: 'Start over' }).click();
+    await expect(text).toHaveText('Show all plants in any light, at any price, including sold out.');
+    await page.waitForLoadState('networkidle');
+    expect(problems).toEqual([]);
+  });
+
+  test('code tabs: Saved views keeps them with remember-as, Sentence writes the phrases', async ({ page }) => {
+    await page.goto('/docs/filter-styles/');
+    const code = page.locator('pre.code-view:visible');
+    await page.getByRole('tab', { name: 'Saved views', exact: true }).click();
+    await expect(code).toContainText('data-viewer-filter-views.js');
+    await expect(code).toContainText('filter-style="views"');
+    await expect(code).toContainText('remember-as="plants"');
+    await expect(code).toContainText('views-change');
+    await expect(code).toContainText('savedViews');
+    await page.getByRole('tab', { name: 'Sentence', exact: true }).click();
+    await expect(code).toContainText('data-viewer-filter-sentence.js');
+    await expect(code).toContainText('filter-style="sentence"');
+    await expect(code).toContainText('phrase-any="in any light"');
+    await expect(code).toContainText('plural="Perennial:perennials');
+  });
+
+  test('at 390px the views builder and the sentence sheet fit the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const wide = () => page.evaluate((): [number, number] => [document.documentElement.scrollWidth, window.innerWidth]);
+    await page.goto('/docs/filter-styles/#views');
+    const list = page.locator('[data-host] lfdln-data-viewer');
+    await list.getByRole('navigation', { name: 'Views' }).getByRole('button', { name: 'New view' }).click();
+    const builder = list.getByRole('form', { name: 'New view' });
+    await expect(builder).toBeVisible();
+    expect((await builder.boundingBox())!.width).toBeLessThanOrEqual(390);
+    let [scroll, inner] = await wide();
+    expect(scroll).toBeLessThanOrEqual(inner);
+    await page.keyboard.press('Escape');
+    await styleTabs(page).getByRole('tab', { name: 'Sentence', exact: true }).click();
+    await list.getByRole('button', { name: 'Light: in any light' }).click();
+    const sheet = list.locator('dialog.lfdln-filter-col-menu[open]');
+    await expect(sheet).toBeVisible();
+    expect((await sheet.boundingBox())!.width).toBeLessThanOrEqual(390);
+    [scroll, inner] = await wide();
     expect(scroll).toBeLessThanOrEqual(inner);
   });
 

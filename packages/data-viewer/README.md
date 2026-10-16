@@ -17,7 +17,9 @@ which work on any page without the viewer: [`@lesfleursdelanuitdev/menu`](https:
 code, so it installs them with it; nothing about the viewer's own attributes or events changes.
 `filter-style="search"` draws with a sixth,
 [`@lesfleursdelanuitdev/search-filter`](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
-(`<lfdln-search-filter>`, the search and the filter in one field).
+(`<lfdln-search-filter>`, the search and the filter in one field). `filter-style="views"` and
+`filter-style="sentence"` draw with the filter package's styles (saved views as tabs, and the
+filter as a sentence).
 
 ## Install
 
@@ -411,7 +413,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `pageSizes` | `page-sizes` | `number[]` (attribute: `"10,20,50"`) | unset | Shows a "Rows per page" picker beside the paging status. See [Pages](#pages). |
 | `pager` | `pager` | `'simple'` or `'numbers'` | `'simple'` | `simple`: Previous and Next. `numbers`: numbered page buttons between them. See [Pages](#pages). |
 | `layout` | `layout` (reflected) | `'table'` or `'cards'` | table, or cards on a phone | How the rows are drawn. |
-| `rememberAs` | `remember-as` | string | unset | Keeps the visitor's table-or-cards choice in `localStorage` under this key (and a picked page size under `<key>.size`). It doesn't decide whether the switch shows; `layout-switch` does. |
+| `rememberAs` | `remember-as` | string | unset | Keeps the visitor's table-or-cards choice in `localStorage` under this key (and a picked page size under `<key>.size`). It doesn't decide whether the switch shows; `layout-switch` does. With `filter-style="views"` it also keeps the visitor's saved views under `<key>.views`. See [Saved views](#saved-views). |
 | `layoutSwitch` | `layout-switch` | `'none'`, `'text'`, `'icons'` or `'both'` | `'text'` | The table-or-cards switch: words, icons only, an icon before the words, or no switch. Anything else is `'text'`. See [The layout switch](#the-layout-switch). |
 | `tableLabel` | `table-label` | string | `words.showTable` | What the table button says (its name and, with icons only, its `title`). |
 | `cardsLabel` | `cards-label` | string | `words.showCards` | What the cards button says. |
@@ -424,7 +426,8 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `searchSubmitLabel` | `search-submit-label` | string | unset | A button after the search box with these words; then typing alone doesn't search, only Enter or the button. |
 | `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. With `filter-style="search"` it names the field's search landmark and its suggestions' popover instead. |
 | `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
-| `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'`, `'columns'` or `'search'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
+| `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'`, `'columns'`, `'search'`, `'views'` or `'sentence'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
+| `savedViews` | none | `SavedView[]` | unset | With `filter-style="views"`: the saved views, kept by your page (on your server, say). Set, it turns the browser's copy off. See [Saved views](#saved-views). |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
@@ -462,6 +465,9 @@ column is formatted the way that column is.
 | `options` | A choice's options, `options="Sun,Part shade,Shade"`, in that order. |
 | `ranges` | A range's quick ranges, `ranges="1900s:1900..1999,Recent:2020.."` (label, colon, `from..to`; either end may be empty). |
 | `hint` | For a yes/no column: a line under its switch in the `panel` and `rail` [filter styles](#filter-styles), such as `hint="Hide plants that are sold out"`. |
+| `phrase` | How the column reads in the `sentence` [filter style](#filter-styles) when it is set, `{values}` standing for what is picked: `phrase="for {values}"` ("for shade"). Unset: `Label: {values}`. |
+| `phrase-any` | How it reads when nothing is picked: `phrase-any="in any light"`. Unset: `Label: any`. |
+| `plural` | A choice's values as the sentence says them, `plural="Perennial:perennials,Fern:ferns"` (value, colon, words; the last colon splits). A value not listed reads as its label in lower case. |
 | `align` | `left` or `right`. |
 | `currency` | For `type="money"`, such as `EUR`. Defaults to `USD`. |
 
@@ -482,6 +488,9 @@ type Column<T> = {
   options?: (string | FilterOption)[];                      // a choice's options, in order
   ranges?: { label: string; from?: string; to?: string }[]; // a range's quick ranges
   hint?: string;                // a yes/no filter's helper line (panel and rail styles)
+  phrase?: string;              // the sentence style, when set: 'for {values}'
+  phraseAny?: string;           // the sentence style, when not set: 'in any light'
+  plural?: Record<string, string>; // the sentence style: { Fern: 'ferns' }
 };
 ```
 
@@ -564,9 +573,13 @@ attribute doesn't change. Each other style is a file of its own, and only pages 
 | `rail` | A 190 px column beside the list with every section open | At once | "12 results" and chips above the list |
 | `columns` | A funnel button in each filterable column's header. It opens a 220 px menu | At once | A dot on the header, accent-coloured cells, and "5 of 12 · 1 column filtered" with "Clear all" above the table |
 | `search` | One field for the search and the filters, in the search box's place. Typing suggests filters (a bottom sheet below 480 px) | At once | As tokens in the field: "Any column has mint", "Kind is Herb" |
+| `views` | Saved views first: tabs with counts above the bar, "+ New view" opens a builder, a saved tab has a ⋯ menu with Rename and Delete | A view's filters and search when its tab is picked; a new view's draft on Save | The current tab, and the chips row under the bar |
+| `sentence` | The filter written out above the bar: "Show perennials and ferns for shade, at any price, including sold out." Each underlined part opens a 220 px menu (a bottom sheet below 480 px) | At once | In the sentence, and "Start over" under it |
 
-With any of the five new styles the viewer's own chips row is off, even with `filter-chips="on"`:
-the style shows what is applied itself.
+With `panel`, `bar`, `rail`, `columns`, `search` and `sentence` the viewer's own chips row is
+off, even with `filter-chips="on"`: the style shows what is applied itself. `views` keeps the
+chips row, because a bookmark or a deleted view can leave filters that no tab matches, and the
+chips are how you see and clear them.
 
 ### Which file to add
 
@@ -577,6 +590,8 @@ the style shows what is applied itself.
 | `rail` | `dist/data-viewer-filter-rail.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/rail` |
 | `columns` | `dist/data-viewer-filter-columns.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/columns` |
 | `search` | `dist/data-viewer-filter-search.js` (holds `panel` too) | `@lesfleursdelanuitdev/data-viewer/filter-styles/search` |
+| `views` | `dist/data-viewer-filter-views.js` | `@lesfleursdelanuitdev/data-viewer/filter-styles/views` |
+| `sentence` | `dist/data-viewer-filter-sentence.js` | `@lesfleursdelanuitdev/data-viewer/filter-styles/sentence` |
 
 ```html
 <script type="module" src="/js/data-viewer.standalone.js"></script>
@@ -602,7 +617,7 @@ define();
 
 The add-on files hold no Lit: they draw with the viewer's own copy. Each one registers its style
 when it loads, and the order doesn't matter. A list draws the style as soon as its file has
-loaded. Each file is 6 to 11 KB gzipped. To show a filter style without the viewer, see the filter package's
+loaded. Each file is 6 to 11 KB gzipped (`views` and `sentence` about 7.5 KB). To show a filter style without the viewer, see the filter package's
 [filter styles on their own](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/filter#filter-styles-on-their-own).
 
 ### Fallbacks
@@ -616,6 +631,10 @@ loaded. Each file is 6 to 11 KB gzipped. To show a filter style without the view
 - **`columns`** shows `panel` in cards view, which has no headers.
 - **`search`** has no fallback: below 480 px of list width (it watches the list, as the rail
   does), and on phones, its suggestions open as a bottom sheet instead.
+- **`sentence`** has no fallback either: below 480 px of list width, and on phones, it stays a
+  sentence and its menus open as the bottom sheet.
+- **`views`** has none: on phones the tabs row scrolls sideways inside itself and the builder's
+  rows stack.
 - The name is read in lower case. Changing `filter-style`, or a fallback taking over, closes an
   open filter and drops its draft.
 
@@ -677,6 +696,107 @@ loaded. Each file is 6 to 11 KB gzipped. To show a filter style without the view
     [search-filter](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
     package.
 
+- **`views`:** a row of tabs above the bar takes the place of the bar's views. The page's own
+  `views` come first; with none, an "All" tab (the view `''`) is added. The visitor's saved views
+  follow, then "+ New view". See [Saved views](#saved-views) for where they are kept.
+  - Each tab shows its count: in browser mode every tab (a page view's `count` if set, else
+    counted with its `where`; a saved view counted with its filters and search); in server mode
+    only page views with a `count`.
+  - Picking a tab applies its whole state: a page view clears the filters and the search; a
+    saved view sets its own filters and search. A saved tab is current while the list's filters
+    and search are exactly its own. A page tab is current only while no filter and no search is
+    applied, so "All" isn't marked while something narrows the list.
+  - "+ New view" opens the builder, a card with one row per section (chips with counts, From and
+    To boxes for a range without named ranges, Yes / No), filled with what is applied. In browser
+    mode the list shows what the draft leaves as you change it; the address and `dv-query` wait
+    for Save. In server mode the rows stay and only the Save button counts. The footer has the
+    name box ("Name this view"; left empty, the view is "View 1", "View 2", …), Cancel and "Save · 5 results". With no
+    filter and no search there is nothing to save: Save says why and does nothing. Esc or Cancel
+    closes the builder and drops the draft.
+  - A saved tab's ⋯ menu ("More for Herbs") has Rename and Delete. Rename turns the label into a
+    text box: Enter or leaving it saves, Esc cancels, an empty name keeps the old one. Delete
+    removes the tab at once and shows "Deleted “Herbs” · Undo" for 5 seconds; Undo puts it back
+    where it was. Focus goes to Undo, then back to the current tab (or the first tab). The
+    view's filters stay applied, with their chips. Page views have no ⋯.
+  - On phones the tabs, ⋯, "+ New view", the chips and the builder's buttons are 44 px tall, and
+    the tabs row scrolls sideways inside itself, never the page.
+- **`sentence`:** the filter reads as one sentence above the bar: "Show" and one phrase per
+  filterable column, written by its `phrase`, `phrase-any` and `plural`
+  ([column attributes](#lfdln-dv-column-attributes)).
+  - A set column reads its `phrase` with `{values}` replaced by what is picked ("for **shade**").
+    Only the values are the underlined button; the rest is plain text. An unset column's whole
+    `phrase-any` is the button ("**at any price**"). Values join as "perennials", "perennials
+    and ferns", "perennials, shrubs and ferns"; a choice's value reads from `plural`, else as its
+    label in lower case, a range as its summary ("under €5"), yes/no as the column's `phrase`
+    when yes and "In stock: no" when no.
+  - Phrases join as "Show" + the first phrase + the second, then ", " before each one after
+    that, and "." at the end: "Show perennials and ferns for shade, at any price, including sold
+    out." A column with no phrase reads "Owner: any" or "Owner: ana and dev".
+  - Each phrase opens the 220 px menu the `columns` style uses: "Show kind", the option search
+    for long lists, the options with counts (ranges and Yes / No one at a time, or From and To
+    boxes), and, once set, a last button that clears it, named by the unset phrase ("At any
+    price", "All plants", "Owner: any"). Every tick applies at once. Esc and the clear button
+    close it and put focus back on the phrase; a click outside closes it too.
+  - "Start over" under the sentence clears every filter. It keeps the search, which the sentence
+    doesn't show. With a filter set and no rows left, the list says "No plants match that
+    sentence. Change one of the underlined parts." (`words.things` names the rows).
+  - Below 480 px of list width, or on a phone, the menus are the bottom sheet, the text is 18 px,
+    and each line of a phrase is a 44 px target; long phrases wrap with the text around them.
+
+### Saved views
+
+With `filter-style="views"` a visitor can save the filters and the search they have applied as a
+view of their own, a tab they can come back to. Where the views are kept:
+
+- **With `remember-as`:** in this browser's `localStorage`, under `<remember-as>.views`
+  (`plants.views` for `remember-as="plants"`), as a JSON array of views. Reading and writing it
+  never breaks the list. If storage is blocked or full, the views last until the page is
+  reloaded. Stored views that can't be read (not JSON, or not a view) are left out, with one
+  console warning.
+- **Without `remember-as`:** in the list only, until the page is reloaded.
+- **With `savedViews`:** in your page. Set `savedViews` to the views (from your server, say) and
+  the list never reads or writes `localStorage` for them. It keeps its own copy, changes it as the
+  visitor saves, renames and deletes, and tells you each time with `views-change`. Set
+  `savedViews` again to replace its copy.
+
+Each change (a save, a rename, a delete, an undo) fires `views-change` with the whole list of
+views in `detail.views`, whichever of the three keeps them. It bubbles and is `composed`.
+
+```ts
+type SavedView = { key: string; label: string; filter: FilterValue; search?: string };
+// { key: 'u-m2x9k1', label: 'Herbs for sun', filter: { kind: ['Herb'], light: ['Sun'] } }
+```
+
+What a view saves: the filters (tidied: empty ones dropped) and the search, left out when empty.
+Not the sort, the page size, the layout or "Search in". A new view's key is `u-` and the time in
+base 36 (`-2`, `-3` on a clash). A value a saved view names that the list no longer has shows a
+count of 0; picking the view applies it, and its chip clears it.
+
+Keeping views on a server:
+
+```html
+<lfdln-data-viewer id="plants" label="Plants" filter-style="views" adapter="json" src="/api/plants">
+  …
+</lfdln-data-viewer>
+
+<script type="module">
+  const list = document.querySelector('#plants');
+  list.savedViews = await (await fetch('/api/me/views')).json();
+  list.addEventListener('views-change', async (e) => {
+    if (e.target !== list) return; // lists inside cards fire it too
+    await fetch('/api/me/views', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(e.detail.views),
+    });
+  });
+</script>
+```
+
+In server mode, picking a saved view sends `dv-query` with `view: ''` and the view's `filters` and
+`search`, as if the visitor had set them; your server needs nothing new. Picking a page view sends
+its `view` key with no filters and no search.
+
 ### Counts from a server
 
 In server mode the list can't count a draft itself, so the panel's "Show 12 results" asks the
@@ -728,6 +848,35 @@ These join the list's [words](#words) and are set the same way, through `words`:
 same way; see the search-filter package's
 [words](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#words).
 
+`views` adds these (and uses `views`, `Views`, as the tabs row's name):
+
+| Key | Default |
+|---|---|
+| `allViews` | `All` (the tab added when the page sets no `views`) |
+| `newView` | `New view` (the "+" tab and the builder's name) |
+| `viewName(n)` | `View ${n}` (a view saved with no name) |
+| `nameView` | `Name this view` (the name box's label and placeholder) |
+| `saveView(n)`, `saveViewUnknown` | `Save · ${n} results` (`Save · 1 result`), `Save` (while the count isn't known) |
+| `nothingToSave` | `Pick a filter or search for something first.` |
+| `viewMenu(label)` | `More for ${label}` (a saved tab's ⋯) |
+| `rename`, `delete` | `Rename`, `Delete` |
+| `renameView(label)` | `Rename ${label}` (the rename box's label) |
+| `viewDeleted(label)`, `undo` | `Deleted “${label}”`, `Undo` |
+
+`sentence` adds these:
+
+| Key | Default |
+|---|---|
+| `sentenceStart` | `Show` |
+| `and` | `and` (before the last value in a phrase) |
+| `comma` | `,` (between other values, and before each phrase after the second) |
+| `listComma` | `,` (before the last phrase; `''` leaves a space) |
+| `sentenceEnd` | `.` |
+| `anyValue` | `any` (`Owner: any`, for a column with no `phrase-any`) |
+| `startOver` | `Start over` |
+| `things` | `results` (what the rows are, for `sentenceNone`) |
+| `sentenceNone(things)` | `No ${things} match that sentence. Change one of the underlined parts.` |
+
 To make them say "plants":
 
 ```js
@@ -739,6 +888,8 @@ document.querySelector('#plants').words = {
   resultsCount: (n) => `${n} ${n === 1 ? 'plant' : 'plants'}`,
   resultsOf: (n, m) => `${n} of ${m} plants`,
   allResults: (m) => `All ${m} plants`,
+  saveView: (n) => `Save · ${n} ${n === 1 ? 'plant' : 'plants'}`,
+  things: 'plants', // "No plants match that sentence. …"
 };
 ```
 
@@ -755,6 +906,7 @@ The viewer adds these hooks:
 | `.dv-root[data-filter-side]`, `.dv-side`, `.dv-main` | With `rail`: the rail's column and the list's column |
 | `.dv-filtered` | With `columns`: a filtered column's header and body cells |
 | `.dv-search.dv-search-filter` | With `search`: the bar's box that holds the field (the search box's place) |
+| `.dv-above` | With `views` and `sentence`: the box above `.dv-bar` the style draws in (full width) |
 
 ## The table
 
@@ -1099,6 +1251,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 | `dv-open` | `{ row }` | A card or a first cell was pressed and the row has no `href`. |
 | `dv-action` | `{ id, row }` (and `item`) | A menu item or the footer button was pressed (after its confirm, if any). From a `data-action` element in [your own card](#your-own-cards), `detail` also has `item: { id, label }`. |
 | `dv-layout` | `{ layout }` | The table-or-cards switch changed. |
+| `views-change` | `{ views }` | With `filter-style="views"`: a view was saved, renamed, deleted or put back by Undo. `views` is every saved view, `SavedView[]`. See [Saved views](#saved-views). |
 
 ## Address
 
@@ -1236,7 +1389,9 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 (`pages` to `rowsPerPage`, and `empty`) are the pagination package's `PaginationWords`, the search
 box's the search package's `SearchWords` and the filter's the filter package's `FilterWords`.
 The numbers handed to `showing`, `pageOf` and `pageNumber` are already formatted for the locale.
-`defaultWords` is exported.
+`defaultWords` is exported. The filter styles add their own words, set the same way (`views`'
+`newView`, `sentence`'s `things`: `words = { things: 'plants' }`): see
+[Words for the styles](#words-for-the-styles).
 
 ## Styling
 
