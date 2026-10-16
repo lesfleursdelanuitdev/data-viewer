@@ -17,20 +17,28 @@
 <body>
   <h1>data-viewer, selecting rows</h1>
   <p>The select add-on: a box on every row and card, and the selection bar while anything is
-    ticked. Esc in the bar, or ✕, clears it.</p>
+    ticked. Esc in the bar, or ✕, clears it. #table and #server have batch actions; set
+    <code>window.keep = true</code> to make their dv-batch handler call preventDefault().</p>
   <h2>#table: a table</h2>
   <lfdln-data-viewer id="table" label="Plants (table)" selectable layout="table" phone-layout="table" page-size="20"></lfdln-data-viewer>
   <h2>#cards: cards</h2>
   <lfdln-data-viewer id="cards" label="Plants (cards)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#cardof: cards from cardOf</h2>
+  <lfdln-data-viewer id="cardof" label="Plants (cardOf)" selectable layout="cards" open-event></lfdln-data-viewer>
   <h2>#tpl: custom cards (cardTemplate)</h2>
   <lfdln-data-viewer id="tpl" label="Plants (template)" selectable layout="cards" open-event></lfdln-data-viewer>
   <h2>#mount: custom cards (cardMount)</h2>
   <lfdln-data-viewer id="mount" label="Plants (mount)" selectable layout="cards" open-event></lfdln-data-viewer>
   <h2>#compact: a compact list</h2>
   <lfdln-data-viewer id="compact" label="Plants (compact)" selectable compact></lfdln-data-viewer>
+  <h2>#server: from a server (json adapter, 45 recipes)</h2>
+  <lfdln-data-viewer id="server" label="Recipes" selectable adapter="json" src="/api/recipes" page-size="20" layout="table" phone-layout="table">
+    <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="cuisine" label="Cuisine"></lfdln-dv-column>
+  </lfdln-data-viewer>
   <h2>#nokey: a row with no id</h2>
   <lfdln-data-viewer id="nokey" label="Plants (no key)" selectable compact></lfdln-data-viewer>
   <script type="module" src="./select.ts"></script>
-  <script type="module">import "../src/select/index.ts";</script>
+  <script type="module">import "../src/select/index.ts"; import "../src/adapters/json.ts";</script>
 </body>
 </html>

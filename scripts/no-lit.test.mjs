@@ -8,7 +8,7 @@ const dist = new URL('../packages/data-viewer/dist/', import.meta.url);
 
 test('the filter style and select add-ons carry no Lit', () => {
   const files = readdirSync(dist).filter((f) => /^data-viewer-(filter-[\w-]+|select)\.js$/.test(f));
-  assert.ok(files.length > 0, 'no data-viewer-filter-*.js in packages/data-viewer/dist (build first)');
+  assert.ok(files.length > 0, 'no data-viewer-filter-*.js or data-viewer-select.js in packages/data-viewer/dist (build first)');
   for (const f of files) {
     assert.ok(!readFileSync(new URL(f, dist), 'utf8').includes('litHtmlVersions'), `${f} bundles Lit`);
   }

@@ -1,13 +1,14 @@
 import { html } from 'lit';
-import { LfdlnDataViewer, define } from '../src/index.ts';
+import { LfdlnDataViewer, define, type MenuItem } from '../src/index.ts';
 import { columns, items, type Item } from './select-rows.ts';
 
-// The 54 rows in every list (#nokey: two of them and one with no id). window.events collects
-// { type, detail } for each dv-select, dv-open and dv-batch.
+// The 54 rows in every list (#nokey: two of them and one with no id; #server loads 45 recipes
+// through the json adapter). window.events collects { type, detail } for each dv-select, dv-open
+// and dv-batch.
 const events: { type: string; detail: unknown }[] = [];
 (window as unknown as { events: typeof events }).events = events;
 const list = (id: string) => document.querySelector(`#${id}`) as LfdlnDataViewer<Item>;
-for (const id of ['table', 'cards', 'tpl', 'mount', 'compact', 'nokey']) {
+for (const id of ['table', 'cards', 'cardof', 'tpl', 'mount', 'compact', 'nokey']) {
   const el = list(id);
   el.columns = columns;
   el.rows = id === 'compact' ? items.slice(0, 5) : id === 'nokey' ? [items[0]!, { name: 'No id', kind: 'Herb', price: 5 }, items[1]!] : items;
@@ -15,6 +16,27 @@ for (const id of ['table', 'cards', 'tpl', 'mount', 'compact', 'nokey']) {
     el.addEventListener(type, (e) => events.push({ type, detail: (e as CustomEvent).detail }));
   }
 }
+
+// #table's and #server's batch actions: 3 buttons and the rest in the ⋯ menu. While window.keep
+// is true, their dv-batch handler calls preventDefault(), so the selection stays.
+const actions: MenuItem[] = [
+  { id: 'export', label: 'Export' },
+  { id: 'ship', label: 'Mark as shipped' },
+  { id: 'archive', label: 'Archive' },
+  { id: 'delete', label: 'Delete', danger: true },
+  { id: 'never', label: "Can't do this", disabled: true },
+];
+const server = document.querySelector('#server') as LfdlnDataViewer<{ id: number; name: string }>;
+for (const el of [list('table'), server]) {
+  el.batchActions = actions;
+  el.addEventListener('dv-batch', (e) => (window as unknown as { keep?: boolean }).keep === true && e.preventDefault());
+}
+for (const type of ['dv-select', 'dv-batch']) {
+  server.addEventListener(type, (e) => events.push({ type, detail: (e as CustomEvent).detail }));
+}
+
+// #cardof: the built-in card, from the page's cardOf.
+list('cardof').cardOf = (r) => ({ title: r.name, badge: r.kind, facts: [`€${r.price}`] });
 
 // Custom cards: the app's own open button (its ::after covers the card) and a line of text.
 list('tpl').cardTemplate = (r) => html`<button type="button" data-open class="tpl-name">${r.name}</button>

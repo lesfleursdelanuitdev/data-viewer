@@ -571,7 +571,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
    * it replaces the selection (keys become strings; empty and repeated ones go) and fires nothing.
    */
   get selected(): string[] {
-    const s = this._sel;
+    return this._selKeys(this._sel);
+  }
+  private _selKeys(s: Selection): string[] {
     if (!s.all || this._server) return [...s.keys];
     return this._keys(narrow(this.rows ?? [], this.columns, this._q, { views: this.views, searchKeys: this.searchKeys }))
       .filter((k) => !s.except.includes(k));
@@ -591,36 +593,42 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   // Every change goes through here. A selection that counts 0 is none (and the rows seen go).
-  // The rows matching are the last drawing's (null before an adapter's first answer, and without
-  // the add-on, which is the only way to turn "all matching" on).
+  // Under "all matching" in browser mode the count is the rows' own (rows may have just been set
+  // again); otherwise the rows matching are the last drawing's (null before an adapter's first
+  // answer). In server mode the rows on screen join those seen once anything is ticked.
   private _setSel(next: Selection, fire = true): void {
-    if (!countOf(next, this._selNow?.v.matching ?? null)) {
+    if (!(next.all && !this._server ? this._selKeys(next).length : countOf(next, this._selNow?.v.matching ?? null))) {
       next = NONE;
       this._seen = new Map();
     }
     this._sel = next;
+    if (this._server && next !== NONE) this._keys(this.rows ?? []);
     if (fire) this.dispatchEvent(new CustomEvent('dv-select', { detail: { keys: [...next.keys], all: next.all, except: [...next.except] }, bubbles: true, composed: true }));
   }
 
-  // The rows' keys (rows without one left out). In server mode a selectable list also keeps
-  // each row by its key, among the rows seen (for dv-batch's rows).
+  // The rows' keys (rows without one left out). In server mode, while anything is ticked, a
+  // selectable list also keeps each row by its key, among the rows seen (for dv-batch's rows).
   private _keys(rows: T[]): string[] {
     const out: string[] = [];
     for (const r of rows) {
       const k = keyOf(r, this.rowKey);
       if (k === undefined) continue;
       out.push(k);
-      if (this.selectable && this._server) this._seen.set(k, r);
+      if (this.selectable && this._server && this._sel !== NONE) this._seen.set(k, r);
     }
     return out;
   }
 
-  // What the add-on draws from, for this page's tickable keys.
+  // What the add-on draws from, for this page's tickable keys. The select-all line: never in a
+  // compact list or without a known total; offered once the page is ticked and more rows match
+  // than it holds, and kept while "all matching" is on.
   private _selView(keys: string[], matching: number | null): SelectView {
     const s = this._sel;
+    const page = pageState(s, keys);
     return {
-      count: countOf(s, matching), all: s.all, page: pageState(s, keys), pageCount: keys.length, matching,
-      offerAll: false, actions: this.batchActions ?? [], words: this.words, rowKey: this.rowKey, num: (n) => this._num(n), uid: `${this._uid}-x`,
+      count: countOf(s, matching), all: s.all, page, pageCount: keys.length, matching,
+      offerAll: !this.compact && matching !== null && (s.all || (page === 'all' && matching > keys.length)),
+      actions: this.batchActions ?? [], words: this.words, rowKey: this.rowKey, num: (n) => this._num(n), uid: `${this._uid}-x`,
     };
   }
 
@@ -629,7 +637,18 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       onPage: (on) => this._setSel(tickPage(this._sel, keys, on)),
       onAll: () => this._setSel(tickAll(this._sel, keys)),
       onClear: () => this._setSel(NONE),
-      onAction: () => {},
+      // dv-batch: the keys, their rows (browser mode: from rows; server mode: from the pages seen),
+      // and the query. Unless the page prevents it, the selection then clears (and dv-select fires).
+      onAction: (item) => {
+        if (item.disabled) return;
+        const s = this._sel;
+        const keys = this.selected;
+        const by = this._server ? this._seen : new Map((this.rows ?? []).map((r) => [keyOf(r, this.rowKey), r]));
+        if (this.dispatchEvent(new CustomEvent('dv-batch', {
+          detail: { action: item.id, keys, rows: keys.map((k) => by.get(k)).filter((r) => r !== undefined), all: s.all, except: [...s.except], query: this._query },
+          bubbles: true, composed: true, cancelable: true,
+        }))) this._setSel(NONE);
+      },
     };
   }
 

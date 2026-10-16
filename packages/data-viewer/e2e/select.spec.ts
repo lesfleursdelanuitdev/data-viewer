@@ -206,3 +206,340 @@ test.describe('on a phone', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 });
+
+// --- Batch actions, select all matching, the phone bar (SEL-3b). #table and #server have the
+// actions Export, Mark as shipped, Archive, Delete (danger) and Can't do this (disabled); their
+// dv-batch handler calls preventDefault() while window.keep is true.
+type Batch = { action: string; keys: string[]; rows: { id: number }[]; all: boolean; except: string[]; query: { search: string; page: number } };
+const batches = async (page: Page) => (await events(page, 'dv-batch')).map((e) => e.detail as Batch);
+const pageBox = (page: Page, list: string) =>
+  page.locator(`#${list}`).getByRole('checkbox', { name: 'Select all on this page', exact: true });
+const bar = (page: Page, list = 'table') => page.locator(`#${list} .dv-select-bar`);
+async function tick3(page: Page) {
+  for (const n of ['Rose 1', 'Fern 1', 'Mint 1']) await rowBox(page, 'table', n).check();
+  await expect(bar(page).locator('.dv-select-count')).toHaveText('3 selected');
+}
+async function openServer(page: Page) {
+  await page.goto('/select.html');
+  await expect(page.locator('#server tbody .dv-select-box')).toHaveCount(20);
+}
+
+test.describe('batch actions', () => {
+  test('the first 3 actions are buttons, the rest are in a ⋯ menu named "More actions"', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    await expect(bar(page).locator('button.dv-select-action')).toHaveText(['Export', 'Mark as shipped', 'Archive']);
+    const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
+    await expect(more).toHaveCount(1);
+    await more.click();
+    const items = await page.locator('#table .lfdln-menu-list').getByRole('menuitem').allTextContents();
+    expect(items.map((t) => t.trim()).sort()).toEqual(["Can't do this", 'Delete']);
+  });
+
+  test('a danger action is drawn in --dv-danger', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    const danger = await page.locator('#table').evaluate((t) => {
+      const probe = t.appendChild(document.createElement('span'));
+      probe.style.color = 'var(--dv-danger)';
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    });
+    await bar(page).getByRole('button', { name: 'More actions', exact: true }).click();
+    const del = page.locator('#table').getByRole('menuitem', { name: 'Delete' });
+    expect(await del.evaluate((b) => getComputedStyle(b).color)).toBe(danger);
+    // A danger action among the first 3 is a button in that colour too.
+    await page.evaluate(() => {
+      const t = document.getElementById('table') as HTMLElement & { batchActions: unknown };
+      t.batchActions = [{ id: 'delete', label: 'Delete', danger: true }, { id: 'export', label: 'Export' }];
+    });
+    const button = bar(page).locator('button.dv-select-action', { hasText: 'Delete' });
+    expect(await button.evaluate((b) => getComputedStyle(b).color)).toBe(danger);
+    expect(await bar(page).locator('button.dv-select-action', { hasText: 'Export' }).evaluate((b) => getComputedStyle(b).color)).not.toBe(danger);
+  });
+
+  test('dv-batch carries the ticked keys and rows, then the selection clears', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    const before = (await events(page, 'dv-select')).length;
+    await bar(page).getByRole('button', { name: 'Export', exact: true }).click();
+    const [b] = await batches(page);
+    expect(b!.action).toBe('export');
+    expect(b!.keys).toEqual(['1', '2', '3']);
+    expect(b!.rows.map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(b!.all).toBe(false);
+    expect(b!.except).toEqual([]);
+    expect(b!.query.search).toBe('');
+    const after = (await events(page, 'dv-select')).slice(before);
+    expect(after).toEqual([{ type: 'dv-select', detail: { keys: [], all: false, except: [] } }]);
+    await expect(bar(page)).toHaveCount(0);
+    await expect(page.locator('#table tbody .dv-select-box').first()).toBeFocused();
+  });
+
+  test('an action from the ⋯ menu fires dv-batch too, and focus goes to the first row box', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    await bar(page).getByRole('button', { name: 'More actions', exact: true }).click();
+    await page.locator('#table').getByRole('menuitem', { name: 'Delete' }).click();
+    expect((await batches(page)).map((b) => [b.action, b.keys])).toEqual([['delete', ['1', '2', '3']]]);
+    await expect(bar(page)).toHaveCount(0);
+    await expect(page.locator('#table tbody .dv-select-box').first()).toBeFocused();
+  });
+
+  test('preventDefault() keeps the selection', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    await page.evaluate(() => ((window as unknown as { keep: boolean }).keep = true));
+    const before = (await events(page, 'dv-select')).length;
+    await bar(page).getByRole('button', { name: 'Archive', exact: true }).click();
+    expect((await batches(page)).map((b) => b.action)).toEqual(['archive']);
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('3 selected');
+    expect((await events(page, 'dv-select')).length).toBe(before);
+    await expect(bar(page).getByRole('button', { name: 'Archive', exact: true })).toBeFocused();
+  });
+
+  test('a disabled action fires nothing', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    // As one of the first 3: aria-disabled, focusable, and a press does nothing.
+    await page.evaluate(() => {
+      const t = document.getElementById('table') as HTMLElement & { batchActions: unknown };
+      t.batchActions = [{ id: 'never', label: "Can't do this", disabled: true }, { id: 'export', label: 'Export' }];
+    });
+    const off = bar(page).getByRole('button', { name: "Can't do this", exact: true });
+    await expect(off).toHaveAttribute('aria-disabled', 'true');
+    expect(await off.evaluate((b) => (b as HTMLButtonElement).disabled)).toBe(false);
+    await off.focus();
+    await expect(off).toBeFocused();
+    await off.click({ force: true });
+    await page.keyboard.press('Enter');
+    // In the ⋯ menu too.
+    await page.evaluate(() => {
+      const t = document.getElementById('table') as HTMLElement & { batchActions: unknown };
+      t.batchActions = [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }, { id: 'never', label: "Can't do this", disabled: true }];
+    });
+    await bar(page).getByRole('button', { name: 'More actions', exact: true }).click();
+    await page.locator('#table').getByRole('menuitem', { name: "Can't do this" }).click({ force: true });
+    await page.waitForTimeout(100);
+    expect(await batches(page)).toEqual([]);
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('3 selected');
+  });
+
+  test('Esc in the open ⋯ menu only closes it; Esc again clears', async ({ page }) => {
+    await open(page);
+    await tick3(page);
+    const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
+    await more.click();
+    await expect(page.locator('#table .lfdln-menu-list')).toBeVisible();
+    await expect(page.locator('#table .lfdln-menu-list [role=menuitem]:focus')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#table .lfdln-menu-list')).toBeHidden();
+    await expect(more).toBeFocused();
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('3 selected');
+    await page.keyboard.press('Escape');
+    await expect(bar(page)).toHaveCount(0);
+    await expect(page.locator('#table tbody .dv-select-box').first()).toBeFocused();
+  });
+
+  test('focus goes to this list\'s own first row box, not one in a list nested in a cell', async ({ page }) => {
+    await open(page);
+    // Rose 1 gets no key (its box is disabled) and a selectable list in its name cell, so the
+    // nested list's box comes before #table's first enabled one (Fern 1's) in the page.
+    await page.evaluate(() => {
+      type L = HTMLElement & { columns: unknown; rows: unknown; selectable: boolean; compact: boolean; rowKey: unknown };
+      const t = document.getElementById('table') as L;
+      t.rowKey = (r: { id: number }) => (r.id === 1 ? undefined : String(r.id));
+      const cols = t.columns as { key: string; render?: unknown }[];
+      t.columns = cols.map((c, i) => (i === 0 ? { ...c, render: (r: { id: number; name: string }) => {
+        if (r.id !== 1) return r.name;
+        const inner = document.createElement('lfdln-data-viewer') as L;
+        inner.id = 'inner';
+        inner.selectable = true;
+        inner.compact = true;
+        inner.columns = [{ key: 'name', label: 'Name' }];
+        inner.rows = [{ id: 'x', name: 'Inner' }];
+        return inner;
+      } } : c));
+    });
+    await expect(page.locator('#inner tbody .dv-select-box')).toHaveCount(1);
+    await rowBox(page, 'table', 'Mint 1').check();
+    await bar(page).getByRole('button', { name: 'Clear selection' }).click();
+    await expect(bar(page)).toHaveCount(0);
+    await expect(rowBox(page, 'table', 'Fern 1')).toBeFocused();
+  });
+});
+
+test.describe('select all', () => {
+  test('the line offers all matching once the page is ticked', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#table .dv-select-all')).toHaveCount(0);
+    await pageBox(page, 'table').click();
+    const line = page.locator('#table .dv-select-all');
+    await expect(line).toHaveText('All 20 on this page are selected. Select all 54 matching');
+    // Under the bar.
+    const b = (await bar(page).boundingBox())!;
+    expect((await line.boundingBox())!.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+    await line.getByRole('button', { name: 'Select all 54 matching' }).click();
+    await expect(line).toHaveText('All 54 are selected. Clear selection');
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('54 selected');
+    expect(await page.locator('#table').evaluate((t) => (t as HTMLElement & { selectedAll: boolean }).selectedAll)).toBe(true);
+    expect((await events(page, 'dv-select')).at(-1)!.detail).toEqual({ keys: expect.any(Array), all: true, except: [] });
+  });
+
+  test('unticking after all matching records it in except', async ({ page }) => {
+    await open(page);
+    await pageBox(page, 'table').click();
+    await page.locator('#table .dv-select-all').getByRole('button', { name: 'Select all 54 matching' }).click();
+    await rowBox(page, 'table', 'Fern 1').uncheck();
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('53 selected');
+    await bar(page).getByRole('button', { name: 'Export', exact: true }).click();
+    const [b] = await batches(page);
+    expect(b!.all).toBe(true);
+    expect(b!.except).toEqual(['2']);
+    expect(b!.keys).toHaveLength(53);
+    expect(b!.rows).toHaveLength(53);
+    expect(b!.keys).not.toContain('2');
+    expect(b!.rows.map((r) => String(r.id))).toEqual(b!.keys);
+    expect(b!.query.search).toBe('');
+  });
+
+  test('"Clear selection" in the line clears everything', async ({ page }) => {
+    await open(page);
+    await pageBox(page, 'table').click();
+    await page.locator('#table .dv-select-all').getByRole('button', { name: 'Select all 54 matching' }).click();
+    await page.locator('#table .dv-select-all').getByRole('button', { name: 'Clear selection' }).click();
+    await expect(bar(page)).toHaveCount(0);
+    await expect(page.locator('#table .dv-select-all')).toHaveCount(0);
+    await expect(page.locator('#table tbody tr.dv-selected')).toHaveCount(0);
+    expect(await page.locator('#table').evaluate((t) => (t as HTMLElement & { selectedAll: boolean }).selectedAll)).toBe(false);
+    expect((await events(page, 'dv-select')).at(-1)!.detail).toEqual({ keys: [], all: false, except: [] });
+    await expect(page.locator('#table tbody .dv-select-box').first()).toBeFocused();
+  });
+
+  test('no line when the page holds every matching row, or in a compact list', async ({ page }) => {
+    await open(page);
+    await page.locator('#table input[type=search]').fill('Rose');
+    await expect(page.locator('#table tbody tr')).toHaveCount(9);
+    await pageBox(page, 'table').click();
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('9 selected');
+    await expect(page.locator('#table .dv-select-all')).toHaveCount(0);
+    await pageBox(page, 'compact').click();
+    await expect(page.locator('#compact .dv-select-count')).toHaveText('5 selected');
+    await expect(page.locator('#compact .dv-select-all')).toHaveCount(0);
+  });
+
+  test('rows set again so that nothing is left ticked under all matching: the selection is none', async ({ page }) => {
+    await open(page);
+    await pageBox(page, 'table').click();
+    await page.locator('#table .dv-select-all').getByRole('button', { name: 'Select all 54 matching' }).click();
+    await rowBox(page, 'table', 'Rose 1').uncheck();
+    await expect(bar(page).locator('.dv-select-count')).toHaveText('53 selected');
+    // Only Rose 1 is left, and it is the one unticked.
+    await page.evaluate(() => {
+      const t = document.getElementById('table') as HTMLElement & { rows: { id: number }[] };
+      t.rows = t.rows.filter((r) => r.id === 1);
+    });
+    await expect(page.locator('#table tbody tr')).toHaveCount(1);
+    await expect(bar(page)).toHaveCount(0);
+    expect(await page.locator('#table').evaluate((t) => {
+      const l = t as HTMLElement & { selectedAll: boolean; selected: string[] };
+      return [l.selectedAll, l.selected];
+    })).toEqual([false, []]);
+  });
+
+  test('server mode: all matching with except', async ({ page }) => {
+    await openServer(page);
+    await pageBox(page, 'server').click();
+    const line = page.locator('#server .dv-select-all');
+    await expect(line).toHaveText('All 20 on this page are selected. Select all 45 matching');
+    await line.getByRole('button', { name: 'Select all 45 matching' }).click();
+    await expect(bar(page, 'server').locator('.dv-select-count')).toHaveText('45 selected');
+    await page.locator('#server').getByRole('button', { name: 'Next' }).click();
+    await expect(page.locator('#server tbody tr').first()).toContainText('Rose tea');
+    await expect(page.locator('#server tbody .dv-select-box:checked')).toHaveCount(20);
+    await rowBox(page, 'server', 'Rose cake').uncheck();
+    await expect(bar(page, 'server').locator('.dv-select-count')).toHaveText('44 selected');
+    // Kept (preventDefault), so a new search can clear it afterwards.
+    await page.evaluate(() => ((window as unknown as { keep: boolean }).keep = true));
+    await bar(page, 'server').getByRole('button', { name: 'Export', exact: true }).click();
+    const [b] = await batches(page);
+    expect(b!.all).toBe(true);
+    expect(b!.except).toEqual(['22']);
+    expect(b!.keys).toHaveLength(39);
+    expect(b!.rows).toHaveLength(39);
+    expect(b!.rows.map((r) => String(r.id))).toEqual(b!.keys);
+    expect(b!.keys.every((k) => Number(k) <= 40)).toBe(true); // pages 1 and 2 only
+    expect(b!.query.page).toBe(2);
+    await expect(bar(page, 'server').locator('.dv-select-count')).toHaveText('44 selected');
+    // Again, not prevented: the selection clears (one dv-select), and the search box is back.
+    const before = (await events(page, 'dv-select')).length;
+    await page.evaluate(() => ((window as unknown as { keep: boolean }).keep = false));
+    await bar(page, 'server').getByRole('button', { name: 'Export', exact: true }).click();
+    await expect(bar(page, 'server')).toHaveCount(0);
+    expect((await events(page, 'dv-select')).slice(before).map((e) => e.detail)).toEqual([{ keys: [], all: false, except: [] }]);
+    // A new search then starts from nothing ticked.
+    await page.locator('#server input[type=search]').fill('lemon');
+    await expect(page.locator('#server tbody tr')).toHaveCount(5);
+    await expect(page.locator('#server tbody .dv-select-box:checked')).toHaveCount(0);
+    await expect(page.locator('#server .dv-select-all')).toHaveCount(0);
+    expect(await page.locator('#server').evaluate((el) => (el as HTMLElement & { selectedAll: boolean }).selectedAll)).toBe(false);
+  });
+
+  test('server mode: rows are only kept by key while something is ticked', async ({ page }) => {
+    await openServer(page);
+    const seen = () => page.locator('#server').evaluate((el) => (el as unknown as { _seen: Map<string, unknown> })._seen.size);
+    await page.locator('#server').getByRole('button', { name: 'Next' }).click();
+    await expect(page.locator('#server tbody tr').first()).toContainText('Rose tea');
+    expect(await seen()).toBe(0);
+    await rowBox(page, 'server', 'Rose cake').check();
+    await expect(bar(page, 'server').locator('.dv-select-count')).toHaveText('1 selected');
+    await bar(page, 'server').getByRole('button', { name: 'Export', exact: true }).click();
+    expect((await batches(page)).map((b) => b.rows.map((r) => r.id))).toEqual([[22]]);
+    expect(await seen()).toBe(0); // cleared with the selection
+    await page.locator('#server').getByRole('button', { name: 'Previous' }).click();
+    await expect(page.locator('#server tbody tr').first()).toContainText('Spiced tea');
+    expect(await seen()).toBe(0);
+  });
+});
+
+test.describe('cardOf cards', () => {
+  test('a cardOf card gets the box; tapping it ticks without opening', async ({ page }) => {
+    await open(page);
+    const card = page.locator('#cardof li.lfdln-card').first();
+    await expect(card.locator('.lfdln-card-head > .dv-select-hit .dv-select-box')).toHaveCount(1);
+    await expect(card.locator('.lfdln-card-head > .dv-select-hit .dv-select-box')).toHaveAttribute('aria-label', 'Select Rose 1');
+    await card.locator('.dv-select-box').click();
+    await expect(card).toHaveClass(/\bdv-selected\b/);
+    await expect(card.locator('.dv-select-box')).toBeChecked();
+    await expect(page.locator('#cardof .dv-select-count')).toHaveText('1 selected');
+    await page.waitForTimeout(100);
+    expect(await events(page, 'dv-open')).toEqual([]);
+  });
+});
+
+test.describe('the phone bar', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('the bar is fixed to the bottom with 44 px buttons; the page never scrolls sideways; the last row is not covered', async ({ page }) => {
+    await open(page);
+    await rowBox(page, 'table', 'Rose 1').check();
+    const b = (await bar(page).boundingBox())!;
+    expect(Math.round(b.y + b.height)).toBe(844);
+    expect(b.height).toBeGreaterThanOrEqual(60);
+    const buttons = bar(page).locator('button:not([role=menuitem])');
+    expect(await buttons.count()).toBeGreaterThanOrEqual(5);
+    for (const box of await buttons.all()) expect((await box.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    // Scrolled to the end of #table: its last row and its pager sit above the bar.
+    await page.locator('#table > .dv-root').evaluate((r) => r.scrollIntoView({ block: 'end' }));
+    const top = (await bar(page).boundingBox())!.y;
+    const last = (await page.locator('#table tbody tr').last().boundingBox())!;
+    expect(last.y + last.height).toBeLessThanOrEqual(top + 0.5);
+    const pager = (await page.locator('#table .lfdln-pagination-nav').boundingBox())!;
+    expect(pager.y + pager.height).toBeLessThanOrEqual(top + 0.5);
+    // The bar is drawn above the boxes it covers.
+    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('.dv-select-bar') !== null, [b.x + 5, b.y + b.height / 2]);
+    expect(hit).toBe(true);
+  });
+});

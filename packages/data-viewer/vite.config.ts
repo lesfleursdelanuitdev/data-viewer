@@ -8,7 +8,7 @@ const LIMIT = 45 * 1024; // the standalone viewer (menu, pager, card, search and
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 const STYLE_LIMIT = 8 * 1024; // a filter style add-on (it draws with the viewer's Lit) stays under 8 KB
 const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel for its fallback (rail, columns) under 12 KB
-const SELECT_LIMIT = 8 * 1024; // the select add-on (it draws with the viewer's Lit and menu) under 8 KB
+const SELECT_LIMIT = 8 * 1024; // the select add-on under 8 KB: it draws with the viewer's kit (Lit and renderMenu come from the viewer), so it bundles neither
 
 // --- The demo's fake data source (dev server only), for demo/adapters.html and its e2e tests.
 // 45 recipes: 20 "Spiced …", 20 "Rose …", 5 "Lemon …".
