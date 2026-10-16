@@ -508,11 +508,12 @@ define();
     showMatches(search, column, value);
   });
 </script>` },
-      { label: 'Saved views', code: `<!-- Tabs of saved views above the list. remember-as keeps the visitor's views in this browser. -->
+      { label: 'Saved views', code: `<!-- Tabs of saved views above the list. Keep the visitor's views one of two ways. -->
 <script type="module" src="/js/data-viewer.standalone.js"></script>
 <script type="module" src="/js/data-viewer-json.js"></script>
 <script type="module" src="/js/data-viewer-filter-views.js"></script>
 
+<!-- 1. In this browser: remember-as keeps them in localStorage, under "plants.views". -->
 <lfdln-data-viewer id="plants" label="Plants" filter-style="views" remember-as="plants"
   adapter="json" src="plants.json">
   <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
@@ -521,13 +522,22 @@ define();
   <lfdln-dv-column key="stock" label="In stock" type="bool" filterable></lfdln-dv-column>
 </lfdln-data-viewer>
 
+<!-- 2. Or on your server: set savedViews (this turns the browser's copy off) and save on views-change. -->
+<lfdln-data-viewer id="plants-mine" label="Plants" filter-style="views" adapter="json" src="plants.json">
+  …the same columns…
+</lfdln-data-viewer>
+
 <script type="module">
-  // Or keep the views on your server: setting savedViews turns the browser's copy off.
-  const list = document.querySelector('#plants');
+  const list = document.querySelector('#plants-mine');
   list.savedViews = await (await fetch('/api/views')).json();
   // After every save, rename, delete and undo: the whole list of views.
-  list.addEventListener('views-change', (e) => {
-    fetch('/api/views', { method: 'PUT', body: JSON.stringify(e.detail.views) });
+  list.addEventListener('views-change', async (e) => {
+    if (e.target !== list) return; // lists inside cards fire it too
+    await fetch('/api/views', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(e.detail.views),
+    });
   });
   // Each view is { key, label, filter, search? }, such as
   // { key: 'u-m2x9k1', label: 'Herbs for sun', filter: { kind: ['Herb'], light: ['Sun'] } }
@@ -545,7 +555,7 @@ define();
   <lfdln-dv-column key="light" label="Light" filterable
     phrase="for {values}" phrase-any="in any light"></lfdln-dv-column>
   <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" filterable
-    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.." phrase-any="at any price"></lfdln-dv-column>
+    ranges="Under €5:..5,€5–€10:5..10,Over €10:10.." phrase="{values}" phrase-any="at any price"></lfdln-dv-column>
   <lfdln-dv-column key="stock" label="In stock" type="bool" filterable
     phrase="in stock only" phrase-any="including sold out"></lfdln-dv-column>
 </lfdln-data-viewer>
@@ -591,7 +601,7 @@ define();
         { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true, phrase: '{values}', phraseAny: 'all plants',
           plural: { Perennial: 'perennials', Shrub: 'shrubs', Fern: 'ferns', Herb: 'herbs' } },
         { key: 'light', label: 'Light', sortable: true, filterable: true, phrase: 'for {values}', phraseAny: 'in any light' },
-        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true, filterable: true, phraseAny: 'at any price',
+        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true, filterable: true, phrase: '{values}', phraseAny: 'at any price',
           ranges: [{ label: 'Under €5', to: '5' }, { label: '€5–€10', from: '5', to: '10' }, { label: 'Over €10', from: '10' }] },
         { key: 'stock', label: 'In stock', type: 'bool', filterable: true, hint: 'Hide plants that are sold out',
           phrase: 'in stock only', phraseAny: 'including sold out' },

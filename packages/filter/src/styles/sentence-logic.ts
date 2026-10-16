@@ -7,7 +7,7 @@ import type { FilterSection, FilterValue, FilterWords } from '../core/types.ts';
 export type SentenceWords = {
   sentenceStart: string; // "Show"
   and: string;           // between the last two values in a phrase ("perennials and ferns")
-  comma: string;         // between other values, and before each phrase after the second
+  comma: string;         // between other values, and before each phrase after the second but the last
   listComma: string;     // before the last phrase ('' leaves just a space)
   sentenceEnd: string;   // "."
   anyValue: string;      // "Owner: any", for a section with no phraseAny

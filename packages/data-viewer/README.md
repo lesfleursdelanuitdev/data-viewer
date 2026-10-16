@@ -757,7 +757,7 @@ view of their own, a tab they can come back to. Where the views are kept:
 - **With `savedViews`:** in your page. Set `savedViews` to the views (from your server, say) and
   the list never reads or writes `localStorage` for them. It keeps its own copy, changes it as the
   visitor saves, renames and deletes, and tells you each time with `views-change`. Set
-  `savedViews` again to replace its copy.
+  `savedViews` to a new array to replace its copy.
 
 Each change (a save, a rename, a delete, an undo) fires `views-change` with the whole list of
 views in `detail.views`, whichever of the three keeps them. It bubbles and is `composed`.
@@ -869,7 +869,7 @@ same way; see the search-filter package's
 |---|---|
 | `sentenceStart` | `Show` |
 | `and` | `and` (before the last value in a phrase) |
-| `comma` | `,` (between other values, and before each phrase after the second) |
+| `comma` | `,` (between other values, and before each phrase after the second except the last; that one is `listComma`) |
 | `listComma` | `,` (before the last phrase; `''` leaves a space) |
 | `sentenceEnd` | `.` |
 | `anyValue` | `any` (`Owner: any`, for a column with no `phrase-any`) |
