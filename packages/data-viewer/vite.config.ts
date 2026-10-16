@@ -7,7 +7,7 @@ import { demo, library, standalone } from '../../vite.shared.ts';
 const LIMIT = 45 * 1024; // the standalone viewer (menu, pager, card, search and filter inside) must stay under 45 KB gzipped
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 const STYLE_LIMIT = 8 * 1024; // a filter style add-on (it draws with the viewer's Lit) stays under 8 KB
-const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel for its fallback (rail, columns) under 12 KB
+const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel too (rail, columns, search) under 12 KB
 
 // --- The demo's fake data source (dev server only), for demo/adapters.html and its e2e tests.
 // 45 recipes: 20 "Spiced …", 20 "Rose …", 5 "Lemon …".
@@ -100,12 +100,13 @@ const standalones: Record<string, { entry: string; file: string; limit: number }
   'standalone-filter-bar': { entry: 'src/filter-styles/bar.ts', file: 'data-viewer-filter-bar.js', limit: STYLE_LIMIT },
   'standalone-filter-rail': { entry: 'src/filter-styles/rail.ts', file: 'data-viewer-filter-rail.js', limit: STYLE_FALLBACK_LIMIT },
   'standalone-filter-columns': { entry: 'src/filter-styles/columns.ts', file: 'data-viewer-filter-columns.js', limit: STYLE_FALLBACK_LIMIT },
+  'standalone-filter-search': { entry: 'src/filter-styles/search.ts', file: 'data-viewer-filter-search.js', limit: STYLE_FALLBACK_LIMIT },
 };
 
 // `vite` serves the demo; `vite build` makes the ES modules (Lit and the other packages left
 // out): dist/data-viewer.js, dist/adapters/json.js, dist/adapters/pammy.js and
 // dist/filter-styles/panel.js, dist/filter-styles/bar.js, dist/filter-styles/rail.js and
-// dist/filter-styles/columns.js. The
+// dist/filter-styles/columns.js and dist/filter-styles/search.js. The
 // standalone modes make the one-file scripts.
 export default defineConfig(({ command, mode }) => {
   // The demo also serves dist/ at its root, so the HTML-only demo pages load the built
@@ -115,5 +116,6 @@ export default defineConfig(({ command, mode }) => {
   if (one) return standalone(one.entry, one.file, one.limit);
   return library({ 'data-viewer': 'src/index.ts', 'adapters/json': 'src/adapters/json.ts', 'adapters/pammy': 'src/adapters/pammy.ts',
     'filter-styles/panel': 'src/filter-styles/panel.ts', 'filter-styles/bar': 'src/filter-styles/bar.ts',
-    'filter-styles/rail': 'src/filter-styles/rail.ts', 'filter-styles/columns': 'src/filter-styles/columns.ts' });
+    'filter-styles/rail': 'src/filter-styles/rail.ts', 'filter-styles/columns': 'src/filter-styles/columns.ts',
+    'filter-styles/search': 'src/filter-styles/search.ts' });
 });

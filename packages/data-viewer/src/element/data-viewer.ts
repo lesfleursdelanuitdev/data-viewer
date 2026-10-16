@@ -11,6 +11,7 @@ import {
   type FilterHandlers, type FilterSection, type FilterStyle, type FilterStyleHandlers, type FilterStyleView,
   type FilterValue, type FilterView, type FilterWords,
 } from '@lesfleursdelanuitdev/filter';
+import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/style';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
 import { countMatching, filterKind, filterSections, searchColumns } from '../core/filters.ts';
@@ -50,8 +51,9 @@ const cardsIcon = html`<svg viewBox="0 0 16 16" width="16" height="16" fill="non
 // Every piece of text the list shows. Plain English defaults; a page can replace any of them.
 // The pager's words (pages, previous, next, empty, showing, pageOf, pageNumbers, pageNumber,
 // rowsPerPage) are the pagination package's; the search box's (search, searchIn, allFields, clear)
-// the search package's; the filter's (filter, apply, clearAll, none, any, …) the filter package's.
-export type Words = PaginationWords & SearchWords & FilterWords & {
+// the search package's; the filter's (filter, apply, clearAll, none, any, …) the filter package's;
+// filter-style="search"'s (searchOrFilter, addFilter, searchFor, …) the search-filter package's.
+export type Words = PaginationWords & SearchWords & FilterWords & Partial<SearchFilterWords> & {
   views: string;
   showTable: string;
   showCards: string;
@@ -160,6 +162,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     _failReason: { state: true },
     _failed: { state: true },
     _searchText: { state: true },
+    _typed: { state: true },
     _ask: { state: true },
   };
 
@@ -270,6 +273,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   static columnTag = 'lfdln-dv-column';
   declare _q: AddressQuery;
   declare _searchText: string;
+  // filter-style="search": the text typed in its field, not yet searched.
+  declare _typed: string;
   declare _ask: Ask<T> | undefined;
   declare _failed: boolean;
   private _uid = nextId('dv'); // unique on the page, even beside other copies of the menu code
@@ -316,6 +321,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _stale = false; // a load was cut off by leaving the page
   // Server mode: the open filter draft's count, asked of the adapter (see _askCount).
   private _countFor = new DraftCount(() => this.requestUpdate());
+  // ... and the typed text's (filter-style="search").
+  private _typedCount = new DraftCount(() => this.requestUpdate());
   // The page size the host was last told about (undefined: none yet), and the page last drawn.
   private _toldSize: number | undefined;
   private _page = 1;
@@ -351,7 +358,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.words = {};
     this.busy = false;
     this._q = { ...blank };
-    this._searchText = '';
+    this._searchText = this._typed = '';
     this._failed = false;
     this._configuring = false;
     this.searchIn = false;
@@ -399,6 +406,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._ro = this._roOn = undefined;
     this._fDraft = null;
     this._countFor.stop();
+    this._typedCount.stop();
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
     // A load still running or waiting for its adapter is dropped, and redone on return.
@@ -662,12 +670,17 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // Otherwise (today's dialog shows no count), or once the draft is closed, there is none
   // (browser mode counts in _styled).
   private _askCount(): void {
-    const adapter = this._fStyle && this._adapted && this._server && this._fDraft !== null ? adapterNamed(this.adapter!.trim()) : undefined;
-    const sections = adapter ? this._sections() : [];
-    if (!adapter || !sections.length) return this._countFor.stop();
-    const q: Query = { ...this._query, page: 1, filters: normalise(sections, this._fDraft!) };
+    const sections = this._fDraft !== null ? this._sections() : [];
+    this._count(this._countFor, sections.length ? { filters: normalise(sections, this._fDraft!) } : undefined);
+  }
+
+  // Asks `into` for the count of the query with `over` on top, as _askCount says; none: stops it.
+  private _count(into: DraftCount, over?: Partial<Query>): void {
+    const adapter = over && this._fStyle && this._adapted && this._server ? adapterNamed(this.adapter!.trim()) : undefined;
+    if (!adapter) return into.stop();
+    const q: Query = { ...this._query, page: 1, ...over };
     const src = (this.src ?? '').trim();
-    this._countFor.ask((signal) => adapter.count
+    into.ask((signal) => adapter.count
       ? adapter.count(q, { signal, src })
       : adapter.load({ ...q, size: 1 }, { signal, src, pageSize: 1 }).then((a) => a.total));
   }
@@ -782,10 +795,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   // A ResizeObserver on .dv-root while the style asked for has a fallback (rail: the panel under
-  // 720 px), so a list that narrows or widens without a new drawing switches; none otherwise.
+  // 720 px) or a narrowBelow (search: the bottom sheet under 480 px), so a list that narrows or
+  // widens without a new drawing switches; none otherwise.
   private _watchWidth(): void {
     const asked = this.filterStyle ? filterStyle(this.filterStyle.trim().toLowerCase()) : undefined;
-    const root = (asked?.fallback && this.querySelector(':scope > .dv-root')) || undefined;
+    const root = ((asked?.fallback || asked?.narrowBelow) && this.querySelector(':scope > .dv-root')) || undefined;
     if (root === this._roOn) return;
     this._ro?.disconnect();
     this._roOn = root;
@@ -795,8 +809,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // and on the next frame: drawing inside the callback resizes .dv-root again in the same frame,
     // which the browser reports as a "ResizeObserver loop" error.
     this._ro = root ? new ResizeObserver(([e]) => {
+      const narrow = this._narrow();
       this._width = Math.round(e!.contentRect.width);
-      if (!sameFilterStyle(this._styleFor(), this._fStyle)) requestAnimationFrame(() => this.isConnected && this.requestUpdate());
+      if (!sameFilterStyle(this._styleFor(), this._fStyle) || narrow !== this._narrow()) requestAnimationFrame(() => this.isConnected && this.requestUpdate());
     }) : undefined;
     this._ro?.observe(root!);
   }
@@ -941,13 +956,26 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // The style's view and handlers. results: the rows the applied filters leave; total: all rows
   // in browser mode (null in server mode). countFor: the rows the open draft would leave, at
   // once in browser mode, from the server in server mode (null: no draft, or not known yet).
+  // A style that replaces the search gets the search too, with the count of the typed text
+  // (counted the same way); "Search in" fields as the search box would offer them.
   private _styled(w: Words, sections: FilterSection[], results: number | null): { view: FilterStyleView; on: FilterStyleHandlers } {
+    const count = (q: Partial<Query>, server: DraftCount) => results === null ? null : this._server ? server.value
+      : countMatching(this.rows ?? [], this.columns, { ...this._q, ...q }, { views: this.views, searchKeys: this.searchKeys });
+    const typed = this._typed.trim();
+    const fields = searchColumns(this.columns, this.searchKeys).map((c) => ({ key: c.key, label: c.label }));
     return {
       view: {
         ...this._filterView(w, sections),
-        countFor: this._fDraft === null || results === null ? null
-          : this._server ? this._countFor.value
-          : countMatching(this.rows ?? [], this.columns, { ...this._q, filters: normalise(sections, this._fDraft) }, { views: this.views, searchKeys: this.searchKeys }),
+        phone: this._fPhone || this._narrow(),
+        countFor: this._fDraft === null ? null : count({ filters: normalise(sections, this._fDraft) }, this._countFor),
+        search: {
+          text: this._q.search,
+          in: this._q.searchIn ?? '',
+          fields: this.searchIn && this._supports?.searchIn !== false && fields.length > 1 ? fields : [],
+          only: fields.length === 1 ? fields[0]!.label : null,
+          typed: this._typed,
+          typedCount: typed ? count({ search: typed }, this._typedCount) : null,
+        },
         results,
         total: this._server ? null : (this.rows ?? []).length,
         menu: this._fMenu,
@@ -960,8 +988,24 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         onMenu: (key) => {
           this._fMenu = key;
         },
+        // No searchIn: the "Search in" already applied; '' searches every column.
+        onSearch: (text, searchIn) => {
+          this._typedCount.stop();
+          this._searchText = text;
+          this._searchNow(searchIn === undefined ? {} : { searchIn: searchIn || undefined });
+        },
+        onTyped: (text) => {
+          this._typed = text;
+          this._count(this._typedCount, text.trim() ? { search: text.trim() } : undefined);
+        },
       },
     };
+  }
+
+  // Whether the list is narrower than the style's narrowBelow (then view.phone is set).
+  private _narrow(): boolean {
+    const below = this._fStyle?.narrowBelow;
+    return Boolean(below && (this._width ?? below) < below);
   }
 
   private _filter(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
@@ -1123,9 +1167,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   // elsewhere: the style is drawn beside the list (side) or in the headers, not in the bar.
   private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, elsewhere = false): TemplateResult {
+    const one = styled && this._fStyle!.replacesSearch;
     return html`<div class="dv-bar">
-      <div class="dv-search">${this._searchBox(w)}</div>
-      ${sections.length && !elsewhere ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
+      <div class=${one ? 'dv-search dv-search-filter' : 'dv-search'}>${one ? this._filter(w, sections, styled) : this._searchBox(w)}</div>
+      ${sections.length && !elsewhere && !one ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
       ${this.views?.length
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {

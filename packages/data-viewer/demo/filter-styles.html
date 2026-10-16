@@ -43,6 +43,12 @@
     <lfdln-data-viewer id="columns" label="Plants (columns)" url-state="columns" filter-style="columns" layout="table"></lfdln-data-viewer>
     <lfdln-data-viewer id="bar2" label="Plants (bar 2)" url-state="bar2" filter-style="bar" layout="table"></lfdln-data-viewer>
   </div>
+  <h2>Search and filter in one field (filter-style="search"), Name and Owner searchable, with "Search in"</h2>
+  <div id="search-box"><lfdln-data-viewer id="search" label="Plants (search)" url-state="search" filter-style="search" search-in layout="table"></lfdln-data-viewer></div>
+  <h2>The same field on recipes from /api/recipes (json adapter, server mode)</h2>
+  <lfdln-data-viewer id="search-server" label="Recipes (search, server)" adapter="json" src="/api/recipes" filter-style="search" layout="table"></lfdln-data-viewer>
+  <h2>The same field through an adapter that can't search one column (supports.searchIn false)</h2>
+  <lfdln-data-viewer id="search-equals" label="Recipes (search, equals)" adapter="equals" src="/api/recipes" filter-style="search" search-in layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
   <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
   <script type="module">import "../src/filter-styles/panel.ts";</script>
@@ -52,5 +58,7 @@
   <script type="module">import "../src/filter-styles/rail.ts";</script>
   <!-- The columns style (and the panel, its fallback in cards view), as a page would add data-viewer-filter-columns.js. -->
   <script type="module">import "../src/filter-styles/columns.ts";</script>
+  <!-- The search style (and the panel), as a page would add data-viewer-filter-search.js. -->
+  <script type="module">import "../src/filter-styles/search.ts";</script>
 </body>
 </html>

@@ -1335,3 +1335,250 @@ test.describe('columns on a phone', () => {
     expect(problems).toEqual([]);
   });
 });
+
+// #search: the 12 plants with filter-style="search" and search-in, Name and Owner searchable, in
+// #search-box (the width test narrows it). #search-server: the recipes through the json adapter
+// (server mode; Name searchable). #search-equals: the recipes through an adapter that can't search
+// one column (supports.searchIn false), Name and Cuisine searchable.
+const sfInput = (page: Page, id = 'search') => page.locator(`#${id} .dv-search .lfdln-search-filter-field input[role=combobox]`);
+const sfTokens = (page: Page, id = 'search') => page.locator(`#${id} .dv-search .lfdln-search-filter-field .lfdln-search-filter-token`);
+const sfList = (page: Page, id = 'search') => page.locator(`#${id}`).getByRole('listbox', { name: 'Suggestions' });
+const addressOf = (page: Page) => new URL(page.url()).searchParams;
+
+function typedCounts(page: Page): string[] {
+  const asked: string[] = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url());
+    if (u.pathname === '/api/recipes' && u.searchParams.get('size') === '1') asked.push(u.searchParams.get('search') ?? '');
+  });
+  return asked;
+}
+
+test.describe('search', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('one field replaces the search box and the filter', async ({ page }) => {
+    const { problems } = await open(page);
+    const list = page.locator('#search');
+    await expect(sfInput(page)).toBeVisible();
+    await expect(list.locator('.dv-search.dv-search-filter')).toHaveCount(1);
+    await expect(list.locator('.lfdln-search-root')).toHaveCount(0);
+    await expect(list.locator('.lfdln-filter-button')).toHaveCount(0);
+    await expect(list.locator('.dv-filter')).toHaveCount(0);
+    await expect(list.locator('[role="combobox"]')).toHaveCount(1);
+    await expect(list.locator('.lfdln-filter-chips')).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test('a token applies at once and lands in the address', async ({ page }) => {
+    const { problems } = await open(page);
+    const input = sfInput(page);
+    await input.click();
+    await input.pressSequentially('her');
+    await expect(sfList(page).getByRole('option', { name: /Herb/ })).toBeVisible();
+    await input.press('Enter');
+    await expect(sfTokens(page)).toHaveText(['Kind is Herb']);
+    await expect.poll(() => addressOf(page).get('search.f.kind')).toBe('Herb');
+    await expect(page.locator('#search tbody tr')).toHaveCount(5);
+    await input.pressSequentially('mint');
+    await input.press('Enter');
+    await expect.poll(() => addressOf(page).get('search.search')).toBe('mint');
+    await expect(page.locator('#search tbody tr')).toHaveCount(1);
+    await page.reload();
+    await expect(sfTokens(page)).toHaveText(['Any column has mint', 'Kind is Herb']);
+    await expect(page.locator('#search tbody tr')).toHaveCount(1);
+    expect(problems).toEqual([]);
+  });
+
+  test('Name has “…” sets search.in', async ({ page }) => {
+    await open(page);
+    const input = sfInput(page);
+    await input.click();
+    await input.pressSequentially('ba');
+    await sfList(page).getByRole('option', { name: /Name has “ba”/ }).click();
+    await expect.poll(() => addressOf(page).get('search.in')).toBe('name');
+    expect(addressOf(page).get('search.search')).toBe('ba');
+    await expect(sfTokens(page)).toHaveText(['Name has ba']);
+    await expect(page.locator('#search tbody tr')).toHaveCount(1);
+  });
+
+  test('Done keeps the Search in; removing the text token clears it too', async ({ page }) => {
+    await open(page, '?search.search=mint&search.in=name');
+    const input = sfInput(page);
+    await expect(sfTokens(page)).toHaveText(['Name has mint']);
+    // Done searches the typed text in the "Search in" already applied.
+    await input.click();
+    await input.pressSequentially('sa');
+    await page.locator('#search .dv-search').getByRole('button', { name: 'Done' }).click();
+    await expect(sfTokens(page)).toHaveText(['Name has sa']);
+    expect(addressOf(page).get('search.in')).toBe('name');
+    // × on the text token: no hidden "Search in" is left behind.
+    await page.locator('#search').getByRole('button', { name: 'Remove Name has sa' }).click();
+    await expect(sfTokens(page)).toHaveCount(0);
+    await expect.poll(() => addressOf(page).has('search.search')).toBe(false);
+    expect(addressOf(page).has('search.in')).toBe(false);
+    await input.pressSequentially('sa');
+    await page.locator('#search .dv-search').getByRole('button', { name: 'Done' }).click();
+    await expect(sfTokens(page)).toHaveText(['Any column has sa']);
+    expect(addressOf(page).get('search.search')).toBe('sa');
+    expect(addressOf(page).has('search.in')).toBe(false);
+  });
+
+  test('a bookmark with a search and a vanished value shows both and clears', async ({ page }) => {
+    const { problems } = await open(page, '?search.search=mint&search.f.kind=Cactus');
+    await expect(sfTokens(page)).toHaveText(['Any column has mint', 'Kind is Cactus']);
+    await page.locator('#search').getByRole('button', { name: 'Remove Kind is Cactus' }).click();
+    await expect.poll(() => addressOf(page).has('search.f.kind')).toBe(false);
+    expect(addressOf(page).get('search.search')).toBe('mint');
+    await page.locator('#search').getByRole('button', { name: 'Remove Any column has mint' }).click();
+    await expect.poll(() => addressOf(page).has('search.search')).toBe(false);
+    await expect(sfTokens(page)).toHaveCount(0);
+    await expect(page.locator('#search tbody tr')).toHaveCount(12);
+    expect(problems).toEqual([]);
+  });
+
+  test('Search for shows the count of the typed text', async ({ page }) => {
+    await open(page);
+    const input = sfInput(page);
+    await input.click();
+    // At once, in the same update as the typing: Mint is the only plant with "mint".
+    const count = await page.locator('#search').evaluate(async (el) => {
+      const i = el.querySelector<HTMLInputElement>('.dv-search input[role=combobox]')!;
+      i.value = 'mint';
+      i.dispatchEvent(new Event('input', { bubbles: true }));
+      await (el as HTMLElement & { updateComplete: Promise<unknown> }).updateComplete;
+      return el.querySelector('[role=option] .lfdln-search-filter-count')?.textContent;
+    });
+    expect(count).toBe('1');
+    await expect(sfList(page).getByRole('option', { name: /Search for “mint”/ })).toContainText('1');
+  });
+
+  test('server mode: the count comes 300 ms after typing stops, one request', async ({ page }) => {
+    const asked = typedCounts(page);
+    const { problems } = await open(page);
+    await expect(page.locator('#search-server tbody tr').first()).toBeVisible();
+    const input = sfInput(page, 'search-server');
+    await input.click();
+    await input.pressSequentially('ros', { delay: 100 });
+    const row = sfList(page, 'search-server').getByRole('option', { name: /Search for “ros”/ });
+    await expect(row.locator('.lfdln-search-filter-count')).toHaveText('20', { timeout: 1000 });
+    await page.waitForTimeout(400);
+    expect(asked).toEqual(['ros']);
+    expect(problems).toEqual([]);
+  });
+
+  test('Enter before the count commits at once and the late count never shows', async ({ page }) => {
+    // The first count request answers after 800 ms, and with 99 (so it can't pass for a later one).
+    let first = true;
+    await page.route((u) => u.pathname === '/api/recipes' && u.searchParams.get('size') === '1', async (route) => {
+      if (!first) return route.continue();
+      first = false;
+      const u = new URL(route.request().url());
+      u.searchParams.set('slowcount', '1');
+      try {
+        const res = await route.fetch({ url: u.href });
+        await route.fulfill({ response: res, json: { ...(await res.json()), total: 99 } });
+      } catch {
+        // cancelled by the list: nothing to answer
+      }
+    });
+    await open(page);
+    const list = page.locator('#search-server');
+    await expect(list.locator('tbody tr').first()).toBeVisible();
+    await list.evaluate((el) => {
+      const w = window as unknown as { seen: string[]; queries: { search: string }[] };
+      w.seen = [];
+      w.queries = [];
+      el.addEventListener('dv-query', (e) => w.queries.push((e as CustomEvent).detail));
+      new MutationObserver(() => {
+        for (const c of el.querySelectorAll('.lfdln-search-filter-count')) w.seen.push(c.textContent ?? '');
+      }).observe(el, { subtree: true, childList: true, characterData: true });
+    });
+    const input = sfInput(page, 'search-server');
+    await input.click();
+    await input.pressSequentially('ros');
+    await page.waitForTimeout(350);
+    await input.press('e');
+    await input.press('Enter');
+    expect(await page.evaluate(() => (window as unknown as { queries: { search: string }[] }).queries.map((q) => q.search))).toEqual(['rose']);
+    await expect(sfTokens(page, 'search-server')).toHaveText(['Name has rose']);
+    // Typed again: the "Search for" row waits for its own count; the slow answer for "ros" never shows.
+    await input.pressSequentially('rose');
+    await expect(sfList(page, 'search-server').getByRole('option', { name: /Search for “rose”/ })).toBeVisible();
+    await page.waitForTimeout(1200);
+    const seen = await page.evaluate(() => (window as unknown as { seen: string[] }).seen);
+    expect(seen).not.toContain('99');
+    await expect(sfList(page, 'search-server').getByRole('option', { name: /Search for “rose”/ }).locator('.lfdln-search-filter-count')).toHaveText('20');
+  });
+
+  test("no per-field rows when the adapter can't search one column", async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#search-equals tbody tr').first()).toBeVisible();
+    const input = sfInput(page, 'search-equals');
+    await input.click();
+    await input.pressSequentially('ro');
+    await expect(sfList(page, 'search-equals').getByRole('option', { name: /Search for “ro”/ })).toBeVisible();
+    await expect(sfList(page, 'search-equals').getByRole('option', { name: /has “ro”/ })).toHaveCount(0);
+    // #search (search-in, two fields) offers them.
+    await sfInput(page).click();
+    await sfInput(page).pressSequentially('ro');
+    await expect(sfList(page).getByRole('option', { name: /has “ro”/ })).toHaveCount(2);
+  });
+
+  test('narrower than 480 px the listbox is the bottom sheet', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { errors: string[] };
+      w.errors = [];
+      addEventListener('error', (e) => w.errors.push(e.message));
+    });
+    const { problems } = await open(page);
+    const width = (px: number) => page.locator('#search-box').evaluate((el, w) => {
+      (el as HTMLElement).style.width = `${w}px`;
+    }, px);
+    await width(470);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await sfInput(page).click();
+    const sheet = page.locator('#search dialog.lfdln-search-filter-pop[open]');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator('input[role=combobox]')).toBeFocused();
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.y + box.height)).toBe(900);
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await width(900);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    await sfInput(page).click();
+    await expect(page.locator('#search div.lfdln-search-filter-pop')).toBeVisible();
+    await expect(page.locator('#search dialog.lfdln-search-filter-pop')).toHaveCount(0);
+    expect(page.viewportSize()!.width).toBe(1280);
+    expect(problems).toEqual([]);
+    expect(await page.evaluate(() => (window as unknown as { errors: string[] }).errors)).toEqual([]);
+  });
+});
+
+test.describe('search on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('phone 390 px: the field is 44 px tall, the sheet rows 44 px, no sideways scroll', async ({ page }) => {
+    const { problems } = await open(page);
+    const f = page.locator('#search .dv-search .lfdln-search-filter-field');
+    const h = (await f.boundingBox())!.height;
+    expect(h).toBeGreaterThanOrEqual(44);
+    expect(h).toBeLessThan(48);
+    await sfInput(page).click();
+    const sheet = page.locator('#search dialog.lfdln-search-filter-pop[open]');
+    await expect(sheet).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.width)).toBe(390);
+    expect(Math.round(box.y + box.height)).toBe(844);
+    await sheet.locator('input[role=combobox]').pressSequentially('her');
+    for (const r of await sheet.getByRole('option').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) expect(r).toBeGreaterThanOrEqual(44);
+    await sheet.locator('input[role=combobox]').press('Enter');
+    await expect(page.locator('#search tbody tr')).toHaveCount(5);
+    expect(await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth])).toEqual([390, 390]);
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(sfInput(page)).toBeFocused();
+    expect(problems).toEqual([]);
+  });
+});
