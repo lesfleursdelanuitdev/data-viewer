@@ -21,7 +21,6 @@ import { radioKeys, tabStop } from '../parts/radios.ts';
 import { pillName, searchable } from './bar-logic.ts';
 import { columnRows, columnsFallback, columnsSummary, filteredCount, menuAtEnd, menuLeft, menuRoom } from './columns-logic.ts';
 
-export { columnRows, columnsFallback, columnsSummary, filteredCount, menuAtEnd, menuLeft, menuRoom, type ColumnRow } from './columns-logic.ts';
 
 export const columnsCss = `
 :where(.lfdln-filter-col) { position: relative; display: inline-flex; vertical-align: middle; margin-left: 2px; font-family: var(--filter-font); }

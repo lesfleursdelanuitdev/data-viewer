@@ -16,7 +16,6 @@ import { switchRow } from '../parts/switch.ts';
 import { choiceOptions } from '../core/options.ts';
 import { histogramBars, panelLeft, showLabel, useSeg } from './panel-logic.ts';
 
-export { appliedCount, choiceOptions, histogramBars, showLabel, useSeg } from './panel-logic.ts';
 
 export const panelCss = `
 :where(.lfdln-filter-panel-root) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

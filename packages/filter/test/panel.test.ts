@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appliedCount, choiceOptions, histogramBars, panelLeft, showLabel, useSeg } from '../src/styles/panel-logic.ts';
+import { choiceOptions, histogramBars, panelLeft, showLabel, useSeg } from '../src/styles/panel-logic.ts';
 import { defaultFilterWords as w } from '../src/core/summary.ts';
 import type { FilterSection } from '../src/core/types.ts';
 
@@ -30,15 +30,6 @@ test('showLabel: the primary button says what Apply would leave', () => {
   assert.equal(showLabel(0, w), 'Nothing matches');
   assert.equal(showLabel(1, w), 'Show 1 result');
   assert.equal(showLabel(12, w), 'Show 12 results');
-});
-
-test('appliedCount: one per chip, a value that no longer exists included', () => {
-  const sections = [kind, price, stock];
-  assert.equal(appliedCount(sections, {}), 0);
-  assert.equal(appliedCount(sections, { kind: ['Herb', 'Fern'] }), 2);
-  assert.equal(appliedCount(sections, { kind: ['Cactus'], price: { to: '5' }, stock: true }), 3);
-  // A key with no section is no chip.
-  assert.equal(appliedCount(sections, { gone: ['x'] }), 0);
 });
 
 test('choiceOptions: picked values the section no longer offers come last, with count 0', () => {

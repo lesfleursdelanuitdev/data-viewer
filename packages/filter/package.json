@@ -27,6 +27,10 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.js"
     },
+    "./parts": {
+      "types": "./dist/types/parts.d.ts",
+      "import": "./dist/parts.js"
+    },
     "./panel": {
       "types": "./dist/types/panel.d.ts",
       "import": "./dist/panel.js"
@@ -72,9 +76,10 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && vite build --mode standalone-panel && vite build --mode standalone-bar && vite build --mode standalone-rail && npm run types && npm run size",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-panel && vite build --mode standalone-bar && vite build --mode standalone-rail && npm run types && npm run size && npm run no-lit",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
     "size": "node ../../scripts/size.mjs dist/filter.standalone.js=20480 dist/filter-panel.standalone.js=20480 dist/filter-bar.standalone.js=20480 dist/filter-rail.standalone.js=20480",
+    "no-lit": "node --test ../../scripts/no-lit-modules.test.mjs",
     "e2e": "playwright test"
   },
   "peerDependencies": {

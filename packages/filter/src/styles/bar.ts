@@ -16,7 +16,6 @@ import { menuKeys } from '../parts/menu-keys.ts';
 import { popover, returnFocus } from '../parts/popover.ts';
 import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
-export { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
 // The bar's classes are its own (lfdln-filter-bar-row, lfdln-filter-bar-pill*): today's dialog draws
 // its quick ranges as .lfdln-filter-pills / .lfdln-filter-pill, and neither may restyle the other.

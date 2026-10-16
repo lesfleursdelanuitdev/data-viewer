@@ -17,7 +17,6 @@ import { radioKeys, tabStop } from '../parts/radios.ts';
 import { switchRow } from '../parts/switch.ts';
 import { anySet, railFallback, railRows } from './rail-logic.ts';
 
-export { anySet, railFallback, railRows, RAIL_MIN_WIDTH, type RailRow } from './rail-logic.ts';
 
 export const railCss = `
 :where(.dv-root[data-filter-side]) { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 22px; align-items: start; }

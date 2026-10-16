@@ -210,9 +210,23 @@ can carry `hint`, a line under its switch. A range entry can carry `count`, and 
 `histogram: { from, to, buckets }` (the panel draws it as bars).
 
 The styles themselves are Lit-free modules for other hosts: `@lesfleursdelanuitdev/filter/panel`
-(`panelStyle` and the shared parts), `/bar` (`barStyle`), `/rail` (`railStyle`) and `/columns`
-(`columnsStyle`). Each is a `FilterStyle`: a `render(view, handlers, kit)` function that draws with
-the Lit the host passes in, so a file that holds one carries no Lit of its own.
+(`panelStyle`, and everything in `/parts`), `/bar` (`barStyle`), `/rail` (`railStyle`,
+`railFallback`) and `/columns` (`columnsStyle`, `columnsFallback`). Each is a `FilterStyle`: a
+`render(view, handlers, kit)` function that draws with the Lit the host passes in, so a file that
+holds one carries no Lit of its own.
+
+### Shared parts
+
+`@lesfleursdelanuitdev/filter/parts` holds what the four styles are drawn from, also with no Lit
+inside. Each part takes the host's `kit` first.
+
+| Export | What it is |
+|---|---|
+| `checkRow`, `chip`, `tag`, `toggleSwitch`, `switchRow`, `seg`, `badge`, `divider` | The parts: a check row with a count, a chip that turns on and off, a removable chip, a switch (and a row with its label and hint), a segmented control, a count badge and a line |
+| `popover`, `returnFocus` | A popover under its anchor, or a bottom sheet on phones, closed by Esc and a click outside, one open per page; and putting focus back on the button that opened it |
+| `menuKeys`, `radioKeys`, `tabStop` | Arrow keys in a menu of check rows and in a radio group, and a radio group's one tab stop |
+| `addPartsStyles`, `addStyle`, `partsCss`, `HOVER`, `ON_TEXT`, `SOFT` | The parts' look (once per page), injecting a style's own `<style>`, and the hover, "on" text and "on" background colours |
+| `clearKey`, `removeChip`, `setBool`, `setRange`, `toggleOption`, `chipsOf`, `isSet`, `sectionSummary`, `choiceOptions`, `matchingOptions`, `SEARCH_ABOVE`, `defaultFilterWords`, `later` | Reading and changing a value, the option lists and their search, the words, and waiting for a part to be in the page |
 
 ## For other components
 

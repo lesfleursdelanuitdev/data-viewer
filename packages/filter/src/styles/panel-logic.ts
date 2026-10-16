@@ -1,6 +1,5 @@
 // The panel's pure helpers: no DOM, no Lit, tested with node:test.
-import { chipsOf, defaultFilterWords } from '../core/summary.ts';
-import type { FilterRange, FilterSection, FilterValue, FilterWords } from '../core/types.ts';
+import type { FilterRange, FilterSection, FilterWords } from '../core/types.ts';
 
 // Moved to core/options.ts (bar and rail use it too); still exported from here.
 export { choiceOptions } from '../core/options.ts';
@@ -13,11 +12,6 @@ export function useSeg(section: FilterSection): boolean {
 /** The primary button: "Show 12 results", "Show 1 result", "Nothing matches", or "Show results" while the count is unknown. */
 export function showLabel(count: number | null, words: FilterWords): string {
   return count === null ? words.showResultsUnknown : count === 0 ? words.noResults : words.showResults(count);
-}
-
-/** The number on the button's badge: one per applied chip (a value no longer offered included). */
-export function appliedCount(sections: FilterSection[], value: FilterValue): number {
-  return chipsOf(sections, value, defaultFilterWords).length;
 }
 
 const end = (s: string | undefined, missing: number) => {
