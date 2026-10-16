@@ -917,7 +917,7 @@ The viewer adds these hooks:
 | `.dv-root[data-filter-side]`, `.dv-side`, `.dv-main` | With `rail`: the rail's column and the list's column |
 | `.dv-filtered` | With `columns`: a filtered column's header and body cells |
 | `.dv-search.dv-search-filter` | With `search`: the bar's box that holds the field (the search box's place) |
-| `.dv-above` | With `views` and `sentence`: the box above `.dv-bar` the style draws in (full width) |
+| `.dv-above` | With `views` and `sentence`: the box above `.dv-bar` the style draws in (full width); hidden while rows are ticked |
 
 ## Selecting rows
 
@@ -957,7 +957,9 @@ the add-on; only the drawing needs it.
   a `dv-select-slot` the viewer puts first in the card. A ticked card gets `dv-selected` (an
   accent outline).
 - **The selection bar.** While anything is ticked it replaces the bar above the list (search,
-  filter, views and the layout switch); in a `compact` list it is drawn above the list. It reads
+  filter, views and the layout switch), and the `views` tabs or the `sentence` above it are hidden
+  too, so with `sentence` (or `search`) nothing shows the applied filters until the selection is
+  cleared; in a `compact` list it is drawn above the list. It reads
   "3 selected" (a polite live region), then the first 3 actions as buttons, the rest in a ⋯ menu
   named "More actions", then ✕ ("Clear selection"). `danger` actions are drawn in `--dv-danger`;
   a `disabled` one stays focusable and does nothing. The search box comes back once nothing is
