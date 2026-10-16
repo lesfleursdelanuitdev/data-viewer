@@ -10,6 +10,9 @@ one field, and a submit button for lists where every search costs something. It 
 - It never searches anything. It tells you what was asked for (`search-change`); your page
   does the searching.
 - In a data viewer you don't write it: mark columns `searchable` and add `search-in` to the list.
+- For the search and the filters in one field, see
+  [search-filter](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/search-filter#readme)
+  (`<lfdln-search-filter>`).
 
 ## Install
 

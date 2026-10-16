@@ -75,9 +75,17 @@ const recipeColumns: Column<Recipe>[] = [
   { key: 'minutes', label: 'Minutes', type: 'number' },
 ];
 registerAdapter('counting', { load: jsonAdapter.load, count: async () => 999 });
-// "equals" loads as json does, but says it can only filter by equality, so each choice is single.
-registerAdapter('equals', { load: jsonAdapter.load, supports: { filters: 'equals' } });
-for (const id of ['server', 'recipes', 'counting', 'panel-equals', 'panel-server']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
+// "equals" loads as json does, but says it can only filter by equality, so each choice is single,
+// and that it can't search one column ("Search in").
+registerAdapter('equals', { load: jsonAdapter.load, supports: { filters: 'equals', searchIn: false } });
+for (const id of ['server', 'recipes', 'counting', 'panel-equals', 'panel-server', 'search-server']) (document.querySelector(`#${id}`) as LfdlnDataViewer<Recipe>).columns = recipeColumns;
+// #search-equals: Name and Cuisine searchable, so "Search in" would have two fields to offer.
+(document.querySelector('#search-equals') as LfdlnDataViewer<Recipe>).columns = recipeColumns.map((c) => (c.key === 'cuisine' ? { ...c, searchable: true } : c));
+
+// #search: the plants, each cared for by one of four people; Name and Owner are searchable.
+const searchList = document.querySelector('#search') as LfdlnDataViewer<Plant & { owner: string }>;
+searchList.columns = [columns[0]!, { key: 'owner', label: 'Owner', searchable: true }, ...columns.slice(1)];
+searchList.rows = plants.map((p, i) => ({ ...p, owner: ['Ana', 'Dev', 'Farah', 'Gus'][i % 4]! }));
 define();
 
 // Test scaffolding: a style that shows its draft count (and results and total in data-*), registered after the lists have drawn

@@ -84,6 +84,8 @@ figure { margin: 0; }
 button:not(:where([class*="lfdln-"])) { font: inherit; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+/* The search-and-filter field shows focus with its own ring round the whole field. */
+.lfdln-search-filter-input:focus-visible { outline: none; }
 ::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
 [hidden] { display: none !important; }
 code, pre, kbd { font-family: var(--font-mono); }

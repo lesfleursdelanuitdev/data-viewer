@@ -52,6 +52,10 @@
       "types": "./dist/types/filter-styles/columns.d.ts",
       "import": "./dist/filter-styles/columns.js"
     },
+    "./filter-styles/search": {
+      "types": "./dist/types/filter-styles/search.d.ts",
+      "import": "./dist/filter-styles/search.js"
+    },
     "./select": {
       "types": "./dist/types/select/index.d.ts",
       "import": "./dist/select.js"
@@ -77,9 +81,9 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && vite build --mode standalone-filter-panel && vite build --mode standalone-filter-bar && vite build --mode standalone-filter-rail && vite build --mode standalone-filter-columns && vite build --mode standalone-select && npm run types && npm run size && npm run no-lit",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && vite build --mode standalone-filter-panel && vite build --mode standalone-filter-bar && vite build --mode standalone-filter-rail && vite build --mode standalone-filter-columns && vite build --mode standalone-filter-search && vite build --mode standalone-select && npm run types && npm run size && npm run no-lit",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=46080 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072 dist/data-viewer-filter-panel.js=8192 dist/data-viewer-filter-bar.js=8192 dist/data-viewer-filter-rail.js=12288 dist/data-viewer-filter-columns.js=12288 dist/data-viewer-select.js=8192",
+    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=46080 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072 dist/data-viewer-filter-panel.js=8192 dist/data-viewer-filter-bar.js=8192 dist/data-viewer-filter-rail.js=12288 dist/data-viewer-filter-columns.js=12288 dist/data-viewer-filter-search.js=12288 dist/data-viewer-select.js=8192",
     "no-lit": "node --test ../../scripts/no-lit.test.mjs",
     "e2e": "playwright test"
   },
@@ -91,6 +95,7 @@
     "@lesfleursdelanuitdev/pagination": "0.1.0",
     "@lesfleursdelanuitdev/card": "0.1.0",
     "@lesfleursdelanuitdev/search": "0.1.0",
-    "@lesfleursdelanuitdev/filter": "0.1.0"
+    "@lesfleursdelanuitdev/filter": "0.1.0",
+    "@lesfleursdelanuitdev/search-filter": "0.1.0"
   }
 }

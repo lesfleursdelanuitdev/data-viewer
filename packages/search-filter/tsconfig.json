@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@lesfleursdelanuitdev/filter": ["../filter/src/index.ts"],
+      "@lesfleursdelanuitdev/filter/*": ["../filter/src/*.ts"]
+    }
+  },
+  "include": ["src", "test", "e2e", "demo", "vite.config.ts", "playwright.config.ts"]
+}

@@ -12,6 +12,16 @@ import type { FilterSection, FilterValue } from './types.ts';
  */
 export type FilterKit = { html: typeof html; svg: typeof svg; nothing: typeof nothing; ref: typeof ref; repeat: typeof repeat; classMap: typeof classMap; live: typeof live };
 
+/** The list's search, for a style that replaces the search box (search-filter). */
+export type FilterStyleSearch = {
+  text: string;                              // the applied search
+  in: string;                                // the applied "Search in" key; '' = all
+  fields: { key: string; label: string }[];  // offered "Search in" fields; [] when no picker
+  only: string | null;                       // the one searched column's label, else null
+  typed: string;                             // what is typed now (the host keeps it)
+  typedCount: number | null;                 // rows the typed text would leave; null = unknown
+};
+
 export type FilterStyleView = FilterView & {
   countFor: number | null;   // rows the draft would leave; null = not known (yet)
   results: number | null;    // rows the applied filters leave (rail "N results", columns "N of M")
@@ -20,11 +30,14 @@ export type FilterStyleView = FilterView & {
   // The list's box in the window, for placing a popover against the list (the panel right-aligns
   // to a trigger in the list's right half). Read when a popover opens. None: the window.
   bounds?: () => { left: number; right: number };
+  search?: FilterStyleSearch; // given to a style that sets replacesSearch
 };
 
 export type FilterStyleHandlers = FilterHandlers & {
   onApplyNow(next: FilterValue): void; // instant styles: apply this value at once
   onMenu(key: string | null): void;    // open or close one menu
+  onSearch?(text: string, searchIn?: string): void; // apply a search at once (replacesSearch styles)
+  onTyped?(text: string): void;                     // the typed text changed (for typedCount)
 };
 
 /** One filter design, drawn by the host (the data viewer) into its own light DOM. */
@@ -38,6 +51,10 @@ export type FilterStyle = {
   // `.dv-root[data-filter-side]` and puts the style in `.dv-side` and the list in `.dv-main`; the
   // style's own CSS lays the two out.
   side?: boolean;
+  // Draws the search too: the host leaves out its search box and passes view.search.
+  replacesSearch?: boolean;
+  // view.phone is also set while the list is narrower than this many pixels.
+  narrowBelow?: number;
   render(view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
   // Drawn above the list, in the chips row's place (rail's "N results" and chips).
   summary?(view: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult;
