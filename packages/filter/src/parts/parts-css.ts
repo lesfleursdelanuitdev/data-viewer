@@ -24,7 +24,7 @@ export const partsCss = `
 }
 :where(.lfdln-filter-popover:focus-visible) { outline-offset: -2px; }
 :where(.lfdln-filter-dim) { opacity: 0.45; }
-:where(.lfdln-filter-root, .lfdln-filter-popover) :where(svg) { flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+:where(.lfdln-filter-style-root, .lfdln-filter-popover) :where(svg) { flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Chips that turn on and off */
 :where(.lfdln-filter-toggle) {

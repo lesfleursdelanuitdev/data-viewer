@@ -36,8 +36,8 @@ export const panelCss = `
 :where(.lfdln-filter-panel-chips) { display: flex; flex-wrap: wrap; gap: 6px; }
 :where(.lfdln-filter-panel-section) > :where(.lfdln-filter-seg) { align-self: flex-start; }
 :where(.lfdln-filter-hist) { display: flex; align-items: flex-end; gap: 3px; height: 40px; padding: 0 2px; }
-:where(.lfdln-filter-bar) { flex: 1; background: var(--filter-border); border-radius: 2px 2px 0 0; }
-:where(.lfdln-filter-bar-on) { background: var(--filter-accent); }
+:where(.lfdln-filter-hist-bar) { flex: 1; background: var(--filter-border); border-radius: 2px 2px 0 0; }
+:where(.lfdln-filter-hist-bar-on) { background: var(--filter-accent); }
 :where(.lfdln-filter-panel-range) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 :where(.lfdln-filter-panel-range) :where(label) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--filter-muted); }
 :where(.lfdln-filter-panel-range) :where(input) {
@@ -85,7 +85,7 @@ function range(kit: FilterKit, s: Range, draft: FilterValue, on: FilterStyleHand
   const bars = histogramBars(s, r);
   const hist = bars.length
     ? kit.html`<div class="lfdln-filter-hist" aria-hidden="true">${bars.map((b) => kit.html`<span
-        class=${b.on ? 'lfdln-filter-bar lfdln-filter-bar-on' : 'lfdln-filter-bar'} style="height:${b.height}px"></span>`)}</div>`
+        class=${b.on ? 'lfdln-filter-hist-bar lfdln-filter-hist-bar-on' : 'lfdln-filter-hist-bar'} style="height:${b.height}px"></span>`)}</div>`
     : kit.nothing;
   if (s.ranges?.length) {
     return kit.html`${hist}<div class="lfdln-filter-panel-chips" role="group" aria-label=${s.label}>${s.ranges.map((p) => {
@@ -165,7 +165,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
     })
     : kit.nothing;
 
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-panel-root">${trigger}${tags}${panel}</div>`;
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-panel-root lfdln-filter-style-root">${trigger}${tags}${panel}</div>`;
 }
 
 /** The `panel` filter style (handoff 1a). */

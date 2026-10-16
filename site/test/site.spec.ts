@@ -210,7 +210,7 @@ test.describe('panel', () => {
 // /docs/filter-styles/: one list of plants, its filter-style switched by the "Filter style" tabs.
 const STYLES: [string, string, string][] = [
   ['Panel', 'panel', '.lfdln-filter-trigger'],
-  ['Bar', 'bar', '.lfdln-filter-pills'],
+  ['Bar', 'bar', '.lfdln-filter-bar-row'],
   ['Rail', 'rail', '.lfdln-filter-rail'],
   ['Columns', 'columns', '.lfdln-filter-col-btn'],
   ['Dialog', 'dialog', '.lfdln-filter-button'],
@@ -263,7 +263,7 @@ test.describe('filter styles', () => {
     await page.goto('/docs/filter-styles/');
     const list = page.locator('[data-host] lfdln-data-viewer');
     await styleTabs(page).getByRole('tab', { name: 'Bar' }).click();
-    await list.locator('.lfdln-filter-pill', { hasText: 'Kind' }).click();
+    await list.locator('.lfdln-filter-bar-pill', { hasText: 'Kind' }).click();
     await list.locator('.lfdln-filter-check-row', { hasText: 'Herb' }).click();
     // The on pill: accent-900 behind, accent-200 text (the site's --filter-accent-soft / -text),
     // its key in the accent.

@@ -287,13 +287,15 @@ used: set either one on any element to replace it there.
 | `lfdln-filter-popover`, `lfdln-filter-handle` | A menu or panel (a `<dialog>` bottom sheet on phones), and the sheet's handle |
 | `lfdln-filter-divider`, `lfdln-filter-badge`, `lfdln-filter-dim` | The fading line, the count badge, a zero-count option (opacity 0.45) |
 | `lfdln-filter-btn`, `lfdln-filter-btn-ghost`, `lfdln-filter-btn-primary` | The styles' buttons |
-| `lfdln-filter-trigger`, `lfdln-filter-panel`, `lfdln-filter-panel-title`, `lfdln-filter-panel-section`, `lfdln-filter-hist`, `lfdln-filter-panel-foot`, `lfdln-filter-show` | panel: the button, the panel, its title, a section, the histogram, the footer and "Show 12 results" |
-| `lfdln-filter-bar-row`, `lfdln-filter-pill`, `lfdln-filter-pill-on`, `lfdln-filter-pill-key`, `lfdln-filter-pill-value`, `lfdln-filter-pill-toggle`, `lfdln-filter-pill-menu`, `lfdln-filter-pill-search` | bar: the row, a pill (set: `-on`), its key and value, the yes/no pill, a menu and its search |
+| `lfdln-filter-style-root` | Every filter style's own root (with `lfdln-filter-root`), which the shared parts' rules are scoped to |
+| `lfdln-filter-trigger`, `lfdln-filter-panel`, `lfdln-filter-panel-title`, `lfdln-filter-panel-section`, `lfdln-filter-hist`, `lfdln-filter-hist-bar`, `lfdln-filter-hist-bar-on`, `lfdln-filter-panel-foot`, `lfdln-filter-show` | panel: the button, the panel, its title, a section, the histogram, one of its bars (in the drafted range: `-on`), the footer and "Show 12 results" |
+| `lfdln-filter-bar-row`, `lfdln-filter-bar-pill`, `lfdln-filter-bar-pill-on`, `lfdln-filter-bar-pill-key`, `lfdln-filter-bar-pill-value`, `lfdln-filter-bar-pill-toggle`, `lfdln-filter-bar-pill-menu`, `lfdln-filter-bar-pill-search` | bar: the row, a pill (set: `-on`), its key and value, the yes/no pill, a menu and its search |
 | `lfdln-filter-rail`, `lfdln-filter-rail-title`, `lfdln-filter-rail-group`, `lfdln-filter-rail-label`, `lfdln-filter-rail-results`, `lfdln-filter-rail-count` | rail: the column, its title, a section and its label, the "12 results" line and its count |
 | `lfdln-filter-col`, `lfdln-filter-col-btn`, `lfdln-filter-col-dot`, `lfdln-filter-col-menu`, `lfdln-filter-col-label`, `lfdln-filter-col-clear`, `lfdln-filter-col-summary`, `lfdln-filter-col-summary-text` | columns: the header's funnel and dot, the menu, its "Show kind" label and "Clear this column", the summary line |
 
-The dialog's quick ranges use `lfdln-filter-pills` and `lfdln-filter-pill` too, so to style only
-the bar's pills, start from `.lfdln-filter-bar-row`.
+The bar's classes are its own: the dialog's quick ranges (`lfdln-filter-pills`, `lfdln-filter-pill`)
+and the bar's pills (`lfdln-filter-bar-row`, `lfdln-filter-bar-pill`) share no class, so a rule for
+one never reaches the other.
 
 ## Licence
 

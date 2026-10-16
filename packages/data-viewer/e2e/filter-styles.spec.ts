@@ -367,10 +367,10 @@ test.describe('panel', () => {
   test('the histogram highlights the drafted range', async ({ page }) => {
     await open(page);
     await trigger(page).click();
-    const bars = panelOf(page).locator('.lfdln-filter-hist .lfdln-filter-bar');
+    const bars = panelOf(page).locator('.lfdln-filter-hist .lfdln-filter-hist-bar');
     await expect(bars).toHaveCount(12);
     // 1.50 to 120 in 12 buckets: 11 plants in the first, 12.50 in the second, 120 in the last.
-    const on = () => bars.evaluateAll((els) => els.map((e, i) => (e.classList.contains('lfdln-filter-bar-on') ? i : -1)).filter((i) => i >= 0));
+    const on = () => bars.evaluateAll((els) => els.map((e, i) => (e.classList.contains('lfdln-filter-hist-bar-on') ? i : -1)).filter((i) => i >= 0));
     expect(await on()).toEqual([0, 1, 11]);
     await toggle(page, '€5–€10').click();
     await expect(toggle(page, '€5–€10')).toHaveAttribute('aria-pressed', 'true');
@@ -494,9 +494,9 @@ test.describe('panel on a phone', () => {
 // #bar: the plants with filter-style="bar", url-state "bar", and a "Cared for by" column with 30
 // people (Rose Smith-Montgomery cares for Rose, Ana Okafor for Rosemary; 18 care for none).
 // window.barQueries keeps every dv-query #bar fires.
-const bar = (page: Page) => page.locator('#bar .lfdln-filter-pills');
-const pill = (page: Page, key: string) => page.locator(`#bar .lfdln-filter-pill[data-key="${key}"]`);
-const menuOf = (page: Page) => page.locator('#bar .lfdln-filter-pill-menu');
+const bar = (page: Page) => page.locator('#bar .lfdln-filter-bar-row');
+const pill = (page: Page, key: string) => page.locator(`#bar .lfdln-filter-bar-pill[data-key="${key}"]`);
+const menuOf = (page: Page) => page.locator('#bar .lfdln-filter-bar-pill-menu');
 const rowIn = (page: Page, value: string) => menuOf(page).locator(`.lfdln-filter-check-row[data-value="${value}"]`);
 const barQueries = (page: Page) => page.evaluate(() => (window as unknown as { barQueries: unknown[] }).barQueries.length);
 
@@ -521,7 +521,7 @@ test.describe('bar', () => {
 
   test('one pill per section; clicking opens its menu; one menu at a time', async ({ page }) => {
     const { problems } = await open(page);
-    await expect(bar(page).locator('.lfdln-filter-pill-key')).toHaveText(['Kind', 'Light', 'Price', 'In stock', 'Cared for by']);
+    await expect(bar(page).locator('.lfdln-filter-bar-pill-key')).toHaveText(['Kind', 'Light', 'Price', 'In stock', 'Cared for by']);
     await expect(page.locator('#bar .dv-root > .lfdln-filter-chips')).toHaveCount(0);
     await expect(menuOf(page)).toHaveCount(0);
     await pill(page, 'kind').click();
@@ -568,8 +568,8 @@ test.describe('bar', () => {
     expect(await barQueries(page)).toBe(before + 2);
     // The menu stays open; the pill sums it up and turns on.
     await expect(menuOf(page)).toHaveCount(1);
-    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveText('Herb +1');
-    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-pill-on/);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-bar-pill-value')).toHaveText('Herb +1');
+    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-bar-pill-on/);
     await expect(pill(page, 'kind')).toHaveAccessibleName('Kind: Herb, Flower');
     // A count of 0 dims to 0.45 and stays clickable.
     await pill(page, 'light').click();
@@ -602,15 +602,15 @@ test.describe('bar', () => {
     await expect(page.locator('#bar tbody tr')).toHaveCount(3);
     const p = pill(page, 'stock');
     // Set (on colours, "No"), but not pressed: the check is off, as it is announced.
-    await expect(p).toHaveClass(/lfdln-filter-pill-on/);
-    await expect(p.locator('.lfdln-filter-pill-value')).toHaveText('No');
+    await expect(p).toHaveClass(/lfdln-filter-bar-pill-on/);
+    await expect(p.locator('.lfdln-filter-bar-pill-value')).toHaveText('No');
     await expect(p).toHaveAccessibleName('In stock: No');
     await expect(p).toHaveAttribute('aria-pressed', 'false');
     await expect(p.locator('svg').first()).toHaveCSS('opacity', '0.35');
     // A click clears it; the next sets it to yes.
     await p.click();
     await expect(page.locator('#bar tbody tr')).toHaveCount(12);
-    await expect(p).not.toHaveClass(/lfdln-filter-pill-on/);
+    await expect(p).not.toHaveClass(/lfdln-filter-bar-pill-on/);
     await p.click();
     await expect(page.locator('#bar tbody tr')).toHaveCount(9);
     await expect(p).toHaveAttribute('aria-pressed', 'true');
@@ -646,7 +646,7 @@ test.describe('bar', () => {
     const heights = await menuOf(page).locator('.lfdln-filter-check-row').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
     expect(new Set(heights)).toEqual(new Set([32]));
     // The rows scroll inside the menu; the search stays at the top.
-    const list = menuOf(page).locator('.lfdln-filter-pill-list');
+    const list = menuOf(page).locator('.lfdln-filter-bar-pill-list');
     expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
     const top = (await menuOf(page).boundingBox())!.y;
     await list.evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -673,11 +673,11 @@ test.describe('bar', () => {
     await open(page, `?bar.f.owner=${encodeURIComponent('Rose Smith-Montgomery,Ana Okafor,Chloé Café')}`);
     await expect(page.locator('#bar tbody tr')).toHaveCount(2);
     const p = pill(page, 'owner');
-    const value = p.locator('.lfdln-filter-pill-value');
+    const value = p.locator('.lfdln-filter-bar-pill-value');
     await expect(value).toHaveText('Rose Smith-Montgomery +2');
     await expect(p).toHaveAccessibleName('Cared for by: Rose Smith-Montgomery, Ana Okafor, Chloé Café');
     const fit = await p.evaluate((el) => {
-      const v = el.querySelector('.lfdln-filter-pill-value') as HTMLElement;
+      const v = el.querySelector('.lfdln-filter-bar-pill-value') as HTMLElement;
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       return {
         width: el.getBoundingClientRect().width, max: 16 * rem, height: el.getBoundingClientRect().height,
@@ -694,13 +694,13 @@ test.describe('bar', () => {
   test('a bookmarked value that no longer exists shows in the pill and clears', async ({ page }) => {
     await open(page, '?bar.f.kind=Cactus');
     await expect(page.locator('#bar tbody tr')).toHaveCount(0);
-    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveText('Cactus');
-    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-pill-on/);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-bar-pill-value')).toHaveText('Cactus');
+    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-bar-pill-on/);
     await pill(page, 'kind').click();
     await expect(rowIn(page, 'Cactus')).toHaveAttribute('aria-checked', 'true');
     await menuOf(page).getByRole('button', { name: 'Clear kind' }).click();
     await expect(page.locator('#bar tbody tr')).toHaveCount(12);
-    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveCount(0);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-bar-pill-value')).toHaveCount(0);
     await expect(pill(page, 'kind')).toBeFocused();
     expect(new URL(page.url()).searchParams.has('bar.f.kind')).toBe(false);
   });
@@ -713,13 +713,13 @@ test.describe('bar on a phone', () => {
     await open(page);
     const p = pill(page, 'kind');
     await p.scrollIntoViewIfNeeded();
-    for (const el of await bar(page).locator('.lfdln-filter-pill').all()) {
+    for (const el of await bar(page).locator('.lfdln-filter-bar-pill').all()) {
       expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     // The pills wrap: no sideways scroll.
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await p.click();
-    const sheet = page.locator('#bar dialog.lfdln-filter-pill-menu');
+    const sheet = page.locator('#bar dialog.lfdln-filter-bar-pill-menu');
     await expect(sheet).toBeVisible();
     const box = (await sheet.boundingBox())!;
     expect(Math.round(box.y + box.height)).toBe(800);
@@ -737,7 +737,7 @@ test.describe('bar on a phone', () => {
     await expect(page.locator('#bar tbody tr')).toHaveCount(5);
     // The long list's search box is 16 px, so phones don't zoom in.
     await pill(page, 'owner').click();
-    await expect(page.locator('#bar dialog.lfdln-filter-pill-menu input[type=search]')).toHaveCSS('font-size', '16px');
+    await expect(page.locator('#bar dialog.lfdln-filter-bar-pill-menu input[type=search]')).toHaveCSS('font-size', '16px');
   });
 });
 
@@ -922,7 +922,7 @@ test.describe('rail radios and widths', () => {
     await width(700);
     await expect(page.locator('#rail .lfdln-filter-trigger')).toBeVisible();
     await page.locator('#rail').evaluate((el) => el.setAttribute('filter-style', 'bar'));
-    await expect(page.locator('#rail .lfdln-filter-pills')).toBeVisible();
+    await expect(page.locator('#rail .lfdln-filter-bar-row')).toBeVisible();
     await width(900);
     // Watch for the panel's trigger, even for one frame, while switching back.
     await page.locator('#rail').evaluate((el) => {
@@ -978,7 +978,7 @@ test.describe('columns', () => {
     await expect(funnel(page, 'Kind')).toHaveAttribute('aria-expanded', 'false');
     await expect(funnel(page, 'Name')).toHaveCount(0); // Name is not filterable
     // No filter button, no pills: the headers are the filter.
-    await expect(cols(page).locator('.dv-filter, .lfdln-filter-trigger, .lfdln-filter-pills')).toHaveCount(0);
+    await expect(cols(page).locator('.dv-filter, .lfdln-filter-trigger, .lfdln-filter-bar-row')).toHaveCount(0);
     await cols(page).locator('thead').getByRole('button', { name: 'Kind', exact: true }).click();
     await expect(headOf(page, 'Kind')).toHaveAttribute('aria-sort', 'ascending');
     await expect(colMenu(page)).toHaveCount(0);
@@ -1241,25 +1241,25 @@ test.describe('columns', () => {
 
   test("two lists, two styles: opening #bar2's pill closes #columns' menu; neither list's style changes the other", async ({ page }) => {
     const { problems } = await open(page);
-    const bar2Pill = page.locator('#bar2 .lfdln-filter-pill[data-key="kind"]');
+    const bar2Pill = page.locator('#bar2 .lfdln-filter-bar-pill[data-key="kind"]');
     await funnel(page, 'Kind').click();
     await expect(colMenu(page)).toBeVisible();
     await bar2Pill.click();
-    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toBeVisible();
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu')).toBeVisible();
     await expect(colMenu(page)).toHaveCount(0);
     await funnel(page, 'Light').click();
     await expect(colMenu(page)).toBeVisible();
-    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toHaveCount(0);
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu')).toHaveCount(0);
     await page.keyboard.press('Escape');
     // A filter in #bar2 leaves #columns alone, and its table gets no columns look.
     await bar2Pill.click();
-    await page.locator('#bar2 .lfdln-filter-pill-menu .lfdln-filter-check-row[data-value="Herb"]').click();
+    await page.locator('#bar2 .lfdln-filter-bar-pill-menu .lfdln-filter-check-row[data-value="Herb"]').click();
     await expect(page.locator('#bar2 tbody tr')).toHaveCount(5);
     await expect(colRows(page)).toHaveCount(12);
     await expect(page.locator('#bar2 .dv-filtered, #bar2 .lfdln-filter-col, #bar2 .lfdln-filter-col-summary')).toHaveCount(0);
-    await expect(cols(page).locator('.lfdln-filter-pills')).toHaveCount(0);
+    await expect(cols(page).locator('.lfdln-filter-bar-row')).toHaveCount(0);
     // #bar2's menu rows are still the bar's (menu items, not the columns' check boxes).
-    await expect(page.locator('#bar2 .lfdln-filter-pill-menu .lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemcheckbox');
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu .lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemcheckbox');
     // Same cell colour for #bar2's filtered Kind as for an unfiltered one.
     const c2 = await page.locator('#bar2 tbody tr').first().locator('td').nth(0).evaluate((el) => getComputedStyle(el).color);
     const c1 = await page.locator('#bar2 tbody tr').first().locator('td').nth(1).evaluate((el) => getComputedStyle(el).color);
@@ -1270,12 +1270,12 @@ test.describe('columns', () => {
   // No pointerdown when the dialog opens by keyboard, so it must close the others itself.
   test("opening another list's dialog by keyboard closes #bar2's menu", async ({ page }) => {
     const { problems } = await open(page);
-    await page.locator('#bar2 .lfdln-filter-pill[data-key="kind"]').click();
-    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toBeVisible();
+    await page.locator('#bar2 .lfdln-filter-bar-pill[data-key="kind"]').click();
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu')).toBeVisible();
     await page.locator('#plants .lfdln-filter-button').focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('#plants .lfdln-filter-pop')).toBeVisible();
-    await expect(page.locator('#bar2 .lfdln-filter-pill-menu')).toHaveCount(0);
+    await expect(page.locator('#bar2 .lfdln-filter-bar-pill-menu')).toHaveCount(0);
     expect(problems).toEqual([]);
   });
 });

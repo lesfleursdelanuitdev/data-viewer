@@ -18,53 +18,53 @@ import { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
 export { menuOptions, pillName, pillSummary, searchable } from './bar-logic.ts';
 
-// Every rule for the row and its pills goes through .lfdln-filter-bar-row: today's dialog draws its
-// quick ranges as .lfdln-filter-pills / .lfdln-filter-pill too, and the bar must not restyle them.
+// The bar's classes are its own (lfdln-filter-bar-row, lfdln-filter-bar-pill*): today's dialog draws
+// its quick ranges as .lfdln-filter-pills / .lfdln-filter-pill, and neither may restyle the other.
 export const barCss = `
 :where(.lfdln-filter-bar-row) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-:where(.lfdln-filter-pill-anchor) { position: relative; display: flex; min-width: 0; max-width: 100%; }
-:where(.lfdln-filter-bar-row .lfdln-filter-pill) {
+:where(.lfdln-filter-bar-pill-anchor) { position: relative; display: flex; min-width: 0; max-width: 100%; }
+:where(.lfdln-filter-bar-pill) {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; max-width: min(16rem, 100%); margin: 0; padding: 0 10px 0 12px;
   font-size: 13px; white-space: nowrap; color: var(--filter-text); background: transparent;
   border: 1px solid var(--filter-border); border-radius: 999px; -webkit-tap-highlight-color: transparent;
 }
-:where(.lfdln-filter-pill-toggle) { padding-left: 10px; }
-:where(.lfdln-filter-bar-row .lfdln-filter-pill:hover, .lfdln-filter-pill-clear:hover) { background: ${HOVER}; }
-:where(.lfdln-filter-bar-row .lfdln-filter-pill[aria-expanded=true]) { border-color: var(--filter-accent); }
-:where(.lfdln-filter-pill-on) { color: ${ON_TEXT}; background: ${SOFT}; border-color: var(--filter-accent); }
-:where(.lfdln-filter-pill-on:hover) { background: color-mix(in srgb, var(--filter-accent) 24%, var(--filter-bg)); }
-:where(.lfdln-filter-pill-key) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-:where(.lfdln-filter-pill-on:not(.lfdln-filter-pill-toggle)) > :where(.lfdln-filter-pill-key) { color: var(--filter-accent); }
-:where(.lfdln-filter-pill-value) { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-:where(.lfdln-filter-bar-row .lfdln-filter-pill) > :where(svg) { stroke-width: 22; opacity: 0.7; }
-:where(.lfdln-filter-pill-toggle) > :where(svg) { stroke-width: 20; opacity: 0.35; }
-:where(.lfdln-filter-pill-toggle[aria-pressed=true]) > :where(svg) { opacity: 1; }
-:where(.lfdln-filter-bar-row .lfdln-filter-pill, .lfdln-filter-pill-clear, .lfdln-filter-pill-search, .lfdln-filter-pill-range input):where(:focus-visible) {
+:where(.lfdln-filter-bar-pill-toggle) { padding-left: 10px; }
+:where(.lfdln-filter-bar-pill:hover, .lfdln-filter-bar-pill-clear:hover) { background: ${HOVER}; }
+:where(.lfdln-filter-bar-pill[aria-expanded=true]) { border-color: var(--filter-accent); }
+:where(.lfdln-filter-bar-pill-on) { color: ${ON_TEXT}; background: ${SOFT}; border-color: var(--filter-accent); }
+:where(.lfdln-filter-bar-pill-on:hover) { background: color-mix(in srgb, var(--filter-accent) 24%, var(--filter-bg)); }
+:where(.lfdln-filter-bar-pill-key) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:where(.lfdln-filter-bar-pill-on:not(.lfdln-filter-bar-pill-toggle)) > :where(.lfdln-filter-bar-pill-key) { color: var(--filter-accent); }
+:where(.lfdln-filter-bar-pill-value) { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:where(.lfdln-filter-bar-pill) > :where(svg) { stroke-width: 22; opacity: 0.7; }
+:where(.lfdln-filter-bar-pill-toggle) > :where(svg) { stroke-width: 20; opacity: 0.35; }
+:where(.lfdln-filter-bar-pill-toggle[aria-pressed=true]) > :where(svg) { opacity: 1; }
+:where(.lfdln-filter-bar-pill, .lfdln-filter-bar-pill-clear, .lfdln-filter-bar-pill-search, .lfdln-filter-bar-pill-range input):where(:focus-visible) {
   outline: 2px solid var(--filter-accent); outline-offset: 2px;
 }
 :where(.lfdln-filter-bar-row) > :where(.lfdln-filter-btn) { height: 32px; padding: 0 10px; font-size: 12.5px; }
-:where(.lfdln-filter-pill-menu) { display: flex; flex-direction: column; gap: 1px; padding: 6px; }
-:where(div.lfdln-filter-pill-menu) { width: 240px; max-height: 320px; }
-:where(.lfdln-filter-pill-title) { margin: 0; padding: 6px 8px 10px; font-size: 15px; font-weight: 500; }
-:where(.lfdln-filter-pill-search, .lfdln-filter-pill-range input) {
+:where(.lfdln-filter-bar-pill-menu) { display: flex; flex-direction: column; gap: 1px; padding: 6px; }
+:where(div.lfdln-filter-bar-pill-menu) { width: 240px; max-height: 320px; }
+:where(.lfdln-filter-bar-pill-title) { margin: 0; padding: 6px 8px 10px; font-size: 15px; font-weight: 500; }
+:where(.lfdln-filter-bar-pill-search, .lfdln-filter-bar-pill-range input) {
   flex: none; width: 100%; min-width: 0; height: 30px; margin: 0; padding: 0 8px; font: inherit; font-size: 13px;
   color: var(--filter-text); background: var(--filter-bg); border: 1px solid var(--filter-border); border-radius: var(--filter-radius);
 }
-:where(.lfdln-filter-pill-search) { margin-bottom: 4px; }
-:where(.lfdln-filter-pill-list) { display: flex; flex-direction: column; gap: 1px; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-:where(.lfdln-filter-pill-list) > :where(*) { flex: none; }
-:where(.lfdln-filter-pill-empty) { margin: 0; padding: 8px; font-size: 13px; color: var(--filter-muted); }
-:where(.lfdln-filter-pill-range) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 2px; }
-:where(.lfdln-filter-pill-range label) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--filter-muted); }
-:where(.lfdln-filter-pill-clear) {
+:where(.lfdln-filter-bar-pill-search) { margin-bottom: 4px; }
+:where(.lfdln-filter-bar-pill-list) { display: flex; flex-direction: column; gap: 1px; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+:where(.lfdln-filter-bar-pill-list) > :where(*) { flex: none; }
+:where(.lfdln-filter-bar-pill-empty) { margin: 0; padding: 8px; font-size: 13px; color: var(--filter-muted); }
+:where(.lfdln-filter-bar-pill-range) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 2px; }
+:where(.lfdln-filter-bar-pill-range label) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--filter-muted); }
+:where(.lfdln-filter-bar-pill-clear) {
   flex: none; height: 30px; margin: 0; padding: 0 8px; font: inherit; font-size: 12.5px; text-align: left; color: var(--filter-muted);
   background: transparent; border: 0; border-radius: 6px; cursor: pointer;
 }
 @media (max-width: 639px) {
-  :where(.lfdln-filter-bar-row .lfdln-filter-pill, .lfdln-filter-bar-row > .lfdln-filter-btn) { height: 44px; }
-  :where(dialog.lfdln-filter-pill-menu) { padding: 0 10px 14px; }
-  :where(.lfdln-filter-pill-search, .lfdln-filter-pill-range input) { height: 44px; font-size: 16px; }
-  :where(.lfdln-filter-pill-clear) { height: 44px; font-size: 14px; }
+  :where(.lfdln-filter-bar-pill, .lfdln-filter-bar-row > .lfdln-filter-btn) { height: 44px; }
+  :where(dialog.lfdln-filter-bar-pill-menu) { padding: 0 10px 14px; }
+  :where(.lfdln-filter-bar-pill-search, .lfdln-filter-bar-pill-range input) { height: 44px; font-size: 16px; }
+  :where(.lfdln-filter-bar-pill-clear) { height: 44px; font-size: 14px; }
 }
 `;
 
@@ -77,8 +77,8 @@ const rangeOf = (v: FilterValue[string] | undefined): FilterRange =>
 function choiceRows(kit: FilterKit, s: Choice, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const picked = Array.isArray(v.value[s.key]) ? (v.value[s.key] as string[]) : [];
   const rows = menuOptions(s, v.value, searchable(s) ? v.optionSearch : '');
-  if (!rows.length) return kit.html`<p class="lfdln-filter-pill-empty">${v.words.nothingMatches}</p>`;
-  return kit.html`<div class="lfdln-filter-pill-list" role="menu" aria-label=${s.label}>${rows.map((o) => checkRow(kit, {
+  if (!rows.length) return kit.html`<p class="lfdln-filter-bar-pill-empty">${v.words.nothingMatches}</p>`;
+  return kit.html`<div class="lfdln-filter-bar-pill-list" role="menu" aria-label=${s.label}>${rows.map((o) => checkRow(kit, {
     label: o.label ?? o.value, value: o.value, count: o.count, on: picked.includes(o.value), round: Boolean(s.single),
     onToggle: () => on.onApplyNow(toggleOption(v.value, s, o.value)),
   }))}</div>`;
@@ -89,7 +89,7 @@ function rangeRows(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyle
   const from = (r.from ?? '').trim();
   const to = (r.to ?? '').trim();
   if (s.ranges?.length) {
-    return kit.html`<div class="lfdln-filter-pill-list" role="menu" aria-label=${s.label}>${s.ranges.map((p) => {
+    return kit.html`<div class="lfdln-filter-bar-pill-list" role="menu" aria-label=${s.label}>${s.ranges.map((p) => {
       const pressed = (p.from ?? '') === from && (p.to ?? '') === to;
       return checkRow(kit, {
         label: p.label, count: p.count, on: pressed, round: true,
@@ -100,12 +100,12 @@ function rangeRows(kit: FilterKit, s: Range, v: FilterStyleView, on: FilterStyle
   // No ranges: the From and To boxes, applied when one is left or Enter is pressed (not on every
   // key), and read together so a change in one never loses the other.
   const typed = (e: Event) => {
-    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-pill-range')!.querySelectorAll('input');
+    const [a, b] = (e.currentTarget as HTMLElement).closest('.lfdln-filter-bar-pill-range')!.querySelectorAll('input');
     on.onApplyNow(setRange(v.value, s.key, a!.value.trim(), b!.value.trim()));
   };
   const box = (word: string, val: string | undefined) => kit.html`<label><span>${word}</span><input type="text"
     autocomplete="off" inputmode=${s.type === 'date' ? kit.nothing : 'decimal'} .value=${kit.live(val ?? '')} @change=${typed}></label>`;
-  return kit.html`<div class="lfdln-filter-pill-range" role="group" aria-label=${s.label}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
+  return kit.html`<div class="lfdln-filter-bar-pill-range" role="group" aria-label=${s.label}>${box(v.words.from, r.from)}${box(v.words.to, r.to)}</div>`;
 }
 
 const chevron = (kit: FilterKit) => kit.svg`<svg viewBox="0 0 256 256" width="11" height="11" aria-hidden="true"><path d="M64 96l64 64 64-64"/></svg>`;
@@ -118,7 +118,7 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
   const summary = pillSummary(s, v.value, w);
   const mid = `${v.uid}-menu-${s.key}`;
   const hid = `${mid}-title`;
-  const cls = `lfdln-filter-pill${set ? ' lfdln-filter-pill-on' : ''}`;
+  const cls = `lfdln-filter-bar-pill${set ? ' lfdln-filter-bar-pill-on' : ''}`;
   const clear = (e: Event) => {
     returnFocus(e.currentTarget as Element);
     on.onMenu(null);
@@ -126,27 +126,27 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
   };
   const menu = open
     ? popover(kit, {
-      phone: v.phone, id: mid, cls: 'lfdln-filter-pill-menu', onClose: () => on.onMenu(null), onKey: menuKeys,
+      phone: v.phone, id: mid, cls: 'lfdln-filter-bar-pill-menu', onClose: () => on.onMenu(null), onKey: menuKeys,
       labelledBy: v.phone ? hid : undefined, label: v.phone ? undefined : s.label,
       content: kit.html`${v.phone
-        ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div><h2 class="lfdln-filter-pill-title" id=${hid}>${s.label}</h2>`
+        ? kit.html`<div class="lfdln-filter-handle" aria-hidden="true"></div><h2 class="lfdln-filter-bar-pill-title" id=${hid}>${s.label}</h2>`
         : kit.nothing}${searchable(s)
-        ? kit.html`<input class="lfdln-filter-pill-search" type="search" autocomplete="off" aria-label=${w.searchOptions(s.label)}
+        ? kit.html`<input class="lfdln-filter-bar-pill-search" type="search" autocomplete="off" aria-label=${w.searchOptions(s.label)}
             placeholder=${w.searchOptions(s.label)} .value=${kit.live(v.optionSearch)}
             @input=${(e: Event) => on.onOptionSearch((e.target as HTMLInputElement).value)}>`
         : kit.nothing}${s.kind === 'choice' ? choiceRows(kit, s, v, on) : rangeRows(kit, s, v, on)}${set
-        ? kit.html`${divider(kit)}<button type="button" class="lfdln-filter-pill-clear" @click=${clear}>${w.clearSection(s.label)}</button>`
+        ? kit.html`${divider(kit)}<button type="button" class="lfdln-filter-bar-pill-clear" @click=${clear}>${w.clearSection(s.label)}</button>`
         : kit.nothing}`,
     })
     : kit.nothing;
-  return kit.html`<div class="lfdln-filter-pill-anchor"><button type="button" class=${cls} data-key=${s.key}
+  return kit.html`<div class="lfdln-filter-bar-pill-anchor"><button type="button" class=${cls} data-key=${s.key}
     aria-haspopup="dialog" aria-expanded=${open ? 'true' : 'false'} aria-controls=${open ? mid : kit.nothing}
     aria-label=${pillName(s, v.value, w)} title=${pillName(s, v.value, w)} @click=${() => {
       if (open) return on.onMenu(null);
       on.onOptionSearch('');
       on.onMenu(s.key);
-    }}><span class="lfdln-filter-pill-key">${s.label}</span>${summary
-      ? kit.html`<span class="lfdln-filter-pill-value">${summary}</span>` : kit.nothing}${chevron(kit)}</button>${menu}</div>`;
+    }}><span class="lfdln-filter-bar-pill-key">${s.label}</span>${summary
+      ? kit.html`<span class="lfdln-filter-bar-pill-value">${summary}</span>` : kit.nothing}${chevron(kit)}</button>${menu}</div>`;
 }
 
 // A yes/no section: one tap sets it to yes, another clears it. A bookmarked "no" is set (on
@@ -155,24 +155,24 @@ function menuPill(kit: FilterKit, s: Choice | Range, v: FilterStyleView, on: Fil
 function togglePill(kit: FilterKit, s: Extract<FilterSection, { kind: 'bool' }>, v: FilterStyleView, on: FilterStyleHandlers): TemplateResult {
   const set = isSet(s, v.value[s.key]);
   const summary = pillSummary(s, v.value, v.words);
-  return kit.html`<button type="button" class=${`lfdln-filter-pill lfdln-filter-pill-toggle${set ? ' lfdln-filter-pill-on' : ''}`}
+  return kit.html`<button type="button" class=${`lfdln-filter-bar-pill lfdln-filter-bar-pill-toggle${set ? ' lfdln-filter-bar-pill-on' : ''}`}
     data-key=${s.key} aria-pressed=${v.value[s.key] === true ? 'true' : 'false'} aria-label=${pillName(s, v.value, v.words)}
     @click=${() => {
       on.onMenu(null);
       on.onApplyNow(setBool(v.value, s.key, set ? undefined : true));
-    }}>${tick(kit)}<span class="lfdln-filter-pill-key">${s.label}</span>${summary
-      ? kit.html`<span class="lfdln-filter-pill-value">${summary}</span>` : kit.nothing}</button>`;
+    }}>${tick(kit)}<span class="lfdln-filter-bar-pill-key">${s.label}</span>${summary
+      ? kit.html`<span class="lfdln-filter-bar-pill-value">${summary}</span>` : kit.nothing}</button>`;
 }
 
 function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): TemplateResult {
   const any = v.sections.some((s) => isSet(s, v.value[s.key]));
   // Clear all leaves the row; focus goes to the first pill, which stays.
   const clearAll = (e: Event) => {
-    (e.currentTarget as Element).closest('.lfdln-filter-pills')?.querySelector<HTMLElement>('.lfdln-filter-pill')?.focus();
+    (e.currentTarget as Element).closest('.lfdln-filter-bar-row')?.querySelector<HTMLElement>('.lfdln-filter-bar-pill')?.focus();
     on.onMenu(null);
     on.onApplyNow({});
   };
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-pills lfdln-filter-bar-row" role="group" aria-label=${v.label ?? v.words.filter}>${v.sections.map((s) =>
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-bar-row lfdln-filter-style-root" role="group" aria-label=${v.label ?? v.words.filter}>${v.sections.map((s) =>
     s.kind === 'bool' ? togglePill(kit, s, v, on) : menuPill(kit, s, v, on))}${any
     ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${clearAll}>${v.words.clearAll}</button>`
     : kit.nothing}</div>`;

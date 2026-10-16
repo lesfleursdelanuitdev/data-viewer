@@ -190,7 +190,7 @@ function header(s: FilterSection, place: { index: number; of: number }, v: Filte
       if (pop) placeMenu(pop, end);
     });
   };
-  return kit.html`<span class=${`lfdln-filter-root lfdln-filter-col${set ? ' lfdln-filter-col-on' : ''}`} ${kit.ref(follow)}><button
+  return kit.html`<span class=${`lfdln-filter-root lfdln-filter-col lfdln-filter-style-root${set ? ' lfdln-filter-col-on' : ''}`} ${kit.ref(follow)}><button
     type="button" class="lfdln-filter-col-btn" data-key=${s.key} aria-haspopup="dialog" aria-expanded=${open ? 'true' : 'false'}
     aria-controls=${open ? mid : kit.nothing} aria-label=${w.filterBy(s.label)} title=${set ? pillName(s, v.value, w) : kit.nothing}
     @click=${() => {
@@ -209,7 +209,7 @@ function summary(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): T
     on.onMenu(null);
     on.onApplyNow({});
   };
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-col-summary"><span class="lfdln-filter-col-summary-text" role="status"
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-col-summary lfdln-filter-style-root"><span class="lfdln-filter-col-summary-text" role="status"
     tabindex="-1">${columnsSummary(v.results, v.total, k, v.words)}</span>${k
     ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${clearAll}>${v.words.clearAll}</button>`
     : kit.nothing}</div>`;

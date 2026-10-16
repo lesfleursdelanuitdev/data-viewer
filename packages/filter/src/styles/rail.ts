@@ -102,7 +102,7 @@ function render(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): Te
       ?.querySelector<HTMLElement>('.lfdln-filter-check-row, .lfdln-filter-switch, .lfdln-filter-rail-range input')?.focus();
     on.onApplyNow({});
   };
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-rail" role="group" aria-labelledby=${tid}>
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-rail lfdln-filter-style-root" role="group" aria-labelledby=${tid}>
     <div class="lfdln-filter-rail-head"><span class="lfdln-filter-rail-title" id=${tid}>${v.label ?? w.filters}</span>${anySet(v.sections, v.value)
       ? kit.html`<button type="button" class="lfdln-filter-btn lfdln-filter-btn-ghost" @click=${clear}>${w.clear}</button>`
       : kit.nothing}</div>
@@ -124,7 +124,7 @@ function summary(v: FilterStyleView, on: FilterStyleHandlers, kit: FilterKit): T
     }
     on.onApplyNow(removeChip(v.value, c));
   };
-  return kit.html`<div class="lfdln-filter-root lfdln-filter-rail-results"><span class="lfdln-filter-rail-count" role="status"
+  return kit.html`<div class="lfdln-filter-root lfdln-filter-rail-results lfdln-filter-style-root"><span class="lfdln-filter-rail-count" role="status"
     tabindex="-1">${v.results === null ? '' : w.resultsCount(v.results)}</span>${applied.map((c, i) => tag(kit, {
     label: c.label, removeLabel: w.remove(c.label), onRemove: (e) => remove(e, c, i),
   }))}</div>`;
