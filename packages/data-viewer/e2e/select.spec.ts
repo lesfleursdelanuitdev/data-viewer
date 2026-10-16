@@ -653,6 +653,13 @@ test.describe('the phone bar', () => {
     expect(sw).toBe(cw);
     await expect(bar(page).locator('button.dv-select-action:visible')).toHaveText(['Export']);
     await fits(page, 'table');
+    // At most 2 lines, so the bar stays 60 px tall and the list's room under its end is enough.
+    expect((await bar(page).boundingBox())!.height).toBeLessThanOrEqual(61);
+    await expect(bar(page)).toHaveAttribute('aria-label', /warten auf eine Aktion$/);
+    await page.locator('#table > .dv-root').evaluate((r) => r.scrollIntoView({ block: 'end' }));
+    const top = (await bar(page).boundingBox())!.y;
+    const last = (await page.locator('#table tbody tr').last().boundingBox())!;
+    expect(last.y + last.height).toBeLessThanOrEqual(top + 0.5);
   });
 
   test('a page rule that shows the bar\'s buttons doesn\'t bring back the wide-screen ones', async ({ page }) => {

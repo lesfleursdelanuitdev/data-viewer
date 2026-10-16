@@ -57,8 +57,12 @@ export const selectCss: string = `
     position: fixed; inset: auto 0 0 0; z-index: 10; min-height: 60px; padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box; margin: 0; flex-wrap: nowrap; overflow-x: auto; border-width: 1px 0 0; border-radius: 0;
   }
-  /* A long count (other languages) wraps rather than push the bar sideways. */
-  :where(.dv-select-count) { white-space: normal; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
+  /* A long count (other languages) wraps rather than push the bar sideways, to 2 lines at most
+     so the bar stays 60 px tall (the bar's aria-label keeps all of it). */
+  :where(.dv-select-count) {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    white-space: normal; min-width: 0; line-height: 1.2; overflow-wrap: anywhere;
+  }
   /* ✕ first, so it stays on screen when the actions scroll. */
   :where(.dv-select-clear) { order: -1; }
   :where(.dv-select-bar) :where(button:not([role=menuitem])) { min-height: 44px; min-width: 44px; flex: none; }
