@@ -42,7 +42,7 @@ export type CardHooks = {
   moreIcon?: Content; // row: an icon before them
   headMenu?: Content; // something of the page's own in the header, such as an <lfdln-menu>
   headStart?: Content; // drawn first in the header (the data viewer's check box)
-  cls?: string; // more classes on the card element (the data viewer's dv-selected)
+  className?: string; // more classes on the card element (the data viewer's dv-selected)
   as?: 'li' | 'div'; // the card's own element (a list of cards uses li)
 };
 
@@ -145,6 +145,6 @@ export function renderCard(p: CardParts, h: CardHooks): TemplateResult {
           ${items.length ? footerActions(p, h, mode === 'row' ? 'row' : 'wrap', items, primary) : primary}
         </div>`
       : nothing}`;
-  const cls = h.cls ? `lfdln-card ${h.cls}` : 'lfdln-card';
+  const cls = h.className ? `lfdln-card ${h.className}` : 'lfdln-card';
   return h.as === 'li' ? html`<li class=${cls}>${inner}</li>` : html`<div class=${cls}>${inner}</div>`;
 }

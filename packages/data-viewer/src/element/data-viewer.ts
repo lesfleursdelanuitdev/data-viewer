@@ -1502,7 +1502,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       moreText: this.cardMoreLabel || w.more,
       as: 'li',
       headStart: this._box(row),
-      cls: this._ticked(row) ? 'dv-selected' : undefined,
+      className: this._ticked(row) ? 'dv-selected' : undefined,
     };
   }
 
