@@ -2414,11 +2414,18 @@ test.describe('sentence', () => {
 
   test('Space opens a phrase on release, like a button; held keys do not repeat', async ({ page }) => {
     const { problems } = await open(page);
+    // The server demos above load late and push the page down: wait for them, then measure where
+    // the phrase is on screen (a Space that scrolled would move it up by most of the window).
+    for (const id of ['panel-server', 'search-server', 'search-equals', 'vprobe-server']) {
+      await expect(page.locator(`#${id} tbody tr`).first()).toBeVisible();
+    }
     await phrase(page, 'light').focus();
-    const y = await page.evaluate(() => scrollY);
+    const top = () => phrase(page, 'light').evaluate((el) => Math.round(el.getBoundingClientRect().top));
+    const y = await top();
     await page.keyboard.down(' ');
+    await page.waitForTimeout(300); // a page scroll would be smooth: give it time to show
     await expect(menus(page)).toHaveCount(0); // not yet: a button acts when Space comes up
-    expect(await page.evaluate(() => scrollY)).toBe(y); // and Space does not scroll the page
+    expect(Math.abs((await top()) - y)).toBeLessThan(50); // and Space does not scroll the page
     await page.keyboard.up(' ');
     await expect(menus(page)).toHaveCount(1);
     await page.keyboard.press('Escape');
