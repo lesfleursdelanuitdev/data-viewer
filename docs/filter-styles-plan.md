@@ -1,6 +1,6 @@
 # Filter styles: the redesigned filters as choices (plan)
 
-Status: BUILT (stage 1) 2026-10-16 on branch `filter-styles`; BUILT (stage 2) 2026-10-16 on branch `search-filter` (off `filter-styles`). Neither is merged, deployed or pushed. Proposed 2026-10-15. Source: monadelanuit's handoff
+Status: stage 1 BUILT 2026-10-16, merged into `main` and pushed (46afafd). Stage 2 BUILT 2026-10-16 on branch `search-filter` (off `main` at 46afafd), not merged, deployed or pushed. Proposed 2026-10-15. Source: monadelanuit's handoff
 `Data Viewer redesign (1).zip` → `design_handoff_filter_redesign/` (README + `Filter Redesign.dc.html`).
 
 ## What we're doing and why
@@ -337,12 +337,23 @@ What differs from the spec, the decisions or the handoff:
 - **Removing the text token clears "Search in" too** (`search-change { search: '', in: '' }`), so
   no hidden "Search in" is left for the next search. **Done**, and Enter with nothing listed,
   search in the "Search in" already applied; the "Search for" row always searches every column.
-- **The Enter default skips zero counts.** The active row starts on the first filter suggestion
-  with a count above 0 (or no count); with none, on the first row ("Search for"). Zero-count rows
-  stay pickable at 0.45. The handoff's 1d shows Enter on a row counting 0 ("Kind is Shrub 0");
-  that is the one place we differ from it on purpose.
-- **Crossing 480 px while open:** the element closes its suggestions. The viewer redraws them
-  (sheet ↔ listbox); when the sheet goes, focus moves to the page field and the typed text stays.
+- **The Enter default skips zero counts, and there is none untyped.** With nothing typed no row
+  is active (no `aria-activedescendant`) and Enter does nothing until ArrowDown or ArrowUp
+  (`activeRow` returns -1). With text, the active row starts on the first filter suggestion
+  with a count above 0 (or no count); with none, on "Search for". Zero-count rows stay pickable
+  at 0.45. The handoff's 1d shows Enter on a row counting 0 ("Kind is Shrub 0"); that is the one
+  place we differ from it on purpose.
+- **The typed count** sits on the text row for the applied "Search in" ("Search for" with none,
+  else that field's row), not always on "Search for".
+- **Crossing 480 px (or the 639 px phone rule) while open:** the suggestions stay open, in the
+  viewer and in the element alike. They are redrawn (sheet ↔ listbox), and focus and the typed
+  text move to the field that is shown.
+- **`search-filter-change`'s detail is `{ search, in, value }`** (type `SearchFilterChange`),
+  so a page needs only the one event.
+- **Typed text that was never applied goes** when the viewer's address is restored (Back),
+  `state` is set, or the filter style changes.
+- **Focus:** the field shows a 2 px `--filter-accent` ring while focused (`:focus-within`); the
+  input's own outline is off.
 - **Picking keeps the suggestions open** with the input cleared, as the handoff does. Only Done,
   Esc and a click outside close them.
 - **Filter package:** the style imports from `@lesfleursdelanuitdev/filter/parts` (not
@@ -361,9 +372,9 @@ What differs from the spec, the decisions or the handoff:
   Reference (a page's Reference in `reference-map.mjs` may now list several packages). The
   site's global `:focus-visible` outline skips the field's input, which shows focus with the
   field's own ring.
-- **Sizes (gzipped):** `data-viewer.standalone.js` 43427 bytes (+270 for stage 2, limit 46080),
-  `data-viewer-filter-search.js` 10833 (limit 12288), `search-filter.standalone.js` 18569
-  (limit 20480).
+- **Sizes (gzipped, after the branch review's fix round):** `data-viewer.standalone.js` 43445
+  bytes (+288 for stage 2, limit 46080), `data-viewer-filter-search.js` 10870 (limit 12288),
+  `search-filter.standalone.js` 18595 (limit 20480).
 
 ## Stage 3 sketch: saved views (2b) and the sentence (2c)
 

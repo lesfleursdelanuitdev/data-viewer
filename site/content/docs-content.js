@@ -464,7 +464,7 @@ export function Plants() {
       { label: 'npm', code: `import { define } from '@lesfleursdelanuitdev/data-viewer';
 // Importing a style registers it: filter-style="bar" now works.
 import '@lesfleursdelanuitdev/data-viewer/filter-styles/bar';
-// The others: …/filter-styles/panel, …/filter-styles/rail, …/filter-styles/columns.
+// The others: …/filter-styles/panel, …/filter-styles/rail, …/filter-styles/columns, …/filter-styles/search.
 
 define();
 
@@ -500,10 +500,12 @@ define();
       options: [{ value: 'Herb', count: 5 }, { value: 'Tree', count: 1 }] },
     { key: 'stock', label: 'In stock', kind: 'bool' },
   ];
-  // One event for both: the search, its "Search in" and the filters.
+  // Your page's own searching and filtering (a stub here).
+  const showMatches = (search, column, value) => { /* draw the matching rows */ };
+  // One event for both: the search, its "Search in" ('' = every column) and the filters.
   field.addEventListener('search-filter-change', (e) => {
-    const { search, value } = e.detail;
-    showMatches(search, field.in, value); // your page's own searching
+    const { search, in: column, value } = e.detail;
+    showMatches(search, column, value);
   });
 </script>` },
     ],
@@ -512,7 +514,7 @@ define();
       'Search puts the search and the filters in one field, in place of the search box. Type “her” and press Enter for Kind is Herb; Backspace removes the last token. Below 480 px of list width the suggestions open as a bottom sheet.',
       'A style that isn’t loaded shows the dialog, with one console warning naming the file to add. If the file loads later, the list switches to it.',
       'The rail becomes the panel when the list is narrower than 720 px. Columns become the panel in cards view.',
-      'Bar, rail and columns apply each change at once. The panel keeps a draft until “Show N results”.',
+      'Bar, rail, columns and search apply each change at once. The panel keeps a draft until “Show N results”.',
       'The list’s `dv-query` carries `filters` in the same shape for every style.',
     ],
     // The strip shows dv-query, with its filters only.
