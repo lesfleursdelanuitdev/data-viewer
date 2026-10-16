@@ -2,23 +2,13 @@ import { html, nothing, type TemplateResult } from 'lit';
 import { setBool, setRange, toggleOption } from './core/draft.ts';
 import type { FilterOption, FilterRange, FilterSection, FilterValue, FilterWords } from './core/types.ts';
 import { check } from './icons.ts';
+import { matchingOptions, SEARCH_ABOVE } from './core/options.ts';
+
+export { matchingOptions, SEARCH_ABOVE };
 
 /** What a section's controls need: the draft they change and the option search. */
 export type SectionView = { draft: FilterValue; optionSearch: string; words: FilterWords; uid: string };
 export type SectionHandlers = { onDraft(next: FilterValue): void; onOptionSearch(text: string): void };
-
-/** Lists longer than this get a search box above them. */
-export const SEARCH_ABOVE = 8;
-
-// For matching typed text: case and accents don't matter ("cafe" finds "Café").
-const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
-
-/** The options a typed search leaves (all of them for no text), by label, value or description. */
-export function matchingOptions(options: FilterOption[], text: string): FilterOption[] {
-  const q = fold(text.trim());
-  if (!q) return options;
-  return options.filter((o) => fold(`${o.label ?? o.value}\n${o.description ?? ''}`).includes(q));
-}
 
 // Arrows, Home and End move between options; Space and Enter tick the focused one.
 function onListKey(e: KeyboardEvent): void {

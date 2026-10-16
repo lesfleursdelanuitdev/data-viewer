@@ -37,6 +37,17 @@ for (const id of ['plants', 'test', 'missing', 'panel']) {
   list.rows = plants;
 }
 
+// #bar: the same plants, each cared for by someone, with 30 people to choose from (18 care for
+// none, so they count 0). window.barQueries keeps every dv-query #bar fires.
+const firsts = ['Rose', 'Ana', 'Chloé', 'Dev', 'Emeka', 'Farah', 'Gus', 'Hana', 'Ivo', 'Jun'];
+const owners = ['Smith-Montgomery', 'Okafor', 'Café'].flatMap((last) => firsts.map((first) => `${first} ${last}`));
+const bar = document.querySelector('#bar') as LfdlnDataViewer<Plant & { owner: string }>;
+bar.columns = [...columns, { key: 'owner', label: 'Cared for by', filterable: true, options: owners }];
+bar.rows = plants.map((p, i) => ({ ...p, owner: owners[i]! }));
+const barQueries: unknown[] = [];
+(window as unknown as { barQueries: unknown[] }).barQueries = barQueries;
+bar.addEventListener('dv-query', (e) => barQueries.push(e.detail));
+
 // #served: the page plays a server for the same plants (server mode, no adapter). Kind has
 // options, since a server-mode filter needs options or facets to have a section.
 const servedColumns = columns.map((c) => (c.key === 'kind' ? { ...c, options: ['Flower', 'Foliage', 'Herb', 'Tree'] } : c));

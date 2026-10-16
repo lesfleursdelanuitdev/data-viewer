@@ -453,3 +453,217 @@ test.describe('panel on a phone', () => {
     await expect(page.locator('#panel tbody tr')).toHaveCount(12);
   });
 });
+
+// #bar: the plants with filter-style="bar", url-state "bar", and a "Cared for by" column with 30
+// people (Rose Smith-Montgomery cares for Rose, Ana Okafor for Rosemary; 18 care for none).
+// window.barQueries keeps every dv-query #bar fires.
+const bar = (page: Page) => page.locator('#bar .lfdln-filter-pills');
+const pill = (page: Page, key: string) => page.locator(`#bar .lfdln-filter-pill[data-key="${key}"]`);
+const menuOf = (page: Page) => page.locator('#bar .lfdln-filter-pill-menu');
+const rowIn = (page: Page, value: string) => menuOf(page).locator(`.lfdln-filter-check-row[data-value="${value}"]`);
+const barQueries = (page: Page) => page.evaluate(() => (window as unknown as { barQueries: unknown[] }).barQueries.length);
+
+test.describe('bar', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test('one pill per section; clicking opens its menu; one menu at a time', async ({ page }) => {
+    const { problems } = await open(page);
+    await expect(bar(page).locator('.lfdln-filter-pill-key')).toHaveText(['Kind', 'Light', 'Price', 'In stock', 'Cared for by']);
+    await expect(page.locator('#bar .dv-root > .lfdln-filter-chips')).toHaveCount(0);
+    await expect(menuOf(page)).toHaveCount(0);
+    await pill(page, 'kind').click();
+    await expect(pill(page, 'kind')).toHaveAttribute('aria-expanded', 'true');
+    await expect(menuOf(page)).toHaveCount(1);
+    await expect(menuOf(page).locator('.lfdln-filter-check-label')).toHaveText(['Flower', 'Foliage', 'Herb', 'Tree']);
+    expect(Math.round((await menuOf(page).boundingBox())!.width)).toBe(240);
+    // The menu sits under its pill.
+    const [p, m] = await Promise.all([pill(page, 'kind').boundingBox(), menuOf(page).boundingBox()]);
+    expect(m!.y).toBeGreaterThan(p!.y + p!.height);
+    // Another pill: its menu, and only its menu.
+    await pill(page, 'light').click();
+    await expect(menuOf(page)).toHaveCount(1);
+    await expect(menuOf(page).locator('.lfdln-filter-check-label')).toHaveText(['Part shade', 'Shade', 'Sun']);
+    await expect(pill(page, 'kind')).toHaveAttribute('aria-expanded', 'false');
+    // The same pill again closes it; Esc closes and focus goes back to the pill.
+    await pill(page, 'light').click();
+    await expect(menuOf(page)).toHaveCount(0);
+    await pill(page, 'price').click();
+    await expect(menuOf(page).locator('.lfdln-filter-check-row')).toHaveCount(3);
+    await expect(menuOf(page).locator('.lfdln-filter-check-row').first()).toHaveAttribute('role', 'menuitemradio');
+    await page.keyboard.press('Escape');
+    await expect(menuOf(page)).toHaveCount(0);
+    await expect(pill(page, 'price')).toBeFocused();
+    // Opening another list's popover closes this menu: one open per page.
+    await pill(page, 'kind').click();
+    await page.locator('#panel .lfdln-filter-trigger').click();
+    await expect(page.locator('#panel .lfdln-filter-panel')).toBeVisible();
+    await expect(menuOf(page)).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
+  test('ticking applies at once and fires one dv-query per tick', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#bar tbody tr')).toHaveCount(12);
+    await pill(page, 'kind').click();
+    const before = await barQueries(page);
+    await rowIn(page, 'Herb').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(5);
+    expect(await barQueries(page)).toBe(before + 1);
+    await expect(rowIn(page, 'Herb')).toHaveAttribute('aria-checked', 'true');
+    await rowIn(page, 'Flower').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(8);
+    expect(await barQueries(page)).toBe(before + 2);
+    // The menu stays open; the pill sums it up and turns on.
+    await expect(menuOf(page)).toHaveCount(1);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveText('Herb +1');
+    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-pill-on/);
+    await expect(pill(page, 'kind')).toHaveAccessibleName('Kind: Herb, Flower');
+    // A count of 0 dims to 0.45 and stays clickable.
+    await pill(page, 'light').click();
+    await expect(rowIn(page, 'Shade')).toHaveClass(/lfdln-filter-dim/);
+    expect(await rowIn(page, 'Shade').evaluate((el) => getComputedStyle(el).opacity)).toBe('0.45');
+    await rowIn(page, 'Shade').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get('bar.f.light')).toBe('Shade');
+  });
+
+  test('In stock is a toggle pill with no menu', async ({ page }) => {
+    await open(page);
+    const p = pill(page, 'stock');
+    await expect(p).toHaveAttribute('aria-pressed', 'false');
+    await expect(p).not.toHaveAttribute('aria-haspopup', /.*/);
+    await expect(p.locator('svg').first()).toHaveCSS('opacity', '0.35');
+    const before = await barQueries(page);
+    await p.click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(9);
+    await expect(p).toHaveAttribute('aria-pressed', 'true');
+    await expect(p.locator('svg').first()).toHaveCSS('opacity', '1');
+    await expect(menuOf(page)).toHaveCount(0);
+    expect(await barQueries(page)).toBe(before + 1);
+    await p.click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(12);
+  });
+
+  test('Clear all shows only when something is applied', async ({ page }) => {
+    await open(page);
+    const clear = bar(page).getByRole('button', { name: 'Clear all' });
+    await expect(clear).toHaveCount(0);
+    await pill(page, 'stock').click();
+    await pill(page, 'kind').click();
+    await rowIn(page, 'Herb').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(4);
+    await expect(clear).toBeVisible();
+    await clear.click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(12);
+    await expect(clear).toHaveCount(0);
+    await expect(menuOf(page)).toHaveCount(0);
+    expect([...new URL(page.url()).searchParams.keys()].filter((k) => k.startsWith('bar.f.'))).toEqual([]);
+  });
+
+  test('a section with more than 8 options gets the option search; the menu scrolls inside at 320 px', async ({ page }) => {
+    await open(page);
+    await pill(page, 'kind').click();
+    await expect(menuOf(page).locator('input[type=search]')).toHaveCount(0);
+    await pill(page, 'owner').click();
+    const search = menuOf(page).getByRole('searchbox', { name: 'Search cared for by' });
+    await expect(search).toBeVisible();
+    await expect(menuOf(page).locator('.lfdln-filter-check-row')).toHaveCount(30);
+    expect((await menuOf(page).boundingBox())!.height).toBeLessThanOrEqual(320);
+    // The rows keep their 32 px; the list scrolls rather than squeezing them.
+    const heights = await menuOf(page).locator('.lfdln-filter-check-row').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+    expect(new Set(heights)).toEqual(new Set([32]));
+    // The rows scroll inside the menu; the search stays at the top.
+    const list = menuOf(page).locator('.lfdln-filter-pill-list');
+    expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+    const top = (await menuOf(page).boundingBox())!.y;
+    await list.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    expect(await list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect((await search.boundingBox())!.y).toBeGreaterThanOrEqual(top);
+    expect((await search.boundingBox())!.y).toBeLessThan(top + 12);
+    // Accents don't matter.
+    await search.fill('cafe');
+    await expect(menuOf(page).locator('.lfdln-filter-check-row')).toHaveCount(10);
+    await search.fill('zzz');
+    await expect(menuOf(page).locator('.lfdln-filter-check-row')).toHaveCount(0);
+    await expect(menuOf(page)).toContainText('Nothing matches');
+    await search.fill('smith');
+    await rowIn(page, 'Rose Smith-Montgomery').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(1);
+    // The 18 who care for none are dimmed.
+    await search.fill('');
+    await expect(menuOf(page).locator('.lfdln-filter-check-row.lfdln-filter-dim')).toHaveCount(18);
+    // No sideways scroll.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
+  });
+
+  test('a long summary truncates with an ellipsis and keeps its full accessible name', async ({ page }) => {
+    await open(page, `?bar.f.owner=${encodeURIComponent('Rose Smith-Montgomery,Ana Okafor,Chloé Café')}`);
+    await expect(page.locator('#bar tbody tr')).toHaveCount(2);
+    const p = pill(page, 'owner');
+    const value = p.locator('.lfdln-filter-pill-value');
+    await expect(value).toHaveText('Rose Smith-Montgomery +2');
+    await expect(p).toHaveAccessibleName('Cared for by: Rose Smith-Montgomery, Ana Okafor, Chloé Café');
+    const fit = await p.evaluate((el) => {
+      const v = el.querySelector('.lfdln-filter-pill-value') as HTMLElement;
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      return {
+        width: el.getBoundingClientRect().width, max: 16 * rem, height: el.getBoundingClientRect().height,
+        cut: v.scrollWidth > v.clientWidth, overflow: getComputedStyle(v).textOverflow, wrap: getComputedStyle(el).whiteSpace,
+      };
+    });
+    expect(fit.width).toBeLessThanOrEqual(fit.max);
+    expect(fit.height).toBeLessThanOrEqual(32);
+    expect(fit.cut).toBe(true);
+    expect(fit.overflow).toBe('ellipsis');
+    expect(fit.wrap).toBe('nowrap');
+  });
+
+  test('a bookmarked value that no longer exists shows in the pill and clears', async ({ page }) => {
+    await open(page, '?bar.f.kind=Cactus');
+    await expect(page.locator('#bar tbody tr')).toHaveCount(0);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveText('Cactus');
+    await expect(pill(page, 'kind')).toHaveClass(/lfdln-filter-pill-on/);
+    await pill(page, 'kind').click();
+    await expect(rowIn(page, 'Cactus')).toHaveAttribute('aria-checked', 'true');
+    await menuOf(page).getByRole('button', { name: 'Clear kind' }).click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(12);
+    await expect(pill(page, 'kind').locator('.lfdln-filter-pill-value')).toHaveCount(0);
+    await expect(pill(page, 'kind')).toBeFocused();
+    expect(new URL(page.url()).searchParams.has('bar.f.kind')).toBe(false);
+  });
+});
+
+test.describe('bar on a phone', () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test('phone: menus open as the bottom sheet', async ({ page }) => {
+    await open(page);
+    const p = pill(page, 'kind');
+    await p.scrollIntoViewIfNeeded();
+    for (const el of await bar(page).locator('.lfdln-filter-pill').all()) {
+      expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    // The pills wrap: no sideways scroll.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await p.click();
+    const sheet = page.locator('#bar dialog.lfdln-filter-pill-menu');
+    await expect(sheet).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.y + box.height)).toBe(800);
+    expect(box.width).toBe(390);
+    await expect(sheet.getByRole('heading', { name: 'Kind' })).toBeVisible();
+    for (const el of await sheet.locator('.lfdln-filter-check-row').all()) {
+      expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await sheet.locator('.lfdln-filter-check-row[data-value="Herb"]').click();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(5);
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(p).toBeFocused();
+    await expect(page.locator('#bar tbody tr')).toHaveCount(5);
+    // The long list's search box is 16 px, so phones don't zoom in.
+    await pill(page, 'owner').click();
+    await expect(page.locator('#bar dialog.lfdln-filter-pill-menu input[type=search]')).toHaveCSS('font-size', '16px');
+  });
+});

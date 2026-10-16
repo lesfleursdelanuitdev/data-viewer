@@ -9,6 +9,7 @@ export type PopoverOptions = {
   label?: string; // its name when there is no heading
   cls?: string; // the design's own classes
   onClose(): void; // Esc, a click outside, the sheet's backdrop
+  onKey?(e: KeyboardEvent): void; // any other key pressed inside it (a menu's arrow keys)
   content: unknown;
 };
 
@@ -62,6 +63,9 @@ export function popover(kit: FilterKit, o: PopoverOptions): TemplateResult {
   if (o.phone) {
     return kit.html`<dialog class=${cls} id=${o.id ?? kit.nothing} aria-labelledby=${o.labelledBy ?? kit.nothing}
       aria-label=${o.label ?? kit.nothing} ${kit.ref(mountSheet)} .lfdlnClose=${o.onClose}
+      @keydown=${(e: KeyboardEvent) => {
+        if (e.key !== 'Escape') o.onKey?.(e);
+      }}
       @cancel=${(e: Event) => {
         e.preventDefault();
         close(e);
@@ -74,7 +78,7 @@ export function popover(kit: FilterKit, o: PopoverOptions): TemplateResult {
     aria-labelledby=${o.labelledBy ?? kit.nothing} aria-label=${o.label ?? kit.nothing} tabindex="-1"
     ${kit.ref(mountPop)} .lfdlnClose=${o.onClose}
     @keydown=${(e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape') return o.onKey?.(e);
       e.preventDefault();
       e.stopPropagation();
       close(e);

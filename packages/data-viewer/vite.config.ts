@@ -96,11 +96,12 @@ const standalones: Record<string, { entry: string; file: string; limit: number }
   'standalone-json': { entry: 'src/adapters/json.ts', file: 'data-viewer-json.js', limit: ADAPTER_LIMIT },
   'standalone-pammy': { entry: 'src/adapters/pammy.ts', file: 'data-viewer-pammy.js', limit: ADAPTER_LIMIT },
   'standalone-filter-panel': { entry: 'src/filter-styles/panel.ts', file: 'data-viewer-filter-panel.js', limit: STYLE_LIMIT },
+  'standalone-filter-bar': { entry: 'src/filter-styles/bar.ts', file: 'data-viewer-filter-bar.js', limit: STYLE_LIMIT },
 };
 
 // `vite` serves the demo; `vite build` makes the ES modules (Lit and the other packages left
 // out): dist/data-viewer.js, dist/adapters/json.js, dist/adapters/pammy.js and
-// dist/filter-styles/panel.js. The standalone modes make the one-file scripts.
+// dist/filter-styles/panel.js and dist/filter-styles/bar.js. The standalone modes make the one-file scripts.
 export default defineConfig(({ command, mode }) => {
   // The demo also serves dist/ at its root, so the HTML-only demo pages load the built
   // standalone scripts exactly as a plain page would.
@@ -108,5 +109,5 @@ export default defineConfig(({ command, mode }) => {
   const one = standalones[mode];
   if (one) return standalone(one.entry, one.file, one.limit);
   return library({ 'data-viewer': 'src/index.ts', 'adapters/json': 'src/adapters/json.ts', 'adapters/pammy': 'src/adapters/pammy.ts',
-    'filter-styles/panel': 'src/filter-styles/panel.ts' });
+    'filter-styles/panel': 'src/filter-styles/panel.ts', 'filter-styles/bar': 'src/filter-styles/bar.ts' });
 });

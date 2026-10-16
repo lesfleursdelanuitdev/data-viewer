@@ -32,8 +32,12 @@
   <lfdln-data-viewer id="panel-equals" label="Recipes (panel, equals)" adapter="equals" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
   <h2>The panel on recipes from /api/recipes (json adapter, server mode)</h2>
   <lfdln-data-viewer id="panel-server" label="Recipes (panel, server)" adapter="json" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
+  <h2>The bar (filter-style="bar"), with 30 people who care for the plants</h2>
+  <lfdln-data-viewer id="bar" label="Plants (bar)" url-state="bar" filter-style="bar" layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
   <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
   <script type="module">import "../src/filter-styles/panel.ts";</script>
+  <!-- The bar style, as a page would add data-viewer-filter-bar.js. -->
+  <script type="module">import "../src/filter-styles/bar.ts";</script>
 </body>
 </html>

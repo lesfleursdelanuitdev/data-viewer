@@ -34,6 +34,7 @@
     "src/index.ts",
     "src/adapters/json.ts",
     "src/adapters/pammy.ts",
-    "src/filter-styles/panel.ts"
+    "src/filter-styles/panel.ts",
+    "src/filter-styles/bar.ts"
   ]
 }
