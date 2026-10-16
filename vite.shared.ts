@@ -40,6 +40,10 @@ export function standalone(entry: string, file: string, limit: number): UserConf
       emptyOutDir: false,
       minify: true,
       lib: { entry, formats: ['es'], fileName: () => file },
+      // Vite leaves whitespace and comments in ES-format library builds even with minify on, so
+      // the output is minified fully here. Nothing tree-shakes a <script> tag, so the pure
+      // annotations go too; licence comments stay.
+      rolldownOptions: { output: { minify: true, comments: { legal: true, annotation: false, jsdoc: false } } },
     },
   };
 }
