@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>filter panel demo</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--filter-bg); color: var(--filter-text); }
+  </style>
+  <script type="module" src="/filter-panel.standalone.js"></script>
+</head>
+<body>
+  <h1>&lt;lfdln-filter-panel&gt;</h1>
+  <h2>With countFor</h2>
+  <lfdln-filter-panel id="p" heading="Filter plants"></lfdln-filter-panel>
+  <h2>Without countFor</h2>
+  <lfdln-filter-panel id="q"></lfdln-filter-panel>
+  <pre id="log" aria-live="polite"></pre>
+
+  <script type="module">
+    const plants = [['Rose', 'Flower', true], ['Fern', 'Foliage', true], ['Mint', 'Herb', false], ['Basil', 'Herb', true]];
+    const sections = [
+      { key: 'kind', label: 'Kind', kind: 'choice', options: ['Flower', 'Foliage', 'Herb'].map((value) => ({ value })) },
+      { key: 'size', label: 'Size', kind: 'choice', single: true, options: [{ value: 's', label: 'Small' }, { value: 'l', label: 'Large' }] },
+      { key: 'stock', label: 'In stock', kind: 'bool', hint: 'Hide plants that are sold out' },
+    ];
+    const events = [];
+    window.events = events;
+    for (const id of ['p', 'q']) {
+      const el = document.querySelector(`#${id}`);
+      el.sections = sections;
+      el.addEventListener('filter-change', (e) => {
+        events.push({ id, ...e.detail });
+        document.querySelector('#log').textContent = events.map((x) => JSON.stringify(x)).join('\n');
+      });
+    }
+    // Counts the draft over the plants (kind and stock).
+    document.querySelector('#p').countFor = (d) => plants.filter(([, kind, stock]) =>
+      (!d.kind || d.kind.includes(kind)) && (d.stock === undefined || d.stock === stock)).length;
+  </script>
+</body>
+</html>

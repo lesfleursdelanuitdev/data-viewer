@@ -948,14 +948,15 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   // The filter's sections: one per filterable column, with options from the rows (browser mode)
-  // or the facets and column options (server mode).
+  // or the facets and column options (server mode). While a style's draft is open, the counts
+  // follow the draft (today's dialog keeps counting the applied filters).
   private _sections(): FilterSection[] {
     if (!(this.columns ?? []).some((c) => c.filterable)) return [];
     return filterSections(this.columns, {
       rows: this._server ? undefined : this.rows ?? [],
       facets: this.facets,
       supports: this._supports,
-      q: this._q,
+      q: this._fStyle && this._fDraft ? { ...this._q, filters: this._fDraft } : this._q,
       views: this.views,
       searchKeys: this.searchKeys,
     });
@@ -1041,7 +1042,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const styled = this._fStyle && sections.length
       ? this._styled(w, sections, this._adapted && this._mode === 'unknown' ? null : total)
       : undefined;
-    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
+    // A style's open draft (not one that applies at once) dims the results behind it.
+    const dim = this._fStyle && !this._fStyle.instant && this._fDraft !== null;
+    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}>
       ${this.compact ? nothing : this._bar(w, sections, styled)}
       ${this.compact ? nothing : this._chips(w, sections)}
       ${this._failed

@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
+    "test": "npm run test --workspaces && node --test scripts/no-lit.test.mjs",
     "typecheck": "npm run typecheck --workspaces",
     "size": "npm run size --workspaces",
     "e2e": "npm run e2e --workspaces",

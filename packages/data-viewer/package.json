@@ -36,6 +36,10 @@
       "types": "./dist/types/adapters/pammy.d.ts",
       "import": "./dist/adapters/pammy.js"
     },
+    "./filter-styles/panel": {
+      "types": "./dist/types/filter-styles/panel.d.ts",
+      "import": "./dist/filter-styles/panel.js"
+    },
     "./standalone": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/data-viewer.standalone.js"
@@ -50,14 +54,15 @@
   "sideEffects": [
     "./dist/*.standalone.js",
     "./dist/data-viewer-*.js",
-    "./dist/adapters/*.js"
+    "./dist/adapters/*.js",
+    "./dist/filter-styles/*.js"
   ],
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && npm run types && npm run size",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && vite build --mode standalone-filter-panel && npm run types && npm run size",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=46080 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072",
+    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=46080 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072 dist/data-viewer-filter-panel.js=8192",
     "e2e": "playwright test"
   },
   "peerDependencies": {

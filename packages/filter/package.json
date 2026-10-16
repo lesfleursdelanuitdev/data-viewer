@@ -27,6 +27,14 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.js"
     },
+    "./panel": {
+      "types": "./dist/types/panel.d.ts",
+      "import": "./dist/panel.js"
+    },
+    "./panel-element": {
+      "types": "./dist/types/elements/lfdln-filter-panel.d.ts",
+      "import": "./dist/panel-element.js"
+    },
     "./standalone": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/filter.standalone.js"
@@ -44,9 +52,9 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "build": "vite build && vite build --mode standalone && vite build --mode standalone-panel && npm run types && npm run size",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/filter.standalone.js=20480",
+    "size": "node ../../scripts/size.mjs dist/filter.standalone.js=20480 dist/filter-panel.standalone.js=20480",
     "e2e": "playwright test"
   },
   "peerDependencies": {

@@ -26,6 +26,14 @@
   <lfdln-data-viewer id="counting" label="Recipes (counting)" adapter="counting" src="/api/recipes" filter-style="probe" layout="table"></lfdln-data-viewer>
   <h2>A style that is never loaded: the dialog, and one warning</h2>
   <lfdln-data-viewer id="missing" label="Plants (missing style)" filter-style="nope" layout="table"></lfdln-data-viewer>
+  <h2>The panel (filter-style="panel")</h2>
+  <lfdln-data-viewer id="panel" label="Plants (panel)" url-state="panel" filter-style="panel" layout="table"></lfdln-data-viewer>
+  <h2>The panel on recipes through an adapter that only filters by equality (single choice: a segmented control)</h2>
+  <lfdln-data-viewer id="panel-equals" label="Recipes (panel, equals)" adapter="equals" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
+  <h2>The panel on recipes from /api/recipes (json adapter, server mode)</h2>
+  <lfdln-data-viewer id="panel-server" label="Recipes (panel, server)" adapter="json" src="/api/recipes" filter-style="panel" layout="table"></lfdln-data-viewer>
   <script type="module" src="./filter-styles.ts"></script>
+  <!-- The panel style, as a page would add data-viewer-filter-panel.js. -->
+  <script type="module">import "../src/filter-styles/panel.ts";</script>
 </body>
 </html>

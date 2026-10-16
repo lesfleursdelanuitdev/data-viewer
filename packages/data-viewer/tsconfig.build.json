@@ -23,6 +23,9 @@
       ],
       "@lesfleursdelanuitdev/filter": [
         "../filter/dist/types/index.d.ts"
+      ],
+      "@lesfleursdelanuitdev/filter/panel": [
+        "../filter/dist/types/panel.d.ts"
       ]
     }
   },
@@ -30,6 +33,7 @@
   "files": [
     "src/index.ts",
     "src/adapters/json.ts",
-    "src/adapters/pammy.ts"
+    "src/adapters/pammy.ts",
+    "src/filter-styles/panel.ts"
   ]
 }

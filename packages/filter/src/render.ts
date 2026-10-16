@@ -5,6 +5,7 @@ import { chipsOf, sectionSummary, summarise } from './core/summary.ts';
 import type { Chip, FilterSection, FilterValue, FilterWords } from './core/types.ts';
 import { chevronLeft, chevronRight, close, closeSmall, funnel, reset } from './icons.ts';
 import { renderSection } from './render-sections.ts';
+import { later, place, watchOutside } from './place.ts';
 
 /** What one drawing of the filter shows. */
 export type FilterView = {
@@ -30,36 +31,6 @@ export type FilterHandlers = {
   onApply(): void; // apply the draft and close
   onClearAll(): void; // desktop: apply an empty filter at once
 };
-
-/** A property the open popover carries, so a click outside it can close it. */
-type Closable = HTMLElement & { lfdlnClose?: () => void };
-
-// A click outside an open popover cancels it. One listener for every filter on the page.
-let watching = false;
-function watchOutside(doc: Document): void {
-  if (watching) return;
-  watching = true;
-  doc.addEventListener('pointerdown', (e) => {
-    const t = e.target as Node;
-    for (const pop of doc.querySelectorAll<Closable>('.lfdln-filter-pop')) {
-      if (!pop.parentElement?.contains(t)) pop.lfdlnClose?.();
-    }
-  }, true);
-}
-
-// Under the button, kept on screen: shifted left when it would run off the right edge.
-function place(pop: HTMLElement): void {
-  pop.style.left = '0px';
-  const r = pop.getBoundingClientRect();
-  const vw = document.documentElement.clientWidth;
-  let shift = 0;
-  if (r.right > vw - 8) shift = vw - 8 - r.right;
-  if (r.left + shift < 8) shift = 8 - r.left;
-  pop.style.left = `${shift}px`;
-}
-
-// Refs run before a new part is in the page; the work waits for the next microtask.
-const later = (fn: () => void) => queueMicrotask(fn);
 
 function mountPop(el?: Element): void {
   if (!(el instanceof HTMLElement)) return;

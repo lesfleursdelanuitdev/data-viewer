@@ -202,3 +202,237 @@ test.describe('countFor', () => {
     await expect(page.locator('#served .probe')).toHaveAttribute('data-count', 'null');
   });
 });
+
+// #panel: the 12 plants with filter-style="panel" (Kind: Flower 3, Foliage 3, Herb 5, Tree 1;
+// Light: Sun 7, Shade 3, Part shade 2; Price in three money ranges; In stock, 9 of 12, with a
+// hint). #panel-equals: the recipes through an adapter that only filters by equality, so
+// Cuisine is single choice with 4 options: a segmented control. #panel-server: the recipes
+// through the json adapter (server mode).
+test.describe('panel', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+  const panelOf = (page: Page, id = 'panel') => page.locator(`#${id} .lfdln-filter-panel`);
+  const trigger = (page: Page, id = 'panel') => page.locator(`#${id} .lfdln-filter-trigger`);
+  const toggle = (page: Page, name: string, id = 'panel') => panelOf(page, id).locator(`.lfdln-filter-toggle[data-value="${name}"]`);
+  const show = (page: Page, id = 'panel') => panelOf(page, id).locator('.lfdln-filter-show');
+
+  test('the trigger shows a count badge and the applied chips', async ({ page }) => {
+    const { problems } = await open(page, '?panel.f.kind=Herb,Fern');
+    await expect(trigger(page)).toBeVisible();
+    await expect(trigger(page).locator('.lfdln-filter-badge')).toHaveText('2');
+    // The chips sit beside the button, in the same row; the viewer's own chips row is off.
+    const chips = page.locator('#panel .lfdln-filter-panel-root .lfdln-filter-tag');
+    await expect(chips).toHaveText(['Herb', 'Fern']);
+    // Measured together: the lists above may still be loading and moving this one down.
+    const [b, c] = await page.locator('#panel').evaluate((el) => ['.lfdln-filter-trigger', '.lfdln-filter-tag']
+      .map((s) => el.querySelector(s)!.getBoundingClientRect().toJSON() as DOMRect));
+    expect(Math.abs(b!.y + b!.height / 2 - (c!.y + c!.height / 2))).toBeLessThan(4);
+    expect(c!.x).toBeGreaterThan(b!.x + b!.width);
+    await expect(page.locator('#panel .dv-root > .lfdln-filter-chips')).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(5);
+    // × applies at once.
+    await page.locator('#panel').getByRole('button', { name: 'Remove Herb' }).click();
+    await expect(page.locator('#panel tbody tr')).toHaveCount(0);
+    await expect(trigger(page).locator('.lfdln-filter-badge')).toHaveText('1');
+    expect(problems).toEqual([]);
+  });
+
+  test('one panel, every section visible, Reset only with a draft', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    const panel = panelOf(page);
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('role', 'dialog');
+    await expect(trigger(page)).toHaveAttribute('aria-expanded', 'true');
+    await expect(panel.locator('.lfdln-filter-panel-label')).toHaveText(['Kind', 'Light', 'Price']);
+    await expect(panel.getByRole('switch', { name: 'In stock' })).toBeVisible();
+    expect((await panel.boundingBox())!.width).toBe(400);
+    // The results behind dim while it is open.
+    await expect(page.locator('#panel .dv-root')).toHaveAttribute('data-filter-open', '');
+    await expect(page.locator('#panel .dv-table-wrap')).toHaveCSS('opacity', '0.35');
+    await expect(page.locator('#panel .dv-bar')).toHaveCSS('opacity', '1');
+    await expect(panel.getByRole('button', { name: 'Reset' })).toHaveCount(0);
+    await toggle(page, 'Herb').click();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'true');
+    await panel.getByRole('button', { name: 'Reset' }).click();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'false');
+    await expect(panel.getByRole('button', { name: 'Reset' })).toHaveCount(0);
+    // Only one panel: the other lists' filters stay closed.
+    await expect(page.locator('.lfdln-filter-panel')).toHaveCount(1);
+  });
+
+  test('the button counts the draft', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    await expect(show(page)).toHaveText('Show 12 results');
+    await toggle(page, 'Herb').click();
+    await expect(show(page)).toHaveText('Show 5 results');
+    // The counts follow the draft: no herb likes shade.
+    await expect(toggle(page, 'Shade')).toContainText('0');
+    await toggle(page, 'Shade').click();
+    await expect(show(page)).toHaveText('Nothing matches');
+    await toggle(page, 'Shade').click();
+    await show(page).click();
+    await expect(panelOf(page)).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(5);
+    await expect(trigger(page)).toBeFocused();
+    await expect(page.locator('#panel .dv-root')).not.toHaveAttribute('data-filter-open', '');
+  });
+
+  test('Cancel and Esc drop the draft', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    await toggle(page, 'Herb').click();
+    await panelOf(page).getByRole('button', { name: 'Cancel' }).click();
+    await expect(panelOf(page)).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(12);
+    await expect(trigger(page)).toBeFocused();
+    await trigger(page).click();
+    await expect(toggle(page, 'Herb')).toHaveAttribute('aria-pressed', 'false');
+    await toggle(page, 'Herb').click();
+    await page.keyboard.press('Escape');
+    await expect(panelOf(page)).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(12);
+    await expect(trigger(page)).toBeFocused();
+    // A click outside drops it too.
+    await trigger(page).click();
+    await page.locator('h1').click();
+    await expect(panelOf(page)).toHaveCount(0);
+  });
+
+  test('zero-count chips dim to 0.45 and stay clickable', async ({ page }) => {
+    await open(page, '?panel.f.light=Shade');
+    await trigger(page).click();
+    const herb = toggle(page, 'Herb');
+    await expect(herb.locator('.lfdln-filter-toggle-count')).toHaveText('0');
+    await expect(herb).toHaveCSS('opacity', '0.45');
+    await expect(toggle(page, 'Foliage')).toHaveCSS('opacity', '1');
+    await herb.click();
+    await expect(herb).toHaveAttribute('aria-pressed', 'true');
+    // Picked, it is not dimmed.
+    await expect(herb).toHaveCSS('opacity', '1');
+  });
+
+  test('the histogram highlights the drafted range', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    const bars = panelOf(page).locator('.lfdln-filter-hist .lfdln-filter-bar');
+    await expect(bars).toHaveCount(12);
+    // 1.50 to 120 in 12 buckets: 11 plants in the first, 12.50 in the second, 120 in the last.
+    const on = () => bars.evaluateAll((els) => els.map((e, i) => (e.classList.contains('lfdln-filter-bar-on') ? i : -1)).filter((i) => i >= 0));
+    expect(await on()).toEqual([0, 1, 11]);
+    await toggle(page, '€5–€10').click();
+    await expect(toggle(page, '€5–€10')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(on).toEqual([0]);
+    expect((await bars.nth(0).boundingBox())!.height).toBe(40);
+  });
+
+  test('a single choice of 5 or fewer is a segmented control, arrow keys move', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#panel-equals tbody tr').first()).toBeVisible();
+    await trigger(page, 'panel-equals').click();
+    const seg = panelOf(page, 'panel-equals').getByRole('radiogroup', { name: 'Cuisine' });
+    await expect(seg.getByRole('radio')).toHaveText(['Any', 'Persian', 'Indian', 'French', 'Turkish']);
+    await expect(seg.getByRole('radio', { name: 'Any' })).toHaveAttribute('aria-checked', 'true');
+    await seg.getByRole('radio', { name: 'Any' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(seg.getByRole('radio', { name: 'Persian' })).toHaveAttribute('aria-checked', 'true');
+    await expect(seg.getByRole('radio', { name: 'Persian' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(seg.getByRole('radio', { name: 'Indian' })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('ArrowLeft');
+    await expect(seg.getByRole('radio', { name: 'Persian' })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('End');
+    await expect(seg.getByRole('radio', { name: 'Turkish' })).toBeFocused();
+    await expect(seg.getByRole('radio', { name: 'Turkish' })).toHaveAttribute('aria-checked', 'true');
+    // One stop in the tab order.
+    await expect(seg.locator('[tabindex="0"]')).toHaveCount(1);
+    await page.keyboard.press('Home');
+    await expect(seg.getByRole('radio', { name: 'Any' })).toHaveAttribute('aria-checked', 'true');
+    // The multi-choice Light of #panel stays chips.
+    await page.keyboard.press('Escape');
+    await trigger(page).click();
+    await expect(panelOf(page).getByRole('radiogroup')).toHaveCount(0);
+    await expect(toggle(page, 'Part shade')).toBeVisible();
+  });
+
+  test('stock is a switch, Space toggles it, the hint shows', async ({ page }) => {
+    await open(page);
+    await trigger(page).click();
+    const sw = panelOf(page).getByRole('switch', { name: 'In stock' });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await expect(panelOf(page).getByText('Hide plants that are sold out')).toBeVisible();
+    await expect(sw).toHaveAccessibleDescription('Hide plants that are sold out');
+    const box = (await sw.boundingBox())!;
+    expect([box.width, box.height]).toEqual([34, 20]);
+    await sw.focus();
+    await page.keyboard.press('Space');
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+    await expect(show(page)).toHaveText('Show 9 results');
+    await page.keyboard.press('Space');
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+    // The label text toggles it too.
+    await panelOf(page).getByText('In stock', { exact: true }).click();
+    await expect(sw).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('a bookmarked value that no longer exists still shows as a chip and clears', async ({ page }) => {
+    await open(page, '?panel.f.kind=Cactus');
+    await expect(page.locator('#panel tbody tr')).toHaveCount(0);
+    await expect(page.locator('#panel .lfdln-filter-tag')).toHaveText(['Cactus']);
+    await expect(trigger(page).locator('.lfdln-filter-badge')).toHaveText('1');
+    // In the panel too, picked, so it can be unticked there.
+    await trigger(page).click();
+    await expect(toggle(page, 'Cactus')).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await page.locator('#panel').getByRole('button', { name: 'Remove Cactus' }).click();
+    await expect(page.locator('#panel tbody tr')).toHaveCount(12);
+    await expect(page.locator('#panel .lfdln-filter-tag')).toHaveCount(0);
+    await expect(trigger(page).locator('.lfdln-filter-badge')).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.has('panel.f.kind')).toBe(false);
+  });
+
+  test('server mode: "Show results" until the count comes', async ({ page }) => {
+    // Every count request answers after 800 ms.
+    await page.route((u) => u.pathname === '/api/recipes' && u.searchParams.get('size') === '1', (route) => {
+      const u = new URL(route.request().url());
+      u.searchParams.set('slowcount', '1');
+      return route.continue({ url: u.href });
+    });
+    await open(page);
+    await expect(page.locator('#panel-server tbody tr').first()).toBeVisible();
+    await trigger(page, 'panel-server').click();
+    await toggle(page, 'Persian', 'panel-server').click();
+    await expect(show(page, 'panel-server')).toHaveText('Show results');
+    await expect(show(page, 'panel-server')).toHaveText('Show 12 results', { timeout: 3000 });
+    // No histogram in server mode.
+    await expect(panelOf(page, 'panel-server').locator('.lfdln-filter-hist')).toHaveCount(0);
+  });
+});
+
+test.describe('panel on a phone', () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test('phone: the same content in a bottom sheet, rows at least 44 px tall', async ({ page }) => {
+    await open(page);
+    const t = page.locator('#panel .lfdln-filter-trigger');
+    await t.scrollIntoViewIfNeeded();
+    expect((await t.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await t.click();
+    const sheet = page.locator('#panel dialog.lfdln-filter-panel');
+    await expect(sheet).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(Math.round(box.y + box.height)).toBe(800);
+    expect(box.width).toBe(390);
+    await expect(sheet.locator('.lfdln-filter-panel-label')).toHaveText(['Kind', 'Light', 'Price']);
+    for (const el of await sheet.locator('.lfdln-filter-toggle, .lfdln-filter-switch-row, .lfdln-filter-panel-foot button').all()) {
+      expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    // No sideways scroll.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await sheet.locator('.lfdln-filter-toggle[data-value="Herb"]').click();
+    await expect(sheet.locator('.lfdln-filter-show')).toHaveText('Show 5 results');
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(page.locator('#panel tbody tr')).toHaveCount(12);
+  });
+});

@@ -5,10 +5,14 @@ import type { Plugin, UserConfig } from 'vite';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
-const source = (name: string) => fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url));
+const source = (name: string, file = 'index') => fileURLToPath(new URL(`./packages/${name}/src/${file}.ts`, import.meta.url));
 
-/** The sibling packages, by npm name, as their sources. */
+/**
+ * The sibling packages, by npm name, as their sources. A subpath comes before its package: an
+ * alias also matches the names under it, and the first match wins.
+ */
 export const siblings: Record<string, string> = {
+  '@lesfleursdelanuitdev/filter/panel': source('filter', 'panel'),
   '@lesfleursdelanuitdev/menu': source('menu'),
   '@lesfleursdelanuitdev/pagination': source('pagination'),
   '@lesfleursdelanuitdev/card': source('card'),
