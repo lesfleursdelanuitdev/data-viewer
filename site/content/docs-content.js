@@ -97,7 +97,7 @@ const listStyle = 'margin:0;padding:0 0 0 1.6em;display:grid;grid-template-colum
 
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
-  { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'server', 'scheme'] },
+  { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'selection', 'server', 'scheme'] },
   { name: 'Parts', items: ['menu', 'pagination', 'card', 'search', 'filter'] },
   { name: 'Reference', items: ['styling'] },
 ];
@@ -533,6 +533,81 @@ define();
           else if (step) { e.preventDefault(); pick((i + step + tabs.length) % tabs.length, true); }
         });
       });
+    },
+  },
+
+  selection: {
+    nav: 'Selecting rows', kicker: 'The list', title: 'Tick rows, then act on them',
+    intro: 'Add `selectable` and every row and card gets a check box. While anything is ticked, a bar with your batch actions takes the search bar’s place. Ticking needs one more script, `data-viewer-select.js`.',
+    tabs: [
+      { label: 'HTML', code: `<!-- The viewer, then the select add-on. -->
+<script type="module" src="/js/data-viewer.standalone.js"></script>
+<script type="module" src="/js/data-viewer-json.js"></script>
+<script type="module" src="/js/data-viewer-select.js"></script>
+
+<!-- row-key: what identifies a row, so ticks survive paging. -->
+<lfdln-data-viewer id="plants" label="Plants" selectable row-key="name" adapter="json" src="plants.json">
+  <lfdln-dv-column key="name" label="Plant" sortable searchable></lfdln-dv-column>
+  <lfdln-dv-column key="kind" label="Kind" type="badge"></lfdln-dv-column>
+  <lfdln-dv-column key="price" label="Price" type="money" currency="EUR"></lfdln-dv-column>
+</lfdln-data-viewer>
+
+<script type="module">
+  const list = document.querySelector('#plants');
+  list.batchActions = [
+    { id: 'export', label: 'Export' },
+    { id: 'delete', label: 'Delete', danger: true },
+  ];
+  list.addEventListener('dv-batch', (e) => {
+    const { action, keys, rows } = e.detail;
+    if (action === 'delete' && !confirm(\`Delete \${keys.length} plants?\`)) {
+      e.preventDefault(); // "No": the rows stay ticked
+      return;
+    }
+    console.log(action, keys, rows); // then the selection clears
+  });
+</script>` },
+      { label: 'npm', code: `import { define } from '@lesfleursdelanuitdev/data-viewer';
+// Importing the add-on registers it: selectable lists now draw their boxes.
+import '@lesfleursdelanuitdev/data-viewer/select';
+
+define();
+
+// <lfdln-data-viewer label="Plants" selectable row-key="name" …> as in the HTML tab.` },
+    ],
+    notes: [
+      'Without `data-viewer-select.js` a `selectable` list draws as before, with one console warning. If the file loads later, the boxes appear.',
+      'Ticks are kept by `row-key` (default `id`) through paging and sorting. A new search, filter or view clears them.',
+      'Up to 3 actions show as buttons, the rest in a ⋯ menu. On phones: the first one and a ⋯.',
+      'After an action the selection clears. Call `preventDefault()` on `dv-batch` to keep it, for example when the visitor says no to your own `confirm()`.',
+      'Phones now show cards even with `layout="table"`. Add `phone-layout="table"` to keep a table on phones.',
+    ],
+    // The strip shows dv-batch's action and keys, and every dv-select.
+    events: {
+      'dv-batch': (d) => ({ action: d.action, keys: d.keys, all: d.all }),
+      'dv-select': (d) => d,
+    },
+    mount: (host) => {
+      host.innerHTML = '<lfdln-data-viewer label="Plants" row-key="name" page-size="8" layout-switch="icons"></lfdln-data-viewer>';
+      const list = host.querySelector('lfdln-data-viewer');
+      list.columns = [
+        { key: 'name', label: 'Plant', sortable: true, searchable: true },
+        { key: 'kind', label: 'Kind', type: 'badge', sortable: true, filterable: true },
+        { key: 'light', label: 'Light', sortable: true },
+        { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true },
+      ];
+      list.cardOf = (p) => ({ title: p.name, badge: p.kind, facts: [p.light], value: euros.format(p.price) });
+      list.batchActions = [
+        { id: 'export', label: 'Export' },
+        { id: 'delete', label: 'Delete', danger: true },
+      ];
+      // Delete takes the rows out of this demo (reload the page to get them back).
+      list.addEventListener('dv-batch', (e) => {
+        if (e.detail.action === 'delete') list.rows = list.rows.filter((p) => !e.detail.keys.includes(p.name));
+      });
+      list.rows = copy(PLANTS);
+      // The add-on first, then selectable: set before, the viewer would rightly warn that it is missing.
+      import('/js/data-viewer-select.js').then(() => { list.selectable = true; });
     },
   },
 

@@ -1,6 +1,6 @@
 # Selection, batch actions and phone cards (plan)
 
-Status: AGREED 2026-10-16 (design and spec approved by momolig). Branch `selection` in worktree
+Status: BUILT 2026-10-16 (SEL-1 to SEL-4; design and spec approved by momolig the same day). Branch `selection` in worktree
 `~/data-viewer-select`, off main 46afafd. It is merged, pushed or deployed only when momolig says so.
 
 ## What we're doing and why
@@ -64,9 +64,9 @@ selectable; they show the boxes and the selection bar but no "Select all matchin
 - **Selection bar.** While at least one row is ticked, a bar replaces the search, filter and layout
   bar (they come back when the selection clears). It reads "3 selected" (a polite live region),
   then the actions as buttons, then a ✕ named "Clear selection". The first 3 (first 1 on phones)
-  are buttons; the rest go into a ⋯ menu (the menu package). `danger` actions use `--dv-danger`. On phones (640 px or less) the
-  bar is fixed to the bottom of the screen with 44 px buttons, and the list gets bottom padding so
-  the bar doesn't cover the last row.
+  are buttons; the rest go into a ⋯ menu (the menu package). `danger` actions use
+  `--dv-danger`. On phones (640 px or less) the bar is fixed to the bottom of the screen with
+  44 px buttons, and the list gets bottom padding so the bar doesn't cover the last row.
 - **Select all line.** When every row on the page is ticked and `total` is larger than the page,
   a line under the bar reads "All 20 on this page are selected. **Select all 54 matching**". After
   pressing it: "All 54 are selected. **Clear selection**". In browser mode "matching" means the
@@ -158,3 +158,36 @@ The `on` map in setup files takes both, like the other events.
   check.
 
 Each step: failing tests first, then the code, then `npm run check`, a commit, and a review.
+
+### What changed from the spec
+
+The README and the docs site describe what was built. Where it differs from the text above, or
+fills a gap the visitor or the page author can see (the plan's PLANNER CHOICES 2, 4, 6, 7, 11,
+14 and 17, and the phone bar ruling from the Task 4 review):
+
+- **`layout` is the wide-screen value and `phoneLayout` the phone value** (choice 2). A switch
+  press writes the one for the mode the list is in. `phoneLayout` is not reflected, so a default
+  list gains no attribute.
+- **Stored choices** (choice 4): a wide-screen choice under `<remember-as>` (the key used before,
+  so old choices still work), a phone choice under `<remember-as>.phone`.
+- **The card package has two optional `CardHooks`** (choice 6): `headStart` (drawn first in
+  `.lfdln-card-head`, where the box goes) and `cls` (extra classes on the card, for
+  `dv-selected`).
+- **Your own cards get a `dv-select-slot`** (choice 7), first in the `<li>`, which the viewer
+  fills with the box; `dv-selected` goes on the `<li>`.
+- **"All matching" in browser mode covers every matching row** (choice 11): `selected` and
+  `dv-batch`'s `keys` and `rows` are every row that matches, minus `except`. In server mode they
+  are the rows from the pages seen.
+- **Focus** (choice 14): after an action, ✕, Esc or "Clear selection", focus goes to the list's
+  first row box that can be ticked, else its search box. A prevented `dv-batch` keeps the bar
+  and leaves focus where it was.
+- **The missing-key warning** (choice 17), once per page:
+  `lfdln-data-viewer: some rows have no key (row-key="id"), so they can't be ticked.` (the
+  quoted value is the string, or `function`).
+- **The phone bar** holds ✕, the count, the first action (cut with an ellipsis at 40vw) and a
+  ⋯ with all the others; with one action there is no ⋯. The CSS picks the wide or the phone ⋯,
+  so there is no JS media watch for it. It scrolls sideways inside itself only as a last resort.
+- **While anything is ticked the search box is hidden** (the bar takes its place, as specified):
+  to search again, clear the selection. On phones the select-all line stays at the top of the
+  list. Two selectable lists on one phone page with ticks in both would stack their bottom bars;
+  the README advises one at a time.

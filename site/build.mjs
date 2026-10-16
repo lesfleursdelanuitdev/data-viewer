@@ -304,9 +304,9 @@ async function checkNoOtherSites() {
 
 // ── build ──
 const pkgDist = join(root, 'packages', 'data-viewer', 'dist');
-// The viewer, the json adapter and the four filter styles' add-on files.
+// The viewer, the json adapter, the four filter styles' add-on files and the select add-on.
 const PKG_FILES = ['data-viewer.standalone.js', 'data-viewer-json.js',
-  ...['panel', 'bar', 'rail', 'columns'].map((n) => `data-viewer-filter-${n}.js`)];
+  ...['panel', 'bar', 'rail', 'columns'].map((n) => `data-viewer-filter-${n}.js`), 'data-viewer-select.js'];
 for (const f of PKG_FILES) {
   if (!existsSync(join(pkgDist, f))) fail(`missing ${join(pkgDist, f)}: run \`npm run build\` first`);
 }

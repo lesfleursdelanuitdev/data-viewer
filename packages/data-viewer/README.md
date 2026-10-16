@@ -312,7 +312,7 @@ declare module 'react' {
         label?: string; 'url-state'?: string; layout?: 'table' | 'cards'; 'phone-layout'?: 'table' | 'cards'; 'remember-as'?: string;
         'page-size'?: number; 'page-sizes'?: string; pager?: 'simple' | 'numbers';
         'layout-switch'?: 'none' | 'text' | 'icons' | 'both'; 'table-label'?: string; 'cards-label'?: string;
-        config?: string;
+        selectable?: boolean; 'row-key'?: string; config?: string;
       };
     }
   }
@@ -423,6 +423,11 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `filterLabel` | `filter-label` | string | `words.filter` (`Filter`) | The filter button's words when nothing is applied. |
 | `filterChips` | `filter-chips` | `'on'` or `'off'` | `'on'` | The applied filters as chips under the bar. |
 | `filterStyle` | `filter-style` | `'dialog'`, `'panel'`, `'bar'`, `'rail'` or `'columns'` | `'dialog'` | How the filter looks. Each style but `dialog` needs its own file. See [Filter styles](#filter-styles). |
+| `selectable` | `selectable` | boolean | `false` | Rows and cards get check boxes and the selection bar. Needs `data-viewer-select.js`. See [Selecting rows](#selecting-rows). |
+| `rowKey` | `row-key` | string, or `(row) => string` | `'id'` | What identifies a row for ticking. |
+| `batchActions` | none | `MenuItem[]` | `[]` | The selection bar's actions. |
+| `selected` | none | `string[]` | `[]` | The ticked keys; setting it replaces them (no event). |
+| `selectedAll` | none (read only) | boolean | `false` | True after "Select all N matching". |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
@@ -710,6 +715,138 @@ The viewer adds these hooks:
 | `.dv-root[data-filter-open]` | While the panel's draft is open (the list dims) |
 | `.dv-root[data-filter-side]`, `.dv-side`, `.dv-main` | With `rail`: the rail's column and the list's column |
 | `.dv-filtered` | With `columns`: a filtered column's header and body cells |
+
+## Selecting rows
+
+With `selectable`, every row and every card gets a check box, and while anything is ticked a
+selection bar with your batch actions takes the search bar's place. Drawing the boxes and the bar
+is an add-on of its own, so pages that don't tick rows don't load it:
+
+| | File or import |
+|---|---|
+| Plain page (after `data-viewer.standalone.js`) | `<script type="module" src="data-viewer-select.js"></script>` (`dist/data-viewer-select.js`) |
+| npm (import once) | `import '@lesfleursdelanuitdev/data-viewer/select';` |
+
+The add-on holds no Lit (it draws with the viewer's copy) and is about 3 KB gzipped. Without it a
+`selectable` list draws as if it weren't selectable, and once the page has loaded the console gets
+one warning: `lfdln-data-viewer: selectable needs data-viewer-select.js.` If the file loads later,
+the boxes appear. The selection itself (`selected`, `clearSelection()`, the events) works without
+the add-on; only the drawing needs it.
+
+| Property | Attribute | Type | Default | What it does |
+|---|---|---|---|---|
+| `selectable` | `selectable` | boolean | `false` | Rows and cards get check boxes, and the selection bar shows while anything is ticked. Needs the add-on. |
+| `rowKey` | `row-key` | string, or `(row) => string` in JS | `'id'` | What identifies a row, so ticks survive paging. A row whose key is missing or empty can't be ticked (its box is disabled), and the console warns once per page: `lfdln-data-viewer: some rows have no key (row-key="id"), so they can't be ticked.` |
+| `batchActions` | none | `MenuItem[]` | `[]` | The actions in the selection bar, shaped like the row ⋯ menu's items (`id`, `label`, `icon`, `danger`, `disabled`). A batch item's `confirm` and `href` are ignored. Settable from a setup file. |
+| `selected` | none | `string[]` | `[]` | The ticked keys, in the order they were ticked. Setting it replaces the selection: keys become strings, empty and repeated ones are dropped, "all matching" turns off, and no event fires. |
+| `selectedAll` | none | boolean, read only | `false` | True after "Select all N matching". |
+| `clearSelection()` | none | method | | Clears everything and fires `dv-select`. |
+
+### What you see
+
+- **Table.** A first column of boxes (44 px wide on phones, with `phone-layout="table"`). The
+  header box is named "Select all on this page"; it shows a dash (`aria-checked="mixed"`) when
+  only part of the page is ticked, and it is disabled when no row on the page can be ticked. Each
+  row's box is named "Select {name}", where the name is the row's title (its first column, as
+  in the row ⋯ menu). A ticked row gets the class `dv-selected` and `aria-selected="true"`.
+- **Cards.** A box first in each card's head. Tapping the box ticks it; tapping anywhere else still
+  opens the card. Your own cards (`cardTemplate`, `cardMount`, a `<template>`) get the box too, in
+  a `dv-select-slot` the viewer puts first in the card. A ticked card gets `dv-selected` (an
+  accent outline).
+- **The selection bar.** While anything is ticked it replaces the bar above the list (search,
+  filter, views and the layout switch); in a `compact` list it is drawn above the list. It reads
+  "3 selected" (a polite live region), then the first 3 actions as buttons, the rest in a ⋯ menu
+  named "More actions", then ✕ ("Clear selection"). `danger` actions are drawn in `--dv-danger`;
+  a `disabled` one stays focusable and does nothing. **To search or filter again, clear the
+  selection** (✕ or Esc): the search box comes back when nothing is ticked. Chips, the rail and a
+  filter style's summary stay.
+- **The select-all line.** When every row on the page is ticked and more rows match than the page
+  holds, a line under the bar reads "All 20 on this page are selected. **Select all 54
+  matching**", and after pressing it "All 54 are selected. **Clear selection**". It needs a known
+  number of matching rows (in server mode, `total`), and `compact` lists never show it.
+- **Keyboard.** Each box is a real `<input type="checkbox">`, so Tab and Space work. Esc in the
+  bar clears the selection (Esc in the open ⋯ menu only closes the menu). After ✕, Esc, "Clear
+  selection" or an action that clears, focus goes to the list's first row box that can be ticked,
+  or to the search box when there is none.
+
+### How long ticks last
+
+- Ticks are kept by key. **Paging, sorting and the page size keep them.** A new search, "Search
+  in" column, filter or view clears them (and "all matching"), and fires `dv-select`.
+- When `rows` is set again in browser mode, keys that are no longer there are dropped (no event).
+- A selection that reaches 0 (the last box unticked, or every row unticked after "all matching")
+  clears: the bar goes and "all matching" turns off.
+- After an action, the selection clears and `dv-select` fires, unless the `dv-batch` handler
+  called `preventDefault()`.
+
+### All matching, and `except`
+
+"Select all N matching" turns `all` on. Unticking a row after that keeps `all` on and records its
+key in `except`; the bar then reads "53 selected".
+
+- **Browser mode** (every row is on hand): `selected`, and `dv-batch`'s `keys` and `rows`, are
+  every row that matches the search, filters and view, minus `except`.
+- **Server mode**: the list only knows the pages it has shown, so `keys` and `rows` are the ticked
+  rows from the pages seen. Act on everything that matches `detail.query`, minus `detail.except`,
+  on your server.
+
+### Batch actions
+
+```js
+const list = document.querySelector('#plants');
+list.batchActions = [
+  { id: 'export', label: 'Export' },
+  { id: 'delete', label: 'Delete', danger: true },
+];
+list.addEventListener('dv-batch', async (e) => {
+  const { action, keys, rows, all, except, query } = e.detail;
+  if (action === 'export') download(rows);
+  if (action === 'delete') {
+    // There's no built-in "Are you sure?": ask here. preventDefault() keeps the rows ticked.
+    if (!confirm(`Delete ${keys.length} plants?`)) return e.preventDefault();
+    await fetch('/plants/delete', { method: 'POST', body: JSON.stringify(all ? { query, except } : { keys }) });
+  }
+});
+```
+
+`preventDefault()` has to be called before the handler's first `await`. Without it, the selection
+clears once the handler returns.
+
+In a [setup file](#setup-in-its-own-file), `selectable`, `rowKey` and `batchActions` are keys
+like any other, and `on` takes the two events:
+
+```js
+// plants-list.js
+export default {
+  label: 'Plants',
+  selectable: true,
+  rowKey: 'name',
+  batchActions: [{ id: 'export', label: 'Export' }, { id: 'delete', label: 'Delete', danger: true }],
+  on: {
+    'dv-batch': (e) => console.log(e.detail.action, e.detail.keys),
+    'dv-select': (e) => console.log(e.detail.keys.length, 'ticked'),
+  },
+};
+```
+
+### On phones
+
+At 640 px or less the selection bar is fixed to the bottom of the screen (60 px tall, plus the
+safe area), with 44 px buttons and ✕ first. It holds the count, the first action (cut with "…"
+past 40% of the screen) and a ⋯ with all the other actions; with one action there is no ⋯. The
+list gets room under its end, so the bar never covers the last row or the pages. The select-all
+line sits at the top of the list, under where the bar was. Each box's target is at least 44 px.
+
+If two selectable lists on one page both have ticked rows, their bottom bars sit on top of each
+other. On phones, keep one selectable list per page, or let only one list hold ticks at a time
+(call the other's `clearSelection()` on `dv-select`).
+
+### Words and styling
+
+The add-on's words can be replaced through `words` like any other (see [Words](#words)). Its
+`<style id="lfdln-dv-select-style">` goes right after the viewer's, once per page, with every
+rule inside `:where()` and only the `--dv-*` colours. The classes to style are `dv-selected`,
+`dv-select-bar`, `dv-select-all` and `dv-select-box` (see [Class names](#class-names)).
 
 ## The table
 
@@ -1057,7 +1194,9 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 | `dv-query` | `{ page, search, sort, dir, view, size, searchIn?, filters? }` | What to show changed, in both modes. `dir` is `'asc'` or `'desc'`. `size` is the rows per page in use: the visitor's pick when there is a picker, otherwise `page-size`. `searchIn` (the "Search in" column) and `filters` are there only when set. |
 | `dv-open` | `{ row }` | A card or a first cell was pressed and the row has no `href`. |
 | `dv-action` | `{ id, row }` (and `item`) | A menu item or the footer button was pressed (after its confirm, if any). From a `data-action` element in [your own card](#your-own-cards), `detail` also has `item: { id, label }`. |
-| `dv-layout` | `{ layout }` | The table-or-cards switch changed. |
+| `dv-layout` | `{ layout }` | The visitor pressed the table-or-cards switch (not when the list crosses 640 px). |
+| `dv-select` | `{ keys, all, except }` | The selection changed: a box, the select-all line, ✕, Esc, a clearing search, filter or view, an action, or `clearSelection()`. Not when `selected` is set from code. See [Selecting rows](#selecting-rows). |
+| `dv-batch` | `{ action, keys, rows, all, except, query }` | A selection bar action was pressed. Cancelable: `preventDefault()` keeps the selection; otherwise it clears. |
 
 ## Address
 
@@ -1197,6 +1336,20 @@ box's the search package's `SearchWords` and the filter's the filter package's `
 The numbers handed to `showing`, `pageOf` and `pageNumber` are already formatted for the locale.
 `defaultWords` is exported.
 
+The [select add-on](#selecting-rows) adds 8 words, with the numbers already formatted
+(`defaultSelectWords` is exported from `@lesfleursdelanuitdev/data-viewer/select`):
+
+| Key | Default |
+|---|---|
+| `selectedCount(n)` | `${n} selected` |
+| `selectRow(name)` | `Select ${name}` (each box's name) |
+| `selectPage` | `Select all on this page` (the header box) |
+| `pageSelected(n)` | `All ${n} on this page are selected.` |
+| `selectAllMatching(n)` | `Select all ${n} matching` |
+| `allSelected(n)` | `All ${n} are selected.` |
+| `clearSelection` | `Clear selection` (✕, and the line's button) |
+| `moreActions` | `More actions` (the bar's ⋯) |
+
 ## Styling
 
 The viewer adds one `<style id="lfdln-dv-style">` as the first child of `<head>`, and the menu,
@@ -1271,6 +1424,12 @@ These are the styling interface.
 | `dv-card-open` | The link or button the viewer puts in a template card's open control (it also has `lfdln-card-link`) |
 | `dv-card-mount` | The empty element `cardMount` draws into |
 | `dv-badge` | A `badge` column's pill |
+| `dv-selected` | A ticked row (`<tr>`) or card |
+| `dv-select-bar` | The selection bar (`role="toolbar"`): `dv-select-count`, `dv-select-action` (a `danger` one has `data-danger`), `dv-select-more` (the ⋯), `dv-select-clear` (✕) |
+| `dv-select-all` | The "Select all N matching" line under the selection bar |
+| `dv-select-box` | A check box (`<input type="checkbox">`), inside its tap target `dv-select-hit` |
+| `dv-select-cell` | The table's box column (header and cells) |
+| `dv-select-slot` | Where the box goes in your own card |
 | `lfdln-card`, `lfdln-card-head`, `lfdln-card-link`, `lfdln-card-title`, `lfdln-card-badge`, `lfdln-card-body`, `lfdln-card-picture`, `lfdln-card-fact`, `lfdln-card-foot`, `lfdln-card-meta`, `lfdln-card-value`, `lfdln-card-action`, `lfdln-card-actions`, `lfdln-card-actions-row`, `lfdln-card-actions-more`, `lfdln-card-more`, `lfdln-card-danger` | A card's parts: see the [card package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#class-names) (they were `dv-card-*` before the split) |
 | `lfdln-menu-wrap`, `lfdln-menu-button`, `lfdln-menu-list`, `lfdln-menu-item`, `lfdln-menu-label`, `lfdln-menu-icon`, `lfdln-menu-desc`, `lfdln-menu-why`, `lfdln-menu-heading`, `lfdln-menu-group`, `lfdln-menu-danger`, `lfdln-menu-confirm` | The ⋯ menus and the confirm dialog: see the [menu package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#class-names) (they were `dv-menu-*` and `dv-confirm`) |
 | `lfdln-pagination-nav`, `lfdln-pagination-status`, `lfdln-pagination-page`, `lfdln-pagination-info`, `lfdln-pagination-size`, `lfdln-pagination-pager`, `lfdln-pagination-numbers`, `lfdln-pagination-current`, `lfdln-pagination-gap`, `lfdln-pagination-now` | The pages bar: see the [pagination package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#class-names) (they were `dv-pages`, `dv-numbers`, …) |
@@ -1293,6 +1452,9 @@ At 640 px wide or less:
   buttons and the layout switch's buttons are at least 44 px wide too.
 - Numbered pages give way to "Page 5 of 12" between Previous and Next.
 - The page never scrolls sideways. A table scrolls inside its own box.
+- A selectable list's selection bar is fixed to the bottom of the screen: ✕, the count, the
+  first action and a ⋯ with the rest. The list gets room under its end so the bar never covers
+  it. See [Selecting rows, on phones](#on-phones).
 
 ## Accessibility
 

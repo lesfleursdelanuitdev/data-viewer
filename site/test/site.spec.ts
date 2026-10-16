@@ -42,6 +42,7 @@ test.describe('live demos', () => {
     ['/docs/setup-file/', 'lfdln-data-viewer .dv-table'],
     ['/docs/custom-cards/', 'lfdln-data-viewer .dv-card-custom'],
     ['/docs/filter-styles/', 'lfdln-data-viewer .lfdln-filter-trigger'],
+    ['/docs/selection/', 'lfdln-data-viewer .dv-select-box'],
     ['/docs/server-pages/', 'lfdln-data-viewer .dv-table'],
     ['/docs/light-dark/', 'lfdln-data-viewer .dv-root'],
     ['/docs/menu/', 'lfdln-menu .lfdln-menu-button'],
@@ -310,6 +311,83 @@ test.describe('filter styles', () => {
       const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
       expect(scroll, name).toBeLessThanOrEqual(inner);
     }
+  });
+});
+
+// /docs/selection/: the plants, selectable (row-key="name"), with Export and Delete (danger).
+// The page loads data-viewer-select.js before it sets selectable, so the viewer never warns.
+test.describe('selection', () => {
+  const list = (page: Page) => page.locator('[data-host] lfdln-data-viewer');
+  const box = (page: Page, name: string) => list(page).getByRole('checkbox', { name: `Select ${name}`, exact: true });
+
+  test('the demo ticks rows and Export writes to the events strip', async ({ page }) => {
+    await page.goto('/docs/selection/');
+    await box(page, 'Foxglove').check();
+    await box(page, 'Lavender').check();
+    const bar = list(page).locator('.dv-select-bar');
+    await expect(bar.locator('.dv-select-count')).toHaveText('2 selected');
+    await expect(list(page).locator('.dv-table tr.dv-selected')).toHaveCount(2);
+    // Delete is drawn in the danger colour.
+    const danger = await list(page).evaluate((el) => {
+      const probe = el.appendChild(Object.assign(document.createElement('span'), { style: 'color: var(--dv-danger)' }));
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    });
+    await expect(bar.getByRole('button', { name: 'Delete' })).toHaveCSS('color', danger);
+    await bar.getByRole('button', { name: 'Export' }).click();
+    // Newest first: the dv-select of the clearing, then the dv-batch.
+    const events = page.locator('[data-events] .event');
+    await expect(events.nth(0)).toContainText('dv-select{"keys":[],"all":false,"except":[]}');
+    await expect(events.nth(1)).toContainText('dv-batch');
+    await expect(events.nth(1)).toContainText('"action":"export"');
+    await expect(events.nth(1)).toContainText('"keys":["Foxglove","Lavender"]');
+    // The selection cleared after the export.
+    await expect(bar).toHaveCount(0);
+    await expect(list(page).locator('.dv-table tr.dv-selected')).toHaveCount(0);
+    // The table/cards switch: cards get boxes too.
+    await list(page).getByRole('button', { name: 'Show cards' }).click();
+    await box(page, 'Foxglove').check();
+    await expect(list(page).locator('.lfdln-card.dv-selected')).toHaveCount(1);
+  });
+
+  test('the code tabs show the select import', async ({ page }) => {
+    await page.goto('/docs/selection/');
+    await page.getByRole('tab', { name: 'HTML', exact: true }).click();
+    await expect(page.locator('pre.code-view:visible')).toContainText('data-viewer-select.js');
+    await expect(page.locator('pre.code-view:visible')).toContainText('selectable');
+    await page.getByRole('tab', { name: 'npm', exact: true }).click();
+    await expect(page.locator('pre.code-view:visible')).toContainText("import '@lesfleursdelanuitdev/data-viewer/select'");
+  });
+
+  test('at 390 px the bar is at the bottom and nothing is wider than the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/docs/selection/');
+    // Phones show cards.
+    await expect(list(page).locator('.dv-cards')).toBeVisible();
+    await box(page, 'Foxglove').check();
+    const bar = list(page).locator('.dv-select-bar');
+    const b = (await bar.boundingBox())!;
+    expect(Math.round(b.y + b.height)).toBe(844);
+    expect(b.x).toBe(0);
+    expect(b.width).toBe(390);
+    // ✕, the count, Export, and Delete in the ⋯.
+    await expect(bar.locator('button.dv-select-action:visible')).toHaveText(['Export']);
+    await expect(bar.getByRole('button', { name: 'More actions' })).toBeVisible();
+    const [sw, cw] = await bar.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+    expect(sw).toBe(cw);
+    const [scroll, inner] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(scroll).toBeLessThanOrEqual(inner);
+  });
+
+  test('no console warnings or errors', async ({ page }) => {
+    const problems = watch(page);
+    await page.goto('/docs/selection/');
+    await expect(box(page, 'Foxglove')).toBeVisible();
+    await box(page, 'Foxglove').check();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(300);
+    expect(problems).toEqual([]);
   });
 });
 
