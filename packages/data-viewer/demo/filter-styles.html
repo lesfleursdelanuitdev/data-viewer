@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, filter styles</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>data-viewer, filter styles</h1>
+  <h2>Plants with today's dialog</h2>
+  <lfdln-data-viewer id="plants" label="Plants" url-state="plants" layout="table"></lfdln-data-viewer>
+  <h2>A test style, registered after the list has drawn</h2>
+  <lfdln-data-viewer id="test" label="Plants (test style)" url-state="test" filter-style="probe" layout="table"></lfdln-data-viewer>
+  <h2>A style that is never loaded: the dialog, and one warning</h2>
+  <lfdln-data-viewer id="missing" label="Plants (missing style)" filter-style="nope" layout="table"></lfdln-data-viewer>
+  <script type="module" src="./filter-styles.ts"></script>
+</body>
+</html>

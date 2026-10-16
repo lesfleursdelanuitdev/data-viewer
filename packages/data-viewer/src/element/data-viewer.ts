@@ -8,7 +8,8 @@ import { renderCard, renderCardActions, type CardActions, type CardHooks } from 
 import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
 import {
   defaultFilterWords, normalise, removeChip, renderFilter, renderFilterChips,
-  type FilterSection, type FilterValue, type FilterWords,
+  type FilterHandlers, type FilterSection, type FilterStyle, type FilterStyleHandlers, type FilterStyleView,
+  type FilterValue, type FilterView, type FilterWords,
 } from '@lesfleursdelanuitdev/filter';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
@@ -21,6 +22,8 @@ import { columnsIn } from './column.ts';
 import { CustomCards, planOf, type CardMount, type CardSource, type CardTemplate } from './custom-cards.ts';
 import { adapterNamed, whenRegistered } from '../adapters/register.ts';
 import { newWarnings, splitConfig } from '../core/config.ts';
+import { onFilterStyle, pickFilterStyle } from '../core/filter-styles.ts';
+import { viewerKit } from './filter-kit.ts';
 import type { ListConfig } from './setup.ts';
 import type { LfdlnDvColumn } from './column.ts';
 
@@ -141,9 +144,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     searchSubmitLabel: { type: String, attribute: 'search-submit-label' },
     filterLabel: { type: String, attribute: 'filter-label' },
     filterChips: { type: String, attribute: 'filter-chips' },
+    filterStyle: { type: String, attribute: 'filter-style' },
     _q: { state: true },
     _fDraft: { state: true },
     _fActive: { state: true },
+    _fMenu: { state: true },
     _fSearch: { state: true },
     _fPhone: { state: true },
     _configuring: { state: true },
@@ -222,15 +227,22 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare filterLabel: string | undefined;
   /** 'on' (the default) shows the applied filters as chips under the bar; 'off' doesn't. */
   declare filterChips: string | undefined;
+  /** The filter's design: 'dialog' (the default) or a registered style's name (see registerFilterStyle). */
+  declare filterStyle: string | undefined;
   // The filter's state: its draft (null while closed), its open section, its option search.
   declare _fDraft: FilterValue | null;
   declare _fActive: string | null;
+  declare _fMenu: string | null; // an instant style's open menu (its section key)
   declare _fSearch: string;
   declare _fPhone: boolean;
   private _fMedia: MediaQueryList | undefined;
   private _onFMedia = () => {
     this._fPhone = Boolean(this._fMedia?.matches);
   };
+  // The filter style in use (undefined: the dialog), and the registry listener that draws again
+  // when a style is registered (it may be the one asked for, or its fallback).
+  private _fStyle: FilterStyle | undefined;
+  private _unStyle: (() => void) | undefined;
   declare _configuring: boolean;
   declare _failReason: string | undefined;
   // Config: the newest setup wins; its on handlers are kept so they can be taken off again.
@@ -333,6 +345,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.searchIn = false;
     this._fDraft = null;
     this._fActive = null;
+    this._fMenu = null;
     this._fSearch = '';
     this._fPhone = false;
   }
@@ -348,6 +361,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._fMedia = matchMedia(FILTER_PHONE);
     this._fMedia.addEventListener('change', this._onFMedia);
     this._onFMedia();
+    this._unStyle = onFilterStyle(() => {
+      if (this.filterStyle) this.requestUpdate();
+    });
     this.layout = this._remembered() ?? this.layout ?? (matchMedia(PHONE).matches ? 'cards' : 'table');
     if (this._prefix) {
       window.addEventListener('popstate', this._onPop);
@@ -365,6 +381,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPop);
     this._fMedia?.removeEventListener('change', this._onFMedia);
+    this._unStyle?.();
+    this._unStyle = undefined;
     this._fDraft = null;
     for (const [type, fn] of this._cfgOn) this.removeEventListener(type, fn);
     clearTimeout(this._timer);
@@ -446,6 +464,23 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // New rows or a new total from the host answer the last query in server mode.
     if (this._answered && this._server) this.busy = false;
     this._answered = false;
+    this._pickStyle();
+  }
+
+  // The filter style for this drawing, after its fallback for the list's width and layout.
+  // Another style (a new filter-style, a style registered late, a fallback) closes the filter
+  // and drops its draft.
+  private _pickStyle(): void {
+    // No filter-style: no lookup, and no width read (it forces a layout).
+    const style = this.filterStyle
+      ? pickFilterStyle(this.filterStyle, { width: this.clientWidth, layout: this.layout === 'cards' ? 'cards' : 'table' })
+      : undefined;
+    if (style !== this._fStyle && this.hasUpdated) {
+      this._fDraft = null;
+      this._fMenu = null;
+    }
+    this._fStyle = style;
+    style?.styles();
   }
 
   /** The words in use: the defaults with the page's own on top. */
@@ -793,8 +828,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this._change({ filters: normalise(sections, value), page: 1 });
   }
 
-  private _filter(w: Words, sections: FilterSection[]): TemplateResult {
-    return renderFilter({
+  // What the filter shows and does: the dialog's, and the start of a style's.
+  private _filterView(w: Words, sections: FilterSection[]): FilterView {
+    return {
       sections,
       value: this._q.filters ?? {},
       draft: this._fDraft,
@@ -805,7 +841,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       words: w,
       uid: `${this._uid}-f`,
       label: this.filterLabel || undefined,
-    }, {
+    };
+  }
+
+  private _filterHandlers(sections: FilterSection[]): FilterHandlers {
+    return {
       onOpen: () => {
         this._fDraft = structuredClone(this._q.filters ?? {});
         this._fActive = this._fPhone ? null : sections[0]?.key ?? null;
@@ -835,13 +875,39 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         this._fDraft = {};
         this._applyFilters({}, sections);
       },
-    });
+    };
+  }
+
+  // The style's view and handlers. results: the rows the applied filters leave; total: all rows
+  // in browser mode (null in server mode). countFor is filled in later (null: not known).
+  private _styled(w: Words, sections: FilterSection[], results: number | null): { view: FilterStyleView; on: FilterStyleHandlers } {
+    return {
+      view: {
+        ...this._filterView(w, sections),
+        countFor: null,
+        results,
+        total: this._server ? null : (this.rows ?? []).length,
+        menu: this._fMenu,
+      },
+      on: {
+        ...this._filterHandlers(sections),
+        onApplyNow: (next) => this._applyFilters(next, sections),
+        onMenu: (key) => {
+          this._fMenu = key;
+        },
+      },
+    };
+  }
+
+  private _filter(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
+    if (this._fStyle && styled) return this._fStyle.render(styled.view, styled.on, viewerKit);
+    return renderFilter(this._filterView(w, sections), this._filterHandlers(sections));
   }
 
   // The applied filters as chips under the bar. After a removal, focus goes to the next chip's
   // ×, or to the filter button when none is left.
   private _chips(w: Words, sections: FilterSection[]): TemplateResult | typeof nothing {
-    if ((this.filterChips ?? '').trim().toLowerCase() === 'off') return nothing;
+    if ((this.filterChips ?? '').trim().toLowerCase() === 'off' || this._fStyle?.showsApplied) return nothing;
     const refocus = (index: number) => void this.updateComplete.then(() => {
       const xs = this.querySelectorAll<HTMLElement>(':scope > .dv-root > .lfdln-filter-chips .lfdln-filter-chip-x');
       (xs[Math.min(index, xs.length - 1)] ?? this.querySelector<HTMLElement>(':scope > .dv-root .lfdln-filter-button'))?.focus();
@@ -946,8 +1012,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const failedEmpty = this._failed && rows.length === 0;
 
     const sections = this.compact ? [] : this._sections();
+    // With a filter style: what it is drawn from, shared by the bar and the table's header hook.
+    const styled = this._fStyle && sections.length
+      ? this._styled(w, sections, this._server ? (this._mode === 'unknown' ? null : total) : total)
+      : undefined;
     return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'}>
-      ${this.compact ? nothing : this._bar(w, sections)}
+      ${this.compact ? nothing : this._bar(w, sections, styled)}
       ${this.compact ? nothing : this._chips(w, sections)}
       ${this._failed
         ? html`<div class="dv-error" role="alert">
@@ -961,16 +1031,16 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           ? html`<p class="dv-empty" aria-hidden="true">${w.empty}</p>`
           : this.layout === 'cards'
             ? this._cards(rows)
-            : this._table(rows, w)}
+            : this._table(rows, w, sections, styled)}
       ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}
       ${this._confirm(w)}
     </div>`;
   }
 
-  private _bar(w: Words, sections: FilterSection[]): TemplateResult {
+  private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
     return html`<div class="dv-bar">
       <div class="dv-search">${this._searchBox(w)}</div>
-      ${sections.length ? html`<div class="dv-filter">${this._filter(w, sections)}</div>` : nothing}
+      ${sections.length ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
       ${this.views?.length
         ? html`<nav class="dv-views" aria-label=${w.views}>
             ${this.views.map((v) => {
@@ -1049,20 +1119,26 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     return col.align ? col.align === 'right' : col.type === 'number' || col.type === 'money';
   }
 
-  private _table(rows: T[], w: Words): TemplateResult {
+  private _table(rows: T[], w: Words, sections: FilterSection[] = [], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
     const cols = this.columns;
+    // A style's header hook, drawn after the sort button in each column that has a section.
+    const style = this._fStyle;
+    const head = (c: Column<T>, index: number) => {
+      const s = style?.header && styled ? sections.find((x) => x.key === c.key) : undefined;
+      return s ? style!.header!(s, { index, of: cols.length }, styled!.view, styled!.on, viewerKit) : nothing;
+    };
     return html`<div class="dv-table-wrap">
       <table class="dv-table" aria-label=${this.label || nothing}>
         <thead>
           <tr>
-            ${cols.map((c) => {
+            ${cols.map((c, i) => {
               const sorted = this._q.sort === c.key;
               const ariaSort = sorted ? (this._q.dir === 'desc' ? 'descending' : 'ascending') : nothing;
               return html`<th scope="col" class=${this._right(c) ? 'dv-right' : ''} aria-sort=${ariaSort}>
                 ${c.sortable
                   ? html`<button type="button" @click=${() => this._sortBy(c.key)}>${c.label}<span
                         aria-hidden="true">${sorted ? (this._q.dir === 'desc' ? '↓' : '↑') : ''}</span></button>`
-                  : c.label}
+                  : c.label}${head(c, i)}
               </th>`;
             })}
             <th scope="col"><span class="dv-sr">${w.actions}</span></th>
