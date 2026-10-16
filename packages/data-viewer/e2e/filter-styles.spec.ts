@@ -2599,3 +2599,56 @@ test.describe('sentence', () => {
     });
   });
 });
+
+// Opening a menu, by keyboard or by click, leaves the page where it is: the menu is placed before
+// it takes focus. The server demos above load late and push the page down, so this waits for them
+// first (as the sentence's Space test does) and compares scrollY and the opener's place on screen.
+test.describe('opening a menu does not scroll the page', () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  const openers: [string, (page: Page) => ReturnType<Page['locator']>, string][] = [
+    ['a sentence phrase', (page) => page.locator('#sentence .lfdln-filter-sentence-phrase[data-key="light"]'), '#sentence .lfdln-filter-col-menu'],
+    ['a column funnel', (page) => page.locator('#columns').getByRole('button', { name: 'Filter by Kind' }), '#columns .lfdln-filter-col-menu'],
+    ['a bar pill', (page) => page.locator('#bar .lfdln-filter-bar-pill').first(), '#bar .lfdln-filter-popover'],
+  ];
+  for (const [name, opener, menu] of openers) {
+    for (const how of ['Enter', 'click'] as const) {
+      test(`${name}, by ${how}`, async ({ page }) => {
+        const { problems } = await open(page);
+        for (const id of ['panel-server', 'search-server', 'search-equals', 'vprobe-server']) {
+          await expect(page.locator(`#${id} tbody tr`).first()).toBeVisible();
+        }
+        const el = opener(page);
+        await el.focus();
+        await page.waitForTimeout(300);
+        const where = async (): Promise<[number, number]> => [await page.evaluate(() => Math.round(scrollY)),
+          await el.evaluate((e) => Math.round(e.getBoundingClientRect().top))];
+        const [y, top] = await where();
+        if (how === 'Enter') await page.keyboard.press('Enter');
+        else await el.click();
+        await expect(page.locator(menu)).toHaveCount(1);
+        await page.waitForTimeout(300); // a smooth scroll would take time to show
+        const [y2, top2] = await where();
+        expect(Math.abs(y2 - y)).toBeLessThan(5);
+        expect(Math.abs(top2 - top)).toBeLessThan(5);
+        expect(problems).toEqual([]);
+      });
+    }
+  }
+
+  test('the search field, by typing', async ({ page }) => {
+    const { problems } = await open(page);
+    for (const id of ['panel-server', 'search-server', 'search-equals', 'vprobe-server']) {
+      await expect(page.locator(`#${id} tbody tr`).first()).toBeVisible();
+    }
+    const input = sfInput(page);
+    await input.focus();
+    await page.waitForTimeout(300);
+    const y = await page.evaluate(() => Math.round(scrollY));
+    await input.pressSequentially('her');
+    await expect(sfList(page).getByRole('option', { name: /Herb/ })).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(Math.abs((await page.evaluate(() => Math.round(scrollY))) - y)).toBeLessThan(5);
+    expect(problems).toEqual([]);
+  });
+});
