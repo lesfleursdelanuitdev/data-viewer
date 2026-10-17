@@ -92,3 +92,29 @@ test.describe('phone', () => {
     expect((await picker(page).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   });
 });
+
+// The search box keeps one width whichever layout shows: cards add "Sort by" to the bar, and the
+// search never grows into (or gives up) the line's free space for it.
+for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test.describe(`search width (${where})`, () => {
+    test.use({ viewport });
+    test('the search box is as wide in cards as in the table', async ({ page }) => {
+      await open(page);
+      const full = page.locator('#full');
+      const width = () => full.locator('.dv-search').evaluate((e) => ({
+        search: e.getBoundingClientRect().width,
+        input: e.querySelector('input')!.getBoundingClientRect().width,
+        picker: (() => { const a = e.querySelector('select')!.getBoundingClientRect(); const b = e.querySelector('input')!.getBoundingClientRect(); return a.top < b.bottom && b.top < a.bottom; })(),
+      }));
+      await expect(full.locator('.dv-table')).toBeVisible();
+      const table = await width();
+      await full.locator('.dv-layout button').nth(1).click();
+      await expect(full.getByRole('combobox', { name: 'Sort by' })).toBeVisible();
+      const cards = await width();
+      expect(Math.abs(cards.search - table.search)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(cards.input - table.input)).toBeLessThanOrEqual(0.5);
+      // On a wide screen "Search in" stays beside the box, in both layouts.
+      if (where === 'wide') expect([table.picker, cards.picker]).toEqual([true, true]);
+    });
+  });
+}

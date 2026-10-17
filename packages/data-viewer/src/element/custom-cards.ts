@@ -5,11 +5,13 @@ import { compile, fill, type Fields, type Plan } from '../core/card-template.ts'
 import type { Content } from '../core/types.ts';
 
 /**
- * What a custom card gets besides its row: the row's ⋯ menu and its menu items as footer buttons
- * (Lit content for cardTemplate, kept-up-to-date elements for cardMount; empty without items), and
- * a field's text formatted like its column (what {{key}} gives).
+ * What a custom card gets besides its row: the row's ⋯ menu, its menu items as footer buttons and
+ * its select box (Lit content for cardTemplate, kept-up-to-date elements for cardMount; empty
+ * without items, or when the list isn't selectable), and a field's text formatted like its column
+ * (what {{key}} gives). A card that doesn't place `select` gets the box in the viewer's fallback
+ * slot, at its top left.
  */
-export type CardPieces<C> = { menu: C; actions: C; text: (key: string) => string };
+export type CardPieces<C> = { menu: C; actions: C; select: C; text: (key: string) => string };
 export type CardTemplate<T> = (row: T, pieces: CardPieces<Content>) => Content;
 export type CardMount<T> = (el: HTMLElement, row: T, pieces: CardPieces<HTMLElement>) => void | (() => void);
 
@@ -30,7 +32,7 @@ export type CardHost<T> = {
   actions: (row: T, id: string) => TemplateResult | typeof nothing;
   open: (row: T) => void;
   action: (row: T, id: string, label: string) => void;
-  box?: (row: T) => TemplateResult | typeof nothing; // the select box, put first in its own slot
+  box?: (row: T) => TemplateResult | typeof nothing; // the select box: in the card's <dv-select>, else the fallback slot
   ticked?: (row: T) => boolean; // dv-selected on the card
 };
 
@@ -56,6 +58,9 @@ type Card = {
   menus: Element[];
   actions: Element[];
   mount?: HTMLElement;
+  // The <dv-select> the box is drawn in: the template's own, or the viewer's (cardMount hands it
+  // over; cardTemplate draws its own and uses this one only as the fallback).
+  select: HTMLElement;
   copy?: boolean; // made from an HTML template: the viewer named it when it was built
 };
 let seq = 0; // ids of built cards
@@ -113,31 +118,44 @@ export class CustomCards<T> {
     const actions = this.h.actions(row, `${c.id}-a`);
     for (const m of c.menus) render(menu, m as HTMLElement);
     for (const a of c.actions) render(actions, a as HTMLElement);
+    const box = this.h.box?.(row) ?? nothing;
+    let placed = false; // cardTemplate drew pieces.select itself
     if (s.kind === 'lit') {
       const text = (k: string) => this.h.text(row, k);
-      render(s.fn(row, { menu: menu === nothing ? '' : menu, actions: actions === nothing ? '' : actions, text }), c.li);
+      const select = box === nothing ? '' : html`<dv-select>${box}</dv-select>`;
+      render(s.fn(row, { menu: menu === nothing ? '' : menu, actions: actions === nothing ? '' : actions, select, text }), c.li);
+      placed = box !== nothing && [...c.li.querySelectorAll('dv-select')].some((e) => e !== c.select);
     }
-    // The select box goes in a slot of the viewer's own, first in the card (the template's own
-    // drawing comes after it).
-    const box = this.h.box?.(row) ?? nothing;
-    let slot = c.li.querySelector<HTMLElement>(':scope > .dv-select-slot');
-    if (box === nothing) slot?.remove();
-    else {
-      if (!slot) {
-        slot = document.createElement('div');
-        slot.className = 'dv-select-slot';
-        c.li.prepend(slot);
-      }
-      render(box, slot);
-    }
+    this.place(c, placed ? nothing : box);
     c.li.classList.toggle('dv-selected', Boolean(this.h.ticked?.(row)));
     return c.li;
+  }
+
+  // The box goes in the card's <dv-select>: the one the card placed (its template's, or the one
+  // cardMount was given, wherever the app put it). A card that placed none gets it in the viewer's
+  // fallback slot (class dv-select-slot), first in the card, which the select style puts at the
+  // card's top left. Nothing is moved once placed, so focus stays on a ticked box.
+  private place(c: Card, box: TemplateResult | typeof nothing): void {
+    const el = c.select;
+    const slot = el.classList.contains('dv-select-slot');
+    if (box === nothing) {
+      if (slot) el.remove();
+      render(nothing, el);
+      return;
+    }
+    render(box, el);
+    if (slot && el.parentNode !== c.li) el.classList.remove('dv-select-slot'); // the app moved it
+    else if (!c.li.contains(el)) {
+      el.classList.add('dv-select-slot');
+      c.li.prepend(el);
+    }
   }
 
   private build(row: T, s: CardSource<T>, href: string | undefined): Card {
     const li = document.createElement('li');
     li.className = 'dv-card dv-card-custom';
-    const c: Card = { li, src: undefined, key: '', id: `${this.h.uid}-k${seq++}`, menus: [], actions: [] };
+    const select = document.createElement('dv-select');
+    const c: Card = { li, src: undefined, key: '', id: `${this.h.uid}-k${seq++}`, menus: [], actions: [], select };
     if (s.kind === 'mount') {
       c.mount = document.createElement('div');
       c.mount.className = 'dv-card-mount';
@@ -151,6 +169,9 @@ export class CustomCards<T> {
       c.menus = refs.menus as unknown as Element[];
       c.actions = refs.actions as unknown as Element[];
       li.append(copy);
+      // The template's first <dv-select> (one data-if didn't take out) gets the box.
+      const own = (refs.selects as unknown as HTMLElement[]).find((e) => li.contains(e));
+      if (own) c.select = own;
       const open = refs.open as unknown as HTMLElement | null;
       if (open) {
         // The open control's contents go into a link or a button whose ::after covers the card.
@@ -210,13 +231,17 @@ export class CustomCards<T> {
       if (c.mount && this.mountFn && !this.mounted.has(row)) {
         let cleanup: (() => void) | undefined;
         try {
-          const out = this.mountFn(c.mount, row, { menu: c.menus[0] as HTMLElement, actions: c.actions[0] as HTMLElement, text: (k) => this.h.text(row, k) });
+          const out = this.mountFn(c.mount, row, {
+            menu: c.menus[0] as HTMLElement, actions: c.actions[0] as HTMLElement, select: c.select, text: (k) => this.h.text(row, k),
+          });
           if (typeof out === 'function') cleanup = out;
         } catch (err) {
           c.mount.replaceChildren(); // only this card is left empty
           console.error(err);
         }
         this.mounted.set(row, { el: c.mount, cleanup });
+        // The app put pieces.select in its card: it is no longer the fallback slot.
+        if (c.select.parentNode !== c.li) c.select.classList.remove('dv-select-slot');
       }
       if (!c.copy) this.name(c.li);
     }

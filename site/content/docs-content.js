@@ -489,7 +489,7 @@ export function Plants() {
       '`{{key}}` gives a column’s key in that column’s format: `{{price}}` is `€6.50`. `data-if="key"` leaves an element out when the field is empty.',
       '`data-open` (or else the first heading) opens the card, and the whole card is its hit area. `data-action="id"` fires `dv-action`.',
       'Fields always go in as text. An address with a field is checked, and a field in `on…` or `style` drops the attribute.',
-      'The ⋯ menu’s items still come from `cardOf`; `<dv-menu>` and `<dv-actions>` say where they go.',
+      'The ⋯ menu’s items still come from `cardOf`; `<dv-menu>` and `<dv-actions>` say where they go. In a `selectable` list, `<dv-select>` (or `pieces.select`) says where the check box goes.',
     ],
     mount: (host) => {
       host.innerHTML = `<style>
@@ -716,6 +716,7 @@ define();
       'Without `data-viewer-select.js` a `selectable` list draws as before, with one console warning. If the file loads later, the boxes appear.',
       'Ticks are kept by `row-key` (default `id`) through paging and sorting. A new search, filter or view clears them.',
       'Up to 3 actions show as buttons, the rest in a ⋯ menu. On phones: the first one and a ⋯.',
+      'On a card the box and the card’s ⋯ share the top row, the box at the left and the ⋯ at the right, with the title under them. Your own cards get the box as `pieces.select` (`<dv-select>` in a `<template>`): put it in your card’s header. A card that doesn’t place it gets it at its top left.',
       'After an action the selection clears. Call `preventDefault()` on `dv-batch` to keep it, for example when the visitor says no to your own `confirm()`.',
       'Phones now show cards even with `layout="table"`. Add `phone-layout="table"` to keep a table on phones.',
       'This demo deletes without asking, so you can try it quickly; reload the page to get the rows back. The HTML tab shows how to ask first.',
@@ -734,7 +735,8 @@ define();
         { key: 'light', label: 'Light', sortable: true },
         { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true },
       ];
-      list.cardOf = (p) => ({ title: p.name, badge: p.kind, facts: [p.light], value: euros.format(p.price) });
+      // A ⋯ menu on each card: the box sits at its top left, the ⋯ at its top right, the name below.
+      list.cardOf = (p) => ({ title: p.name, badge: p.kind, facts: [p.light], value: euros.format(p.price), menu: [{ id: 'care', label: 'Care notes' }] });
       list.batchActions = [
         { id: 'export', label: 'Export' },
         { id: 'delete', label: 'Delete', danger: true },

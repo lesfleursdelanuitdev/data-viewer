@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 // demo/select.html, with the select add-on: #table (54 rows, 20 per page, phone-layout="table"),
 // #cards (built-in cards, open-event, 3 actions), #cardof (cardOf, 1 action), #tpl (cardTemplate), #mount (cardMount), #compact (5 rows),
@@ -20,6 +20,32 @@ async function open(page: Page) {
 }
 const rowBox = (page: Page, list: string, name: string) =>
   page.locator(`#${list}`).getByRole('checkbox', { name: `Select ${name}`, exact: true });
+// The card's box is wholly inside the card's visible area (within its border, so a card with
+// overflow: hidden and round corners can't cut it).
+const boxInside = (card: Locator) => card.evaluate((li) => {
+  const c = li.getBoundingClientRect();
+  const s = getComputedStyle(li);
+  const b = li.querySelector('.dv-select-box')!.getBoundingClientRect();
+  const r = parseFloat(s.borderTopLeftRadius) || 0;
+  // inside the border, and past the round corner's reach
+  const left = c.left + parseFloat(s.borderLeftWidth);
+  const top = c.top + parseFloat(s.borderTopWidth);
+  const corner = r * (1 - Math.SQRT1_2);
+  return b.left >= left + corner - 0.5 && b.top >= top + corner - 0.5 && b.right <= c.right && b.bottom <= c.bottom;
+});
+// In a card with selection and a ⋯ menu: the box and the ⋯ on one centre line (±2 px), the box at
+// the left, the ⋯ at the right, the title under them.
+async function headRow(card: Locator, title: string) {
+  const hit = (await card.locator('.dv-select-box').boundingBox())!;
+  const menu = (await card.locator('button[aria-haspopup=menu]').first().boundingBox())!;
+  const t = (await card.locator(title).boundingBox())!;
+  const c = (await card.boundingBox())!;
+  expect(Math.abs((hit.y + hit.height / 2) - (menu.y + menu.height / 2))).toBeLessThanOrEqual(2);
+  expect(hit.x + hit.width / 2).toBeLessThan(c.x + c.width / 3);
+  expect(menu.x + menu.width / 2).toBeGreaterThan(c.x + (c.width * 2) / 3);
+  expect(t.y).toBeGreaterThanOrEqual(Math.min(hit.y + hit.height, menu.y + menu.height) - 1);
+  expect(await boxInside(card)).toBe(true);
+}
 const row = (page: Page, name: string) =>
   page.locator('#table tbody tr').filter({ has: page.getByRole('checkbox', { name: `Select ${name}`, exact: true }) });
 
@@ -135,8 +161,8 @@ test.describe('cards', () => {
   test('a card\'s box sits in its head; tapping the box ticks, tapping elsewhere opens', async ({ page }) => {
     await open(page);
     const card = page.locator('#cards li.lfdln-card').first();
-    await expect(page.locator('#cards .lfdln-card-head > .dv-select-hit').first()).toBeVisible();
-    expect(await card.locator('.lfdln-card-head').evaluate((h) => h.firstElementChild?.className)).toBe('dv-select-hit');
+    await expect(page.locator('#cards .lfdln-card-head > .lfdln-card-start > .dv-select-hit').first()).toBeVisible();
+    expect(await card.locator('.lfdln-card-head').evaluate((h) => h.firstElementChild?.className)).toBe('lfdln-card-start');
     // A real click on the box (Playwright checks nothing covers it: the title's ::after doesn't).
     await card.locator('.dv-select-box').click();
     await expect(card).toHaveClass(/\bdv-selected\b/);
@@ -152,8 +178,12 @@ test.describe('cards', () => {
     test(`custom cards get the box from the viewer (#${id}); tapping the box ticks, the card opens`, async ({ page }) => {
       await open(page);
       const card = page.locator(`#${id} li.dv-card-custom`).first();
-      await expect(card.locator(':scope > .dv-select-slot .dv-select-box')).toHaveCount(1);
+      // These cards don't place pieces.select: the box is in the viewer's fallback slot, a
+      // <dv-select> first in the card, at its top left inside the card.
+      await expect(card.locator(':scope > dv-select.dv-select-slot .dv-select-box')).toHaveCount(1);
       await expect(page.locator(`#${id} li > .dv-select-slot .dv-select-box`)).toHaveCount(20);
+      expect(await card.locator(':scope > .dv-select-slot').evaluate((e) => getComputedStyle(e).position)).toBe('absolute');
+      await expect.poll(() => boxInside(card)).toBe(true);
       await card.locator('.dv-select-box').click();
       await expect(card).toHaveClass(/\bdv-selected\b/);
       expect(await events(page, 'dv-open')).toEqual([]);
@@ -177,6 +207,61 @@ test.describe('cards', () => {
     expect(bar.y + bar.height).toBeLessThanOrEqual(table.y);
   });
 });
+
+// The card's head row: the box at the top left, the ⋯ at the top right, the title under them; on a
+// wide screen and on a phone, in the built-in card and in custom cards that place pieces.select.
+for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test.describe(`card head row (${where})`, () => {
+    test.use({ viewport });
+    test('built-in cards: the box and the ⋯ share one row at opposite sides, the title below', async ({ page }) => {
+      await open(page);
+      const card = page.locator('#heads li.lfdln-card').first();
+      await card.scrollIntoViewIfNeeded();
+      await headRow(card, '.lfdln-card-title');
+      // A long title can't move them.
+      const long = page.locator('#heads li.lfdln-card').nth(1);
+      await long.locator('.lfdln-card-title').evaluate((t) => { t.textContent = 'A very long name '.repeat(8); });
+      await headRow(long, '.lfdln-card-title');
+      // Selection off: the row holds only the ⋯, at the right.
+      await page.locator('#heads').evaluate((el: HTMLElement & { selectable: boolean }) => { el.selectable = false; });
+      await expect(card.locator('.dv-select-box')).toHaveCount(0);
+      const menu = (await card.locator('button[aria-haspopup=menu]').boundingBox())!;
+      const c = (await card.boundingBox())!;
+      expect(menu.x + menu.width).toBeGreaterThan(c.x + c.width - 24);
+      expect(menu.y + menu.height).toBeLessThanOrEqual((await card.locator('.lfdln-card-title').boundingBox())!.y + 1);
+    });
+
+    for (const id of ['tplhead', 'mounthead', 'htmlhead']) {
+      test(`custom cards that place pieces.select (#${id}) get it in their own header`, async ({ page }) => {
+        await open(page);
+        const card = page.locator(`#${id} li.dv-card-custom`).first();
+        await card.scrollIntoViewIfNeeded();
+        await expect(card.locator('.head > dv-select .dv-select-box')).toHaveCount(1);
+        await expect(page.locator(`#${id} .dv-select-slot`)).toHaveCount(0);
+        await headRow(card, `.${id}-name`);
+        // A card with overflow: hidden doesn't cut it.
+        await card.evaluate((li) => li.classList.add('clip'));
+        expect(await boxInside(card)).toBe(true);
+        await card.locator('.dv-select-box').click();
+        await expect(card).toHaveClass(/\bdv-selected\b/);
+        expect(await events(page, 'dv-open')).toEqual([]);
+      });
+    }
+
+    for (const id of ['tpl', 'mount']) {
+      test(`custom cards that don't place it (#${id}): the fallback box is inside the card, not clipped`, async ({ page }) => {
+        await open(page);
+        const card = page.locator(`#${id} li.dv-card-custom`).first();
+        await card.scrollIntoViewIfNeeded();
+        await card.evaluate((li) => li.classList.add('clip'));
+        expect(await boxInside(card)).toBe(true);
+        // Nothing covers it: a real click ticks.
+        await card.locator('.dv-select-box').click();
+        await expect(card).toHaveClass(/\bdv-selected\b/);
+      });
+    }
+  });
+}
 
 test('the add-on loaded later draws the boxes', async ({ page }) => {
   await page.goto('/select-late.html');
@@ -540,8 +625,8 @@ test.describe('cardOf cards', () => {
   test('a cardOf card gets the box; tapping it ticks without opening', async ({ page }) => {
     await open(page);
     const card = page.locator('#cardof li.lfdln-card').first();
-    await expect(card.locator('.lfdln-card-head > .dv-select-hit .dv-select-box')).toHaveCount(1);
-    await expect(card.locator('.lfdln-card-head > .dv-select-hit .dv-select-box')).toHaveAttribute('aria-label', 'Select Rose 1');
+    await expect(card.locator('.lfdln-card-start > .dv-select-hit .dv-select-box')).toHaveCount(1);
+    await expect(card.locator('.lfdln-card-start > .dv-select-hit .dv-select-box')).toHaveAttribute('aria-label', 'Select Rose 1');
     await card.locator('.dv-select-box').click();
     await expect(card).toHaveClass(/\bdv-selected\b/);
     await expect(card.locator('.dv-select-box')).toBeChecked();

@@ -208,8 +208,27 @@ type Column<T> = {
 
 `cardOf(row)` returns the card's parts. The rules are today's, from the shop-admin-ui plan:
 
-- **header:** title (two lines at most, the whole of it on hover), badge, and the ⋯ menu at the
-  upper right;
+- **header:** a top row with the select box at the left (in a `selectable` list) and the ⋯ menu
+  at the right, on one centre line; then the title (two lines at most, the whole of it on hover)
+  and its badge. Without a box the row holds only the ⋯; without either there is no row. A long
+  title never moves the box or the ⋯ (decided by momolig 2026-10-17, with this mockup):
+
+  ```
+  ┌──────────────────────────┐
+  │ ☐                     ⋯  │
+  │ Rose jam                 │
+  │ [On sale]                │
+  │ ┌──────picture─────────┐ │
+  │ 3 jars · 250 g           │
+  │ updated 2 days ago  €6.50│
+  └──────────────────────────┘
+  ```
+
+  Custom cards get the box as a piece, `pieces.select` (`<dv-select>` in a template), the way they
+  get `pieces.menu`, and put it in their own header. A custom card that doesn't place it gets it in
+  the viewer's fallback slot (`.dv-select-slot`), absolutely positioned at the card's top left
+  inside its padding and above the open layer, so `overflow: hidden` and round corners never clip
+  it;
 - **body:** picture (one shape for all cards), two facts at most, nothing to press;
 - **footer:** the time on the left, the money on the right, at most one button;
 - the whole card opens the thing (`href` or the `dv-open` event). The menu and the footer's button
@@ -362,6 +381,12 @@ confirmation before `dv-action` fires.
   A newer query cancels the one still running (`AbortController`).
 
 ## Look and accessibility
+
+- **Even spacing (house style, momolig 2026-10-17).** Padding and margins are even unless momolig
+  says otherwise: left equals right, top equals bottom. That includes the visible gaps, not only
+  the CSS values: the space after a chevron or a trailing icon equals the space before the text,
+  and a control at a card's or a bar's edge sits as far from that edge on both sides. Check it in
+  the browser (the e2e tests measure it), not only in the stylesheet.
 
 - Class names `dv-root`, `dv-bar`, `dv-table`, `dv-card`, `dv-card-head`, … are documented, because
   they are the styling interface. Built-in rules sit inside `:where()`, so any page rule wins.

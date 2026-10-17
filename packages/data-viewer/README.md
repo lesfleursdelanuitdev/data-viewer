@@ -958,10 +958,19 @@ the add-on; only the drawing needs it.
   only part of the page is ticked, and it is disabled when no row on the page can be ticked. Each
   row's box is named "Select {name}", where the name is the row's title (its first column, as
   in the row ⋯ menu). A ticked row gets the class `dv-selected` and `aria-selected="true"`.
-- **Cards.** A box first in each card's head. Tapping the box ticks it; tapping anywhere else still
-  opens the card. Your own cards (`cardTemplate`, `cardMount`, a `<template>`) get the box too, in
-  a `dv-select-slot` the viewer puts first in the card. A ticked card gets `dv-selected` (an
-  accent outline).
+- **Cards.** The box and the card's ⋯ menu share the card's top row: the box at the top left, the
+  ⋯ at the top right, both on one centre line, and the title under them, so a long title never
+  moves either. Without a ⋯ the row holds only the box, and with selection off only the ⋯.
+  Tapping the box ticks it; tapping anywhere else still opens the card. A ticked card gets
+  `dv-selected` (an accent outline).
+- **Your own cards** (`cardTemplate`, `cardMount`, a `<template>`) get the box as a piece, like
+  the ⋯ menu: `pieces.select` (`<dv-select>` in a template). Put it in your card's header, at the
+  left of `pieces.menu`, and the two line up as in the built-in card. A card that doesn't place it
+  still gets the box: the viewer puts it in a fallback slot, `<dv-select class="dv-select-slot">`
+  first in the card, absolutely positioned at the card's top left inside its padding (0.5rem in,
+  the 44 px target at the corner on phones) and above the open layer, so a card with
+  `overflow: hidden` and round corners never cuts it. The fallback may cover the top left of your
+  card's own content, so placing the piece is better.
 - **The selection bar.** While anything is ticked it replaces the bar above the list (search,
   filter, views and the layout switch), and the `views` tabs or the `sentence` above it are hidden
   too, so with `sentence` (or `search`) nothing shows the applied filters until the selection is
@@ -1238,6 +1247,7 @@ only for a new row object or a new template.
 | `data-action="id"` | A click fires `dv-action` with `{ id, item: { id, label }, row }`, where `label` is the element's text. Like a menu item, but with no confirm. |
 | `<dv-menu>` | The row's ⋯ menu, from `cardOf(row).menu`, with confirm for `confirm` items. Nothing when the row has no items. |
 | `<dv-actions>` | The row's menu items as buttons, laid out by `card-actions` (`wrap`, the default here, or `row`) and `card-actions-max`, the rest in a More menu. |
+| `<dv-select>` | In a `selectable` list, the row's check box (the first `<dv-select>` gets it). Put it beside `<dv-menu>` in your card's header; without one, the box goes in the fallback slot at the card's top left. |
 
 Menu items still come only from `cardOf(row).menu`, so a list with `<dv-menu>` or `<dv-actions>`
 sets `cardOf` from a script or a [setup file](#setup-in-its-own-file). After filling, `data-if` is
@@ -1275,6 +1285,9 @@ keep it if focus matters). `pieces`:
 
 - `pieces.menu`: the row's ⋯ menu (what `<dv-menu>` shows), or nothing.
 - `pieces.actions`: the row's menu items as buttons (what `<dv-actions>` shows), or nothing.
+- `pieces.select`: the row's check box in a `<dv-select>` (what `<dv-select>` shows), or nothing
+  when the list isn't `selectable`. Put it in your header beside `pieces.menu`; left out, the box
+  goes in the fallback slot at the card's top left (see [Selecting rows](#selecting-rows)).
 - `pieces.text(key)`: the field as `{{key}}` would give it, formatted like its column.
 
 The function runs on every drawing of the list; Lit only changes what changed.
@@ -1307,8 +1320,26 @@ list.cardMount = (el, row, pieces) => {
 };
 ```
 
-Here `pieces.menu` and `pieces.actions` are elements (`<dv-menu>` and `<dv-actions>`) that the
-viewer keeps up to date; put them where you want them in your card. `pieces.text(key)` is as above.
+Here `pieces.menu`, `pieces.actions` and `pieces.select` are elements (`<dv-menu>`, `<dv-actions>`
+and `<dv-select>`) that the viewer keeps up to date; put them where you want them in your card.
+`pieces.select` stays empty when the list isn't `selectable`. Until your card places it (React
+does so in an effect), the box shows in the fallback slot at the card's top left.
+`pieces.text(key)` is as above.
+
+A header row with the box at the left and the ⋯ at the right:
+
+```jsx
+function PlantCard({ plant, pieces }) {
+  const head = useRef(null);
+  useEffect(() => { head.current.append(pieces.select, pieces.menu); }, [pieces]);
+  return (
+    <>
+      <div ref={head} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} />
+      <button type="button" data-open>{plant.name}</button>
+    </>
+  );
+}
+```
 
 The viewer calls `cardMount` after it draws, for each card that is new on the screen, and the
 cleanup for each card that left: another page, a search, a filter, a sort, new `rows`, the switch
@@ -1615,6 +1646,7 @@ Set the variables on `:root` or on the element:
 | `--dv-danger` | `#b42318` | `#ff8a80` | Danger items, the error box |
 | `--dv-radius` | `8px` | `8px` | Corners |
 | `--dv-font` | `system-ui, -apple-system, "Segoe UI", sans-serif` | same | The font |
+| `--dv-search-width` | unset | unset | The search box's width in the bar (unset: `22rem`, or `30rem` with the "Search in" picker). It never grows into the line's free space, so it keeps one width in the table and in cards (where "Sort by" joins the bar); the controls after it keep to the bar's right end. On phones it fills its line, shared only with the Filter button. |
 
 Inside a list, the menus', the pager's and the cards' own variables (`--menu-*`,
 `--pagination-*`, `--card-*`) are set from these, so `--dv-*` themes all of it. Set
@@ -1658,7 +1690,7 @@ These are the styling interface.
 | `dv-select-all` | The "Select all N matching" line under the selection bar |
 | `dv-select-box` | A check box (`<input type="checkbox">`), inside its tap target `dv-select-hit` |
 | `dv-select-cell` | The table's box column (header and cells) |
-| `dv-select-slot` | Where the box goes in your own card |
+| `dv-select-slot` | The fallback slot (a `<dv-select>`) for the box in your own card when the card doesn't place `pieces.select` |
 | `lfdln-card`, `lfdln-card-head`, `lfdln-card-link`, `lfdln-card-title`, `lfdln-card-badge`, `lfdln-card-body`, `lfdln-card-picture`, `lfdln-card-fact`, `lfdln-card-foot`, `lfdln-card-meta`, `lfdln-card-value`, `lfdln-card-action`, `lfdln-card-actions`, `lfdln-card-actions-row`, `lfdln-card-actions-more`, `lfdln-card-more`, `lfdln-card-danger` | A card's parts: see the [card package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#class-names) (they were `dv-card-*` before the split) |
 | `lfdln-menu-wrap`, `lfdln-menu-button`, `lfdln-menu-list`, `lfdln-menu-item`, `lfdln-menu-label`, `lfdln-menu-icon`, `lfdln-menu-desc`, `lfdln-menu-why`, `lfdln-menu-heading`, `lfdln-menu-group`, `lfdln-menu-danger`, `lfdln-menu-confirm` | The ⋯ menus and the confirm dialog: see the [menu package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#class-names) (they were `dv-menu-*` and `dv-confirm`) |
 | `lfdln-pagination-nav`, `lfdln-pagination-status`, `lfdln-pagination-page`, `lfdln-pagination-info`, `lfdln-pagination-size`, `lfdln-pagination-pager`, `lfdln-pagination-numbers`, `lfdln-pagination-current`, `lfdln-pagination-gap`, `lfdln-pagination-now` | The pages bar: see the [pagination package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#class-names) (they were `dv-pages`, `dv-numbers`, …) |

@@ -12,7 +12,10 @@ export const selectCss: string = `
 :where(.dv-select-box:disabled) { cursor: default; }
 :where(.dv-select-hit:has(.dv-select-box:disabled)) { cursor: default; opacity: 0.5; }
 :where(.dv-select-box:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
-:where(.dv-select-slot) { display: flex; }
+/* The box in a custom card: where the card put its <dv-select>, else in the viewer's fallback slot,
+   first in the card, which sits at the card's top left inside its padding, above the open layer. */
+:where(dv-select) { display: inline-flex; align-items: center; }
+:where(.dv-card-custom) > :where(.dv-select-slot) { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; }
 :where(.dv-table) :where(tr.dv-selected) :where(th, td) { background: color-mix(in srgb, var(--dv-accent) 12%, transparent); }
 /* An outline, not the border: the card's own style comes later and sets its border. */
 :where(.lfdln-card.dv-selected, .dv-card-custom.dv-selected) { outline: 2px solid var(--dv-accent); outline-offset: -1px; }
@@ -49,7 +52,9 @@ export const selectCss: string = `
 @media (max-width: 640px) {
   :where(.dv-table) :where(.dv-select-cell) { width: 44px; min-width: 44px; padding: 0; text-align: center; }
   :where(.dv-select-hit) { min-width: 44px; min-height: 44px; }
-  :where(.lfdln-card-head) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
+  /* The 44 px target reaches into the card's padding; the box itself stays where it was. */
+  :where(.lfdln-card-start) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
+  :where(.dv-card-custom) > :where(.dv-select-slot) { top: 0; left: 0; }
   /* Fixed to the bottom of the screen, 60 px tall, above the list; the list gets room under its
      end so nothing stays hidden. It holds ✕, the count (at most 2 lines), one action and ⋯; it
      scrolls sideways itself only when even those don't fit (long words). */

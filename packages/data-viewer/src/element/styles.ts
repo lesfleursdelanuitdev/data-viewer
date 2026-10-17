@@ -63,7 +63,14 @@ export const css: string = `
 }
 
 :where(.dv-bar) { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
-:where(.dv-search) { flex: 1 1 14rem; min-width: 0; }
+/* The search keeps one width whatever else the bar holds (the cards' Sort by, the views, the
+   switch): a set width that never grows into the line's free space, wider when it holds the
+   "Search in" picker so the picker stays beside the box. It shrinks when the screen is narrower.
+   Phones: it fills its own line, or shares it only with the Filter button. */
+:where(.dv-search) { flex: 0 1 var(--dv-search-width, 22rem); min-width: 0; max-width: 100%; }
+:where(.dv-search:has(.lfdln-search-in)) { flex-basis: var(--dv-search-width, 30rem); }
+/* The line's free space goes after the search, so the controls keep to the bar's right end. */
+:where(.dv-bar) > :where(.dv-search + *) { margin-left: auto; }
 :where(.dv-filter) { display: flex; min-width: 0; max-width: 100%; }
 :where(.dv-root) > :where(.lfdln-filter-chips) { margin: -0.25rem 0 0.75rem; }
 :where(.dv-views) { display: flex; flex-wrap: wrap; gap: 0.25rem; }
@@ -132,6 +139,8 @@ export const css: string = `
 @media (max-width: 640px) {
   :where(.dv-bar, .dv-error, .dv-table) :where(button, input, select, .dv-views a):where(:not(.lfdln-search-root *, .lfdln-filter-root *)) { min-height: 44px; }
   :where(.dv-layout) :where(button) { min-width: 44px; }
+  :where(.dv-search, .dv-search:has(.lfdln-search-in)) { flex: 1 1 100%; }
+  :where(.dv-search:has(+ .dv-filter)) { flex: 1 1 14rem; }
 }
 `;
 

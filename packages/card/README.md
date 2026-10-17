@@ -163,7 +163,9 @@ from its `--dv-*` variables. The menus use `--menu-*`.
 | Class | Part |
 |---|---|
 | `lfdln-card` | The card |
-| `lfdln-card-head` | Its header |
+| `lfdln-card-head` | Its header: a top row (the start at the left, the menus at the right, on one centre line), then the title with its badge |
+| `lfdln-card-start` | The header's top left: `headStart` (the data viewer's check box) |
+| `lfdln-card-end` | The header's top right: the page's own header menu and the ⋯ menu |
 | `lfdln-card-link` | The title's link or button (its `::after` covers the card) |
 | `lfdln-card-name` | The title when the card opens nothing |
 | `lfdln-card-title` | The title's text |

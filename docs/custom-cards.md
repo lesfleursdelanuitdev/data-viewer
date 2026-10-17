@@ -103,6 +103,7 @@ default card. The table view does not change: it keeps using `cardOf` / `card-*`
 | `data-action="id"` | A click fires `dv-action` with `{ id, item: { id, label }, row }` (label = the element's text). Same handling as a menu item, minus confirm. |
 | `<dv-menu>` / `pieces.menu` | The row's ⋯ menu (from `cardOf(row).menu`), with confirm for `confirm` items. |
 | `<dv-actions>` / `pieces.actions` | The row's menu items as footer buttons, laid out per `card-actions` (`wrap`/`row`, `card-actions-max`), overflow in a More menu. |
+| `<dv-select>` / `pieces.select` | In a `selectable` list, the row's check box, for the card's own header beside the ⋯ (added 2026-10-17). A card that doesn't place it gets the box in the viewer's fallback slot, `<dv-select class="dv-select-slot">` first in the card, absolutely positioned at its top left inside its padding, above the open layer. |
 
 After filling, `data-if` is removed from the copy; `data-open` and `data-action` stay on their
 elements (the viewer's CSS and its click listener find them by these attributes).

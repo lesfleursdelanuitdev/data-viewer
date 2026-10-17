@@ -1,5 +1,5 @@
 // Custom cards from an HTML <template>: one pass over the template records a plan (where the
-// {{fields}}, data-if, the open control and the <dv-menu> / <dv-actions> spots are), and each
+// {{fields}}, data-if, the open control and the <dv-menu> / <dv-actions> / <dv-select> spots are), and each
 // row's copy is filled by that plan. No DOM globals here: the node shapes below are all it
 // touches, so it runs (and is tested) without a browser.
 import type { Column } from './types.ts';
@@ -36,6 +36,8 @@ export type Plan = {
   open: Path | null;
   menus: Path[];
   actions: Path[];
+  /** <dv-select> spots: the first one gets the select box (else the viewer's fallback slot). */
+  selects: Path[];
   /** What was refused, for one console warning per template. */
   warnings: string[];
 };
@@ -78,7 +80,7 @@ const kids = (n: TNode): TNode[] => Array.from(n.childNodes ?? []);
  * scripts are taken out, refused attributes and data-if dropped, so copies of it need no cleaning.
  */
 export function compile(root: TNode): Plan {
-  const plan: Plan = { source: root, texts: [], attrs: [], ifs: [], open: null, menus: [], actions: [], warnings: [] };
+  const plan: Plan = { source: root, texts: [], attrs: [], ifs: [], open: null, menus: [], actions: [], selects: [], warnings: [] };
   let heading: Path | null = null;
   const strip = (n: TNode) => {
     for (const k of kids(n)) {
@@ -119,6 +121,7 @@ export function compile(root: TNode): Plan {
       if (!heading && /^h[1-6]$/.test(k.localName)) heading = p;
       if (k.localName === 'dv-menu') plan.menus.push(p);
       if (k.localName === 'dv-actions') plan.actions.push(p);
+      if (k.localName === 'dv-select') plan.selects.push(p);
       // A <style>'s text is CSS: fields are never put there.
       if (k.localName !== 'style') walk(k, p);
     });
@@ -141,15 +144,15 @@ function safeSrcset(v: string, url: Fields['url']): boolean {
 
 /**
  * Fills one copy of plan.source for one row. Field values go in as text (nodeValue,
- * setAttribute), never as markup. Returns the open control and the menu / actions spots.
+ * setAttribute), never as markup. Returns the open control and the menu / actions / select spots.
  */
-export function fill(plan: Plan, root: TNode, f: Fields): { open: TElement | null; menus: TElement[]; actions: TElement[] } {
+export function fill(plan: Plan, root: TNode, f: Fields): { open: TElement | null; menus: TElement[]; actions: TElement[]; selects: TElement[] } {
   // Every node is found first: removing a data-if element would shift the paths after it.
   const texts = plan.texts.map((t) => [at(root, t.path), t.parts] as const);
   const attrs = plan.attrs.map((a) => [at(root, a.path), a] as const);
   const ifs = plan.ifs.map((x) => [at(root, x.path), x.key] as const);
   const els = (paths: Path[]) => paths.map((p) => at(root, p)).filter((n): n is TElement => Boolean(n && isEl(n)));
-  const out = { open: plan.open ? (els([plan.open])[0] ?? null) : null, menus: els(plan.menus), actions: els(plan.actions) };
+  const out = { open: plan.open ? (els([plan.open])[0] ?? null) : null, menus: els(plan.menus), actions: els(plan.actions), selects: els(plan.selects) };
   const join = (parts: Part[]) => parts.map((p) => (typeof p === 'string' ? p : f.text(p.key))).join('');
   for (const [n, parts] of texts) if (n) n.nodeValue = join(parts);
   for (const [n, a] of attrs) {

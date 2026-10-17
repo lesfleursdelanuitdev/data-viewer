@@ -12,6 +12,11 @@
     .dv-card-custom { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; padding: 0.75rem;
       border: 1px solid var(--dv-border); border-radius: var(--dv-radius); background: var(--dv-surface); }
     .dv-card-custom p { margin: 0; }
+    /* #tplhead, #mounthead, #htmlhead: one header row, the box at the left and the ⋯ at the right. */
+    .dv-card-custom .head { display: flex; align-items: center; justify-content: space-between; align-self: stretch; min-height: 2rem; }
+    .dv-card-custom h3 { margin: 0; font-size: 1rem; }
+    .dv-card-mount { align-self: stretch; }
+    .dv-card-custom.clip { overflow: hidden; }
   </style>
 </head>
 <body>
@@ -29,6 +34,18 @@
   <lfdln-data-viewer id="tpl" label="Plants (template)" selectable layout="cards" open-event></lfdln-data-viewer>
   <h2>#mount: custom cards (cardMount)</h2>
   <lfdln-data-viewer id="mount" label="Plants (mount)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#heads: built-in cards with a ⋯ menu (box top left, ⋯ top right, the title below)</h2>
+  <lfdln-data-viewer id="heads" label="Plants (heads)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <h2>#tplhead, #mounthead, #htmlhead: custom cards that put pieces.select and pieces.menu in their own header</h2>
+  <lfdln-data-viewer id="tplhead" label="Plants (template head)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <lfdln-data-viewer id="mounthead" label="Plants (mount head)" selectable layout="cards" open-event></lfdln-data-viewer>
+  <lfdln-data-viewer id="htmlhead" label="Plants (HTML head)" selectable layout="cards" open-event>
+    <template card>
+      <div class="head"><dv-select></dv-select><dv-menu></dv-menu></div>
+      <h3 data-open class="htmlhead-name">{{name}}</h3>
+      <p class="htmlhead-kind">{{kind}}</p>
+    </template>
+  </lfdln-data-viewer>
   <h2>#compact: a compact list</h2>
   <lfdln-data-viewer id="compact" label="Plants (compact)" selectable compact></lfdln-data-viewer>
   <h2>#server: from a server (json adapter, 45 recipes)</h2>
