@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>select, a styled native dropdown</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    h2 { font-size: 1.1rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+    #narrow { width: 9rem; }
+    #big { --select-pad-x: 1rem; --select-chevron-size: 1rem; font-size: 1.25rem; }
+  </style>
+  <script type="module" src="/select.standalone.js"></script>
+</head>
+<body>
+  <h1>select, a styled native dropdown</h1>
+  <p>A real &lt;select&gt;: the opened list, the keyboard, forms and the phone picker are the browser's.
+    The gap before the text equals the gap after the chevron.</p>
+  <h2>&lt;lfdln-select&gt;</h2>
+  <form id="form" class="row">
+    <label for="fruit">Fruit</label>
+    <lfdln-select id="wrapped"><select id="fruit" name="fruit">
+      <option value="apple">Apple</option><option value="pear">Pear</option><option value="quince">Quince</option>
+    </select></lfdln-select>
+    <lfdln-select id="narrow"><select aria-label="Long words" name="long">
+      <option>A choice with a very long name indeed</option><option>Short</option>
+    </select></lfdln-select>
+    <lfdln-select id="big"><select aria-label="Size" name="size"><option>Large</option><option>Small</option></select></lfdln-select>
+    <lfdln-select id="off"><select aria-label="Off" disabled><option>Can't change</option></select></lfdln-select>
+  </form>
+  <h2>A plain &lt;select class="lfdln-select"&gt; (addSelectStyles())</h2>
+  <div class="row">
+    <select id="plain" class="lfdln-select" aria-label="Plain"><option>Twenty</option><option>Fifty</option></select>
+  </div>
+  <script type="module">
+    window.events = [];
+    for (const s of document.querySelectorAll('select')) {
+      for (const type of ['change', 'input']) s.addEventListener(type, () => window.events.push({ type, value: s.value }));
+    }
+  </script>
+</body>
+</html>

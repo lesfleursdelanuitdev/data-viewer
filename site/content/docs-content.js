@@ -199,7 +199,7 @@ const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
   { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'selection', 'server', 'scheme'] },
-  { name: 'Parts', items: ['menu', 'pagination', 'card', 'search', 'filter'] },
+  { name: 'Parts', items: ['menu', 'pagination', 'card', 'select', 'search', 'filter'] },
   { name: 'Reference', items: ['styling'] },
 ];
 
@@ -981,6 +981,48 @@ document.documentElement.style.colorScheme = 'dark';` },
             <lfdln-menu-item value="remove" danger confirm="Remove the fern?">Remove</lfdln-menu-item>
           </lfdln-card-footer>
         </lfdln-card></div>`;
+    },
+  },
+
+  select: {
+    nav: 'Dropdown', mono: 'lfdln-select', kicker: 'Parts', title: 'Dropdown',
+    intro: '`<lfdln-select>` puts a real `<select>` in a frame with its own chevron and even spacing: the gap before the text equals the gap after the chevron. The opened list, the keyboard, forms and the phone picker stay the browser’s. The list uses it for Search in, Sort by and Rows per page.',
+    tabs: [
+      { label: 'HTML', code: `<script type="module" src="/js/select.standalone.js"></script>
+
+<label for="light">Light</label>
+<lfdln-select>
+  <select id="light" name="light">
+    <option>Full sun</option>
+    <option>Part shade</option>
+    <option>Shade</option>
+  </select>
+</lfdln-select>
+
+<!-- Or keep your own select and opt in with one class -->
+<select class="lfdln-select" aria-label="Rows per page">
+  <option>20</option><option>50</option>
+</select>` },
+      { label: 'CSS', code: `/* Even spacing comes from the tokens: the chevron sits --select-pad-x from the right edge */
+lfdln-select { --select-pad-x: 0.75rem; --select-chevron-size: 0.8rem; }` },
+    ],
+    notes: [
+      'A bare select has the browser’s arrow about 3 px from its right edge and its text 10 px in. Here both gaps are the border plus `--select-pad-x`.',
+      '`change` and `input` fire on your `<select>` as always, and forms send its value.',
+      'In Lit, `renderSelect(html`<select …>`)` draws the same frame around your own select.',
+      'Package `@lesfleursdelanuitdev/select`.',
+    ],
+    mount: (host, ctx) => {
+      host.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+          <label for="sel-light">Light</label>
+          <lfdln-select><select id="sel-light" name="light"><option>Full sun</option><option>Part shade</option><option>Shade</option></select></lfdln-select>
+          <select class="lfdln-select" aria-label="Rows per page"><option>20</option><option>50</option></select>
+        </div><p data-said style="margin:16px 0 0;font-size:13px;opacity:.7">Pick one.</p>`;
+      const said = host.querySelector('[data-said]');
+      for (const s of host.querySelectorAll('select')) {
+        s.addEventListener('change', () => { said.textContent = `change: ${s.value}`; ctx.log?.('change', { value: s.value }); });
+      }
+      import('/js/select.standalone.js');
     },
   },
 

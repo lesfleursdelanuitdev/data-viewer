@@ -18,6 +18,9 @@
       "@lesfleursdelanuitdev/card": [
         "../card/dist/types/index.d.ts"
       ],
+      "@lesfleursdelanuitdev/select": [
+        "../select/dist/types/index.d.ts"
+      ],
       "@lesfleursdelanuitdev/search": [
         "../search/dist/types/index.d.ts"
       ],

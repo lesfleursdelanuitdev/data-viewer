@@ -17,6 +17,7 @@ export const ADDRESSES = {
   menu: '/docs/menu/',
   pagination: '/docs/pagination/',
   card: '/docs/card/',
+  select: '/docs/select/',
   search: '/docs/search/',
   filter: '/docs/filter/',
   styling: '/docs/styling/',
@@ -28,6 +29,7 @@ export const PACKAGE_PAGES = {
   menu: 'menu',
   pagination: 'pagination',
   card: 'card',
+  select: 'select',
   search: 'search',
   filter: 'filter',
   'search-filter': 'filterStyles', // it has no page of its own: its Reference follows the styles'
@@ -45,7 +47,7 @@ export const REFERENCE = {
     pkg: 'data-viewer',
     sections: [
       'A first list', 'Properties and attributes', 'Columns', 'Rows: two modes', 'The table', 'Cards',
-      'The layout switch', 'Events', 'HTML only', 'Accessibility', 'Browser support',
+      'Loading', 'The layout switch', 'Events', 'HTML only', 'Accessibility', 'Browser support',
     ],
   },
   config: { pkg: 'data-viewer', sections: ['Setup in its own file', 'Menus', 'Words', 'In React', 'In Lit'] },
@@ -60,6 +62,7 @@ export const REFERENCE = {
   menu: { pkg: 'menu', from: 'In HTML', skip: ['Install', 'Licence'] },
   pagination: { pkg: 'pagination', from: 'In HTML', skip: ['Install', 'Licence'] },
   card: { pkg: 'card', from: 'In HTML', skip: ['Install', 'Licence'] },
+  select: { pkg: 'select', from: 'In HTML', skip: ['Install', 'Licence'] },
   search: { pkg: 'search', from: 'In HTML', skip: ['Install', 'Licence'] },
   filter: { pkg: 'filter', from: 'In HTML', skip: ['Install', 'Licence'] },
 };

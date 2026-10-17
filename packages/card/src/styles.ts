@@ -66,7 +66,11 @@ export const cardCss: string = `
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85em; color: var(--card-muted); margin-top: auto;
 }
 /* One line; what doesn't fit wraps to a second row instead of squeezing the meta. */
-:where(.lfdln-card-meta) { margin-right: auto; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where(.lfdln-card-meta) {
+  margin-right: auto; min-width: min(100%, max-content); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* The meta and the value keep their whole text (a price never breaks inside a number): when they
+   and the button don't fit on one line, the button goes to a line of its own under them. */
 :where(.lfdln-card-value) { color: var(--card-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 :where(.lfdln-card-action) { white-space: nowrap; }
 :where(button.lfdln-card-action, .lfdln-card-actions > button) {

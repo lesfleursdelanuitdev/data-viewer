@@ -1,4 +1,5 @@
 import { html, nothing, svg, type TemplateResult } from 'lit';
+import { renderSelect } from '@lesfleursdelanuitdev/select';
 
 /** A field the "Search in" picker offers. */
 export type SearchField = { key: string; label: string };
@@ -80,11 +81,11 @@ export function renderSearch(v: SearchView, h: SearchHandlers): TemplateResult {
     </div>
     ${picker
       // ?selected picks the first time (the options come after the value is set); .value after that.
-      ? html`<select class="lfdln-search-in" id=${`${v.uid}-in`} aria-label=${v.words.searchIn}
+      ? renderSelect(html`<select class="lfdln-search-in" id=${`${v.uid}-in`} aria-label=${v.words.searchIn}
           .value=${v.in} @change=${(e: Event) => h.onIn((e.target as HTMLSelectElement).value)}>
           <option value="" ?selected=${!v.in}>${v.words.allFields}</option>
           ${v.fields.map((f) => html`<option value=${f.key} ?selected=${f.key === v.in}>${f.label}</option>`)}
-        </select>`
+        </select>`, 'lfdln-search-in-wrap')
       : nothing}
     ${submit
       ? html`<button type="button" class="lfdln-search-submit" aria-label=${v.submitLabel ? nothing : v.label}

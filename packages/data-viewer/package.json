@@ -72,6 +72,7 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/data-viewer.standalone.js"
     },
+    "./loading.css": "./dist/data-viewer-loading.css",
     "./package.json": "./package.json"
   },
   "files": [
@@ -91,7 +92,7 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build && vite build --mode standalone && vite build --mode standalone-json && vite build --mode standalone-pammy && vite build --mode standalone-filter-panel && vite build --mode standalone-filter-bar && vite build --mode standalone-filter-rail && vite build --mode standalone-filter-columns && vite build --mode standalone-filter-search && vite build --mode standalone-filter-views && vite build --mode standalone-filter-sentence && vite build --mode standalone-select && npm run types && npm run size && npm run no-lit",
     "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
-    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=47104 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072 dist/data-viewer-filter-panel.js=8192 dist/data-viewer-filter-bar.js=8192 dist/data-viewer-filter-rail.js=12288 dist/data-viewer-filter-columns.js=12288 dist/data-viewer-filter-search.js=12288 dist/data-viewer-filter-views.js=8192 dist/data-viewer-filter-sentence.js=8192 dist/data-viewer-select.js=8192",
+    "size": "node ../../scripts/size.mjs dist/data-viewer.standalone.js=50176 dist/data-viewer-json.js=3072 dist/data-viewer-pammy.js=3072 dist/data-viewer-filter-panel.js=8192 dist/data-viewer-filter-bar.js=8192 dist/data-viewer-filter-rail.js=12288 dist/data-viewer-filter-columns.js=12288 dist/data-viewer-filter-search.js=12288 dist/data-viewer-filter-views.js=8192 dist/data-viewer-filter-sentence.js=8192 dist/data-viewer-select.js=8192",
     "no-lit": "node --test ../../scripts/no-lit.test.mjs",
     "e2e": "playwright test"
   },
@@ -102,6 +103,7 @@
     "@lesfleursdelanuitdev/menu": "0.1.0",
     "@lesfleursdelanuitdev/pagination": "0.1.0",
     "@lesfleursdelanuitdev/card": "0.1.0",
+    "@lesfleursdelanuitdev/select": "0.1.0",
     "@lesfleursdelanuitdev/search": "0.1.0",
     "@lesfleursdelanuitdev/filter": "0.1.0",
     "@lesfleursdelanuitdev/search-filter": "0.1.0"

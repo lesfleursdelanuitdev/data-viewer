@@ -162,7 +162,7 @@ export const filterCss: string = `
 }
 :where(.lfdln-filter-sheet)::backdrop { background: rgb(0 0 0 / 0.4); }
 :where(.lfdln-filter-body) { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-:where(.lfdln-filter-handle) { width: 2.75rem; height: 0.25rem; margin: 0.5rem auto 0.25rem; background: var(--filter-border); border-radius: 999px; }
+:where(.lfdln-filter-handle) { width: 2.75rem; height: 0.25rem; margin: var(--lfdln-pop-pad-y, 12px) auto 0; background: var(--filter-border); border-radius: 999px; }
 :where(.lfdln-filter-sheet) :where(.lfdln-filter-head) { padding: 0.25rem 0.5rem 0.5rem 1rem; }
 :where(.lfdln-filter-sheet) :where(.lfdln-filter-draft) { padding: 0.5rem 1rem; }
 :where(.lfdln-filter-sheet) :where(.lfdln-filter-rows) { padding: 0.5rem; }

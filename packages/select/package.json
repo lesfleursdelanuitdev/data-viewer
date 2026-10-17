@@ -1,0 +1,54 @@
+{
+  "name": "@lesfleursdelanuitdev/select",
+  "version": "0.1.0",
+  "description": "A styled native dropdown for any page: <lfdln-select> around a real <select>, with its own chevron and even spacing. The opened list, the keyboard, forms and the phone picker stay the browser's.",
+  "license": "MIT",
+  "author": "Monica Gonsalves",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lesfleursdelanuitdev/data-viewer.git",
+    "directory": "packages/select"
+  },
+  "homepage": "https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/select#readme",
+  "bugs": "https://github.com/lesfleursdelanuitdev/data-viewer/issues",
+  "keywords": [
+    "web-component",
+    "custom-element",
+    "lit",
+    "select",
+    "dropdown"
+  ],
+  "type": "module",
+  "module": "./dist/select.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/select.js"
+    },
+    "./standalone": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/select.standalone.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/*.standalone.js"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build && vite build --mode standalone && npm run types && npm run size",
+    "types": "tsc -p tsconfig.build.json && node ../../scripts/fix-types.mjs",
+    "size": "node ../../scripts/size.mjs dist/select.standalone.js=8192",
+    "e2e": "playwright test"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  }
+}

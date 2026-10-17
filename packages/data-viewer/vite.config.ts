@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { demo, library, standalone } from '../../vite.shared.ts';
 
-const LIMIT = 46 * 1024; // the standalone viewer (menu, pager, card, search and filter inside) must stay under 46 KB gzipped
+const LIMIT = 49 * 1024; // the standalone viewer (menu, pager, card, dropdown, search and filter inside) must stay under 49 KB gzipped
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 const STYLE_LIMIT = 8 * 1024; // a filter style add-on (it draws with the viewer's Lit) stays under 8 KB
 const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel too (rail, columns, search) under 12 KB
@@ -69,7 +69,7 @@ function fakeApi(): Plugin {
   };
 }
 
-// The other packages' built standalone scripts, at /menu/…, /pagination/… and /card/…, so a demo
+// The other packages' built standalone scripts, at /menu/…, /pagination/…, /card/… and /select/…, so a demo
 // page can load several standalone scripts side by side (dev server only).
 function siblingDists(): Plugin {
   const dist = (name: string) => fileURLToPath(new URL(`../${name}/dist/`, import.meta.url));
@@ -77,7 +77,7 @@ function siblingDists(): Plugin {
     name: 'dv-sibling-dists',
     configureServer(server) {
       server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-        const m = /^\/(menu|pagination|card)\/([\w.-]+\.js)$/.exec(new URL(req.url ?? '/', 'http://localhost').pathname);
+        const m = /^\/(menu|pagination|card|select)\/([\w.-]+\.js)$/.exec(new URL(req.url ?? '/', 'http://localhost').pathname);
         if (!m) return next();
         try {
           const body = await readFile(dist(m[1]!) + m[2]!);

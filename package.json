@@ -1,12 +1,13 @@
 {
   "name": "lfdln-components",
   "private": true,
-  "description": "The data viewer and the menu, pagination and card it is built from: four packages, one repo.",
+  "description": "The data viewer and the menu, pagination, card, dropdown, search and filter it is built from, one repo.",
   "license": "MIT",
   "author": "Monica Gonsalves",
   "type": "module",
   "workspaces": [
     "packages/menu",
+    "packages/select",
     "packages/pagination",
     "packages/card",
     "packages/search",

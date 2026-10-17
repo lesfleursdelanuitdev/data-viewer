@@ -1,3 +1,5 @@
+import { addSelectStyles } from '@lesfleursdelanuitdev/select';
+
 // The pager's built-in look. Every rule sits inside :where() so any page rule wins, and the style
 // element goes first in <head> so page CSS loaded later wins ties too. Colours follow the page's
 // color-scheme through light-dark(), like the data viewer's.
@@ -29,9 +31,10 @@ export const paginationCss: string = `
 :where(.lfdln-pagination-status) { color: var(--pagination-muted); font-size: 0.9em; }
 :where(.lfdln-pagination-info) { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; min-width: 0; }
 :where(.lfdln-pagination-size) { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--pagination-muted); font-size: 0.9em; }
-:where(.lfdln-pagination-size) :where(select) {
-  font: inherit; color: var(--pagination-text); background: var(--pagination-bg); border: 1px solid var(--pagination-border);
-  border-radius: var(--pagination-radius); padding: 0.3rem 0.5rem; cursor: pointer;
+:where(.lfdln-pagination-size) {
+  /* Its dropdown (the select package) in the pager's colours. */
+  --select-bg: var(--pagination-bg); --select-text: var(--pagination-text); --select-border: var(--pagination-border);
+  --select-accent: var(--pagination-accent); --select-radius: var(--pagination-radius);
 }
 :where(.lfdln-pagination-pager) { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
 :where(.lfdln-pagination-numbers) { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
@@ -69,6 +72,7 @@ const ID = 'lfdln-pagination-style';
 
 /** Adds the pager's style once per document, first in <head> (every copy of this code checks the same id). */
 export function addPaginationStyles(doc: Document = document): void {
+  addSelectStyles(doc); // the Rows per page dropdown's
   if (doc.getElementById(ID)) return;
   const el = doc.createElement('style');
   el.id = ID;

@@ -118,3 +118,28 @@ for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone
     });
   });
 }
+
+// Every dropdown in the list (Search in, Sort by, Rows per page) is the select package's: the gap
+// before its text equals the gap after its chevron (±1 px), on a wide screen and on a phone.
+for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test.describe(`dropdowns (${where})`, () => {
+    test.use({ viewport });
+    test('each dropdown has even spacing around its text and chevron', async ({ page }) => {
+      await open(page);
+      const full = page.locator('#full');
+      await full.locator('.dv-layout button').nth(1).click();
+      const names = ['Search in', 'Sort by', 'Rows per page'];
+      for (const name of names) {
+        const sel = full.getByRole('combobox', { name });
+        await expect(sel).toBeVisible();
+        const g = await sel.evaluate((s: HTMLSelectElement) => {
+          const cs = getComputedStyle(s);
+          const chev = s.parentElement!.querySelector(':scope > .lfdln-select-chevron svg')!.getBoundingClientRect();
+          return { appearance: cs.appearance, left: parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft), right: s.getBoundingClientRect().right - chev.right };
+        });
+        expect(g.appearance, name).toBe('none');
+        expect(Math.abs(g.left - g.right), `${name}: ${JSON.stringify(g)}`).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+}

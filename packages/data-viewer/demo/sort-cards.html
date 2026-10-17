@@ -32,7 +32,7 @@
   </lfdln-data-viewer>
   <h2>A full bar (search in, panel filter, ticks, views, the switch)</h2>
   <!-- The search box keeps one width in both layouts, though cards add "Sort by" to the bar. -->
-  <lfdln-data-viewer id="full" label="Products" url-state="f" layout="table" phone-layout="table" search-in filter-style="panel" selectable>
+  <lfdln-data-viewer id="full" label="Products" url-state="f" layout="table" phone-layout="table" page-size="2" page-sizes="2,10" search-in filter-style="panel" selectable>
     <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
     <lfdln-dv-column key="kind" label="Kind" filterable searchable></lfdln-dv-column>
     <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>

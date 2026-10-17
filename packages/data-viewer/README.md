@@ -439,6 +439,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `selectedAll` | none (read only) | boolean | `false` | True after "Select all N matching". |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
+| `loadingLabel` | `loading-label` | string | `words.loading` ("Loading…") | What the loading state says to screen readers. See [Loading](#loading). |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
 | `config` | `config` | string | unset | A module whose default export sets the list up. See [Setup in its own file](#setup-in-its-own-file). |
 | `adapter` | `adapter` | string | unset | The name of a registered adapter, such as `json` or `pammy`. |
@@ -1105,6 +1106,41 @@ the host answers it with rows of that size, as for any query. With `url-state` t
 the address (see [Address](#address)); with `remember-as` it is kept in `localStorage` under
 `<remember-as>.size`, next to the layout choice. The address wins over what is stored.
 
+## Loading
+
+Until its first page can be drawn whole, the list shows a loading state and nothing else, so it
+never pops in in stages (the bar, then the rows, then the pager). Then the bar, the list and the
+pager appear at once, the element gets the `ready` attribute and `dv-ready` fires, once. Later
+loads (a new page, a search, a filter) keep the list on screen and set `busy`, as before.
+
+- **Before the script runs.** Link `data-viewer-loading.css` in the page's `<head>`, before the
+  script. Until the element is defined it keeps the space (`--dv-loading-height`, 16rem by
+  default) and shows a quiet skeleton in the text's colour; its children stay hidden. It is
+  plain CSS for `lfdln-data-viewer:not(:defined)`, so it works before any JavaScript.
+  With npm: `import '@lesfleursdelanuitdev/data-viewer/loading.css'` (or copy the file).
+- **After the script runs.** The list draws a skeleton of its bar and of rows or cards, in the
+  layout that will show, with `aria-busy="true"` and "Loading…" in a status region (its words are
+  `loading-label`, or `words.loading`). It waits for the columns, a setup file, the adapter's
+  first answer (or, without one, the first `rows` you set), and until the page has loaded, a
+  `filter-style` file or the select add-on still on its way. A failed first load shows its error
+  box at once.
+- **Your own loading state.** A child with `slot="loading"` is shown instead of the skeleton
+  (before the script, too), and removed once the list is ready:
+
+```html
+<lfdln-data-viewer adapter="json" src="/api/orders" loading-label="Loading your orders">
+  <lfdln-dv-column key="number" label="Order"></lfdln-dv-column>
+  <p slot="loading">Loading your orders…</p>
+</lfdln-data-viewer>
+```
+
+- The skeleton pulses gently; with `prefers-reduced-motion: reduce` it stays still. Its parts
+  have the classes `dv-loading`, `dv-sk`, `dv-sk-bar`, `dv-sk-row` and `dv-sk-card`.
+
+```js
+list.addEventListener('dv-ready', () => console.log('drawn'));
+```
+
 ## The layout switch
 
 Every list (except a `compact` one) has a switch between the table and the cards, unless
@@ -1449,6 +1485,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 | `dv-layout` | `{ layout }` | The visitor pressed the table-or-cards switch (not when the list crosses 640 px). |
 | `views-change` | `{ views }` | With `filter-style="views"`: a view was saved, renamed, deleted or put back by Undo. `views` is every saved view, `SavedView[]`. See [Saved views](#saved-views). |
 | `dv-select` | `{ keys, all, except }` | The selection changed: a box, the select-all line, ✕, Esc, a clearing search, filter or view, an action, or `clearSelection()`. Not when `selected` is set from code. `keys` is what `selected` gives: under "all matching" in browser mode, every matching row's key but `except`. See [Selecting rows](#selecting-rows). |
+| `dv-ready` | none | The list was drawn whole for the first time, after its loading state. Fired once per list; the `ready` attribute is set at the same time. See [Loading](#loading). |
 | `dv-batch` | `{ action, keys, rows, all, except, query }` | A selection bar action was pressed. Cancelable: `preventDefault()` keeps the selection; otherwise it clears. |
 
 ## Address
@@ -1565,6 +1602,7 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 | `actions` | `What you can do` (the menu column's hidden header) |
 | `empty` | `Nothing to show.` |
 | `loadFailed` | `Couldn't load this list.` |
+| `loading` | `Loading…` (the loading state, for screen readers) |
 | `tryAgain` | `Try again` |
 | `cancel` | `Cancel` (the confirm dialog) |
 | `ok` | `OK` (the confirm dialog, when the item has no label) |
@@ -1670,6 +1708,8 @@ These are the styling interface.
 | `lfdln-filter-chips`, `lfdln-filter-chip` | The applied filters, under the bar |
 | `dv-views` | The views (`<nav>` of links; the current one has `aria-current="true"`) |
 | `dv-count` | A view's count |
+| `dv-sort` | The cards' "Sort by" (a `<label>` around the [select package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/select#readme)'s `lfdln-select` dropdown) |
+| `dv-loading` | The loading state's root (it also has `dv-root`); its skeleton parts are `dv-sk` (`dv-sk-bar`, `dv-sk-search`, `dv-sk-button`, `dv-sk-row`, `dv-sk-card`, `dv-sk-line`). See [Loading](#loading). |
 | `dv-layout` | The table-or-cards switch (buttons with `aria-pressed`) |
 | `dv-layout-icon` | A switch button's icon (`layout-switch="icons"` or `"both"`) |
 | `dv-layout-text` | A switch button's words (hidden text with `layout-switch="icons"`) |

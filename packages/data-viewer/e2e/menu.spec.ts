@@ -315,3 +315,38 @@ test('confirm button falls back to "OK" when the item has no label', async ({ pa
   const dialog = page.locator('#things-table dialog.lfdln-menu-confirm');
   await expect(dialog.getByRole('button', { name: 'OK', exact: true })).toBeVisible();
 });
+
+// The footer never squeezes its words: the date stays whole, the price stays on one line (never
+// broken inside a number), and when they and the button don't fit, the button goes under them.
+for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test.describe(`card footer (${where})`, () => {
+    test.use({ viewport });
+    test('a long date and a price range push the button to its own row', async ({ page }) => {
+      await open(page);
+      const c = card(page, 1);
+      await c.scrollIntoViewIfNeeded();
+      const foot = c.locator('.lfdln-card-foot');
+      const out = await c.evaluate((li) => {
+        (li as HTMLElement).style.width = '15rem';
+        // the text nodes only: Lit's markers stay, so later drawings still work
+        const put = (sel: string, text: string) => {
+          const t = [...li.querySelector(sel)!.childNodes].find((n) => n.nodeType === Node.TEXT_NODE && n.nodeValue!.trim());
+          t!.nodeValue = text;
+        };
+        put('.lfdln-card-meta', 'Updated Sep 26');
+        put('.lfdln-card-value', '€8.20 – €13.20');
+        const r = (sel: string) => li.querySelector(sel)!.getBoundingClientRect();
+        const meta = li.querySelector<HTMLElement>('.lfdln-card-meta')!;
+        const value = li.querySelector('.lfdln-card-value')!;
+        const range = document.createRange();
+        range.selectNodeContents(value);
+        const lines = new Set([...range.getClientRects()].map((b) => Math.round(b.top))).size;
+        return { lines, metaCut: meta.scrollWidth > meta.clientWidth + 1, value: r('.lfdln-card-value'), action: r('.lfdln-card-action') };
+      });
+      expect(out.lines).toBe(1);
+      expect(out.metaCut).toBe(false);
+      expect(out.action.top).toBeGreaterThanOrEqual(out.value.bottom - 1);
+      await expect(foot.getByRole('button', { name: 'Order again' })).toBeVisible();
+    });
+  });
+}

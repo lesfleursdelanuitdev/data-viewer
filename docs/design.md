@@ -387,6 +387,22 @@ confirmation before `dv-action` fires.
   the CSS values: the space after a chevron or a trailing icon equals the space before the text,
   and a control at a card's or a bar's edge sits as far from that edge on both sides. Check it in
   the browser (the e2e tests measure it), not only in the stylesheet.
+- **Dropdowns (momolig 2026-10-17): a styled native select.** Every `<select>` in the packages
+  (Search in, Sort by, Rows per page) is the `select` package's `<lfdln-select>` / `renderSelect`:
+  a real `<select>` with `appearance: none`, an SVG chevron in `currentColor` and even spacing
+  (`--select-pad-x` before the text and after the chevron, `--select-chevron-size`,
+  `--select-gap`). The open list, events, forms, keyboard, screen readers and the phone picker
+  stay native. A page keeping its own plain select opts in with `class="lfdln-select"`.
+- **Pop-ups (momolig 2026-10-17)** share one set of spacing tokens, each with its default as the
+  fallback: `--lfdln-pop-inset` (a menu list's own padding, 0.25rem), `--lfdln-pop-item-x` /
+  `-y` (its items and headings, 0.65rem / 0.45rem), `--lfdln-pop-pad-x` / `-y` (a panel's, a
+  sheet's or a dialog's, 16px / 12px). The ⋯ and More menus, the confirm dialog, the Filter
+  panel and its phone sheet use them; e2e checks left = right and top = bottom (±1 px).
+- **Loading (momolig 2026-10-17).** No stepwise build-up: before its script, the
+  `data-viewer-loading.css` skeleton keeps the space; after it, the viewer's own skeleton (bar and
+  rows or cards, in the coming layout) until the first page is drawn whole; then `ready` and
+  `dv-ready` (once). Later loads only set `busy`. Customisable with `slot="loading"` and
+  `loading-label`; still under `prefers-reduced-motion`.
 
 - Class names `dv-root`, `dv-bar`, `dv-table`, `dv-card`, `dv-card-head`, … are documented, because
   they are the styling interface. Built-in rules sit inside `:where()`, so any page rule wins.

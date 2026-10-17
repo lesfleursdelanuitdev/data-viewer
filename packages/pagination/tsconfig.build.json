@@ -7,7 +7,10 @@
     "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
     "outDir": "dist/types",
-    "types": []
+    "types": [],
+    "paths": {
+      "@lesfleursdelanuitdev/select": ["../select/dist/types/index.d.ts"]
+    }
   },
   "include": [],
   "files": ["src/index.ts"]

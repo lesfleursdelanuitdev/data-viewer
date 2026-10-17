@@ -48,6 +48,7 @@ test.describe('live demos', () => {
     ['/docs/menu/', 'lfdln-menu .lfdln-menu-button'],
     ['/docs/pagination/', 'lfdln-pagination .lfdln-pagination-nav'],
     ['/docs/card/', 'lfdln-card .lfdln-card-title'],
+    ['/docs/select/', 'lfdln-select .lfdln-select-chevron'],
     ['/docs/search/', 'lfdln-search .lfdln-search-input'],
     ['/docs/filter/', 'lfdln-filter .lfdln-filter-button'],
     ['/docs/styling/', 'lfdln-data-viewer .dv-cards'],
