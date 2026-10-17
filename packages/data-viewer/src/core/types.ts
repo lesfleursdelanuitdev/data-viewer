@@ -20,6 +20,8 @@ export type Column<T> = {
   searchable?: boolean;
   /** The filter has a section for this column (its kind follows the type; never for images). */
   filterable?: boolean;
+  /** Not drawn (no table column, not in the default card), but still searched, filtered and sorted. */
+  hidden?: boolean;
   /** A choice's options, in this order (labels too). Counts still come from the rows or facets. */
   options?: (string | FilterOption)[];
   /** A range's quick ranges, such as { label: '1900s', from: '1900', to: '1999' }. */

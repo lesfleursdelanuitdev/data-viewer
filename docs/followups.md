@@ -15,6 +15,7 @@ is added here, or fixed first when it blocks that work.
 - Undo toast can overlap the selection bar.
 - Focus at the 720 px breakpoint with the panel open.
 - Rail: option search for long sections.
+- `columns` style: a `hidden` filterable column has no header, so in table view it can only be set from the address, a saved view or code (cards fall back to the panel).
 
 ## Accessibility
 

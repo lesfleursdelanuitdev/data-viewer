@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cellValues, countMatching, filterKind, filterSections, matchesFilters, parseOptions, parsePlural, parseRanges, searchColumns } from '../src/core/filters.ts';
+import { cellValues, countMatching, drawnColumns, filterKind, filterSections, matchesFilters, parseOptions, parsePlural, parseRanges, searchColumns } from '../src/core/filters.ts';
 import type { Column, Query } from '../src/core/types.ts';
 
 type Row = Record<string, unknown>;
@@ -146,6 +146,18 @@ test('searchColumns: the marked ones, else searchKeys, else all', () => {
   const marked = cols.map((c) => (c.key === 'name' || c.key === 'tags' ? { ...c, searchable: true } : c));
   assert.deepEqual(searchColumns(marked).map((c) => c.key), ['name', 'tags']);
   assert.deepEqual(searchColumns(cols, ['status', 'nope']).map((c) => c.key), ['status', 'nope']);
+});
+
+test('hidden columns: not drawn, but searched, filtered and counted', () => {
+  const withHidden: Column<Row>[] = [
+    ...cols.map((c) => (c.key === 'organic' ? { ...c, hidden: true } : c)),
+    { key: 'note', label: 'Note', hidden: true, searchable: true, value: (r) => (r.name === 'Rose' ? 'thorny' : '') },
+  ];
+  assert.deepEqual(drawnColumns(withHidden).map((c) => c.key), cols.map((c) => c.key).filter((k) => k !== 'organic'));
+  assert.deepEqual(searchColumns(withHidden).map((c) => c.key), ['note']);
+  assert.equal(countMatching(rows, withHidden, { ...q, search: 'thorny' }, {}), 1);
+  assert.ok(filterSections(withHidden, { rows, q }).some((s) => s.key === 'organic' && s.kind === 'bool'));
+  assert.deepEqual(rows.filter((r) => matchesFilters(r, withHidden, { organic: true })).map((r) => r.name), ['Basil']);
 });
 
 test('parseOptions and parseRanges read the column attributes', () => {

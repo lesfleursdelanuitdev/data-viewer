@@ -8,6 +8,9 @@ export function rawValue<T>(col: Column<T>, row: T): unknown {
   return col.value ? col.value(row) : (row as Record<string, unknown>)[col.key];
 }
 
+/** The columns the table and the default card draw: all but the hidden ones. */
+export const drawnColumns = <T>(cols: Column<T>[]): Column<T>[] => cols.filter((c) => !c.hidden);
+
 /** The columns search looks at: the ones marked searchable, else searchKeys, else all of them. */
 export function searchColumns<T>(cols: Column<T>[], searchKeys?: string[]): Column<T>[] {
   const marked = cols.filter((c) => c.searchable);

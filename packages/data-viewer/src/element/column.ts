@@ -25,6 +25,7 @@ export function columnFrom<T>(el: Element): Column<T> {
   if (currency) col.format = { currency };
   if (el.hasAttribute('searchable')) col.searchable = true;
   if (el.hasAttribute('filterable')) col.filterable = true;
+  if (el.hasAttribute('hidden')) col.hidden = true;
   const options = parseOptions(el.getAttribute('options'));
   if (options) col.options = options;
   const ranges = parseRanges(el.getAttribute('ranges'));

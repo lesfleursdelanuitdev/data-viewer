@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, hidden columns</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <!-- The built standalone scripts only: the viewer, the panel and the columns styles. -->
+  <script type="module" src="/data-viewer.standalone.js"></script>
+  <script type="module" src="/data-viewer-filter-panel.js"></script>
+  <script type="module" src="/data-viewer-filter-columns.js"></script>
+</head>
+<body>
+  <h1>data-viewer, hidden columns</h1>
+  <!-- "contents" (first, hidden) is searched but never drawn; "test" (hidden) is a yes/no filter. -->
+  <h2>Products, panel filter</h2>
+  <lfdln-data-viewer id="panel" label="Products" search-in url-state="panel" filter-style="panel" layout="table" phone-layout="table">
+    <lfdln-dv-column key="contents" label="Contents" hidden searchable></lfdln-dv-column>
+    <lfdln-dv-column key="name" label="Name" searchable sortable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind" filterable></lfdln-dv-column>
+    <lfdln-dv-column key="test" label="Test" type="bool" hidden filterable hint="Only test products"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Products, columns filter</h2>
+  <lfdln-data-viewer id="columns" label="Products" url-state="columns" filter-style="columns" layout="table" phone-layout="table">
+    <lfdln-dv-column key="contents" label="Contents" hidden searchable></lfdln-dv-column>
+    <lfdln-dv-column key="name" label="Name" searchable sortable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind" filterable></lfdln-dv-column>
+    <lfdln-dv-column key="test" label="Test" type="bool" hidden filterable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Products as cards</h2>
+  <lfdln-data-viewer id="cards" label="Products" url-state="cards" layout="cards" phone-layout="cards">
+    <lfdln-dv-column key="contents" label="Contents" hidden searchable></lfdln-dv-column>
+    <lfdln-dv-column key="name" label="Name" searchable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="application/json" id="products">
+    [
+      {"name": "Rose box", "kind": "Box", "contents": "three rose jams", "test": false},
+      {"name": "Tea set", "kind": "Set", "contents": "mint tea and a pot", "test": false},
+      {"name": "Sample", "kind": "Box", "contents": "nothing real", "test": true}
+    ]
+  </script>
+  <script type="module">for (const v of document.querySelectorAll('lfdln-data-viewer')) v.rows = JSON.parse(document.getElementById('products').textContent);</script>
+</body>
+</html>

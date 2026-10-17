@@ -471,6 +471,7 @@ column is formatted the way that column is.
 | `sortable` | Present: the header is a sorting button. |
 | `searchable` | Present: search looks at this column. |
 | `filterable` | Present: the filter has a part for this column. |
+| `hidden` | Present: the column is not drawn, but search, the filter and sorting still use it. |
 | `options` | A choice's options, `options="Sun,Part shade,Shade"`, in that order. |
 | `ranges` | A range's quick ranges, `ranges="1900s:1900..1999,Recent:2020.."` (label, colon, `from..to`; either end may be empty). |
 | `hint` | For a yes/no column: a line under its switch in the `panel` and `rail` [filter styles](#filter-styles), such as `hint="Hide plants that are sold out"`. |
@@ -494,6 +495,7 @@ type Column<T> = {
   format?: { currency?: string; locale?: string; date?: Intl.DateTimeFormatOptions };
   searchable?: boolean;         // search looks at it (none marked: every column)
   filterable?: boolean;         // the filter has a part for it
+  hidden?: boolean;             // not drawn; still searched, filtered and sorted
   options?: (string | FilterOption)[];                      // a choice's options, in order
   ranges?: { label: string; from?: string; to?: string }[]; // a range's quick ranges
   hint?: string;                // a yes/no filter's helper line (panel and rail styles)
@@ -502,6 +504,10 @@ type Column<T> = {
   plural?: Record<string, string>; // the sentence style: { Fern: 'ferns' }
 };
 ```
+
+A `hidden` column is not drawn: no table column, and the default card skips it. It still counts
+for search (and "Search in"), the filter, sorting and the address, so a list can search a long
+text or filter on a yes/no it does not show.
 
 ### Column types
 

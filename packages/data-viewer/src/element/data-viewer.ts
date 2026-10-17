@@ -16,7 +16,7 @@ import type { ViewsWords } from '@lesfleursdelanuitdev/filter/views';
 import type { SentenceWords } from '@lesfleursdelanuitdev/filter/sentence';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
 import { applyQuery } from '../core/list.ts';
-import { countMatching, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
+import { countMatching, drawnColumns, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
 import { DraftCount } from '../core/draft-count.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
 import { fieldText, fieldValue } from '../core/card-template.ts';
@@ -1482,7 +1482,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   private _table(rows: T[], w: Words, sections: FilterSection[] = [], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
-    const cols = this.columns;
+    const cols = drawnColumns(this.columns);
     const sel = this._selNow;
     // A style's header hook, drawn after the sort button in each column that has a section.
     const style = this._fStyle;
@@ -1534,7 +1534,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _parts(row: T): CardParts {
     if (this.cardOf) return this.cardOf(row);
     if (this._fromAttributes) return this._attrParts(row);
-    const [first, ...rest] = this.columns;
+    const [first, ...rest] = drawnColumns(this.columns);
     return {
       title: first ? formatCell(first, row, this.lang || undefined) : '',
       // A link column is plain text here: nothing in a card's body can be pressed.
@@ -1558,7 +1558,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _attrParts(row: T): CardParts {
     const raw = (key: string | undefined) => (key ? (row as Record<string, unknown>)[key] : undefined);
     const text = (key: string | undefined) => (key?.trim() ? this._textOf(key.trim(), row) : '');
-    const titleKey = this.cardTitle?.trim() || this.columns[0]?.key;
+    const titleKey = this.cardTitle?.trim() || drawnColumns(this.columns)[0]?.key;
     const p: CardParts = { title: titleKey ? this._textOf(titleKey, row) : '' };
     // A picture only from a web or relative address; anything else shows no picture.
     const src = safeUrl(raw(this.cardPicture?.trim()));
