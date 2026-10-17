@@ -1118,6 +1118,11 @@ list.layoutIcons = { table: '▤', cards: myCardsSvg }; // a Node is copied for 
 
 ## Cards
 
+Cards have no headers to sort by, so in cards layout the bar shows a **Sort by** picker when any
+column is `sortable` (hidden ones too): "Default order", then two choices per sortable column, worded
+by its type ("Name, A to Z", "Price, low to high", "Added, newest first", "In stock, yes first").
+It sorts exactly as a header does (same address, same `dv-query`). The table has no picker.
+
 `cardOf(row)` returns the card's parts:
 
 ```ts
@@ -1541,6 +1546,11 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 | `pageNumber(page)` | `Page ${page}` (each number's name) |
 | `rowsPerPage` | `Rows per page` (the page-size picker's label) |
 | `configFailed(file)` | `Couldn't load this list's setup from ${file}.` |
+| `sortBy`, `sortNone` | `Sort by`, `Default order` (the cards' sort picker) |
+| `sortTextAsc`, `sortTextDesc` | `{label}, A to Z`, `{label}, Z to A` (text, badge, link, tags, image) |
+| `sortNumberAsc`, `sortNumberDesc` | `{label}, low to high`, `{label}, high to low` (number, money) |
+| `sortDateAsc`, `sortDateDesc` | `{label}, oldest first`, `{label}, newest first` |
+| `sortBoolAsc`, `sortBoolDesc` | `{label}, no first`, `{label}, yes first` |
 | `searchIn`, `allFields`, `clear` | `Search in`, `All fields`, `Clear` (the search box) |
 | `filter`, `heading` | `Filter`, `Filter` (the filter button, the filter's title) |
 | `apply`, `clearAll`, `none`, `nothingMatches` | `Apply filter`, `Clear all`, `No filters yet`, `Nothing matches` |

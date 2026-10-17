@@ -33,7 +33,7 @@ test('search finds text only in the hidden column, and "Search in" lists it', as
   await expect.poll(() => names(page, 'panel')).toEqual([]);
   await picker.selectOption({ label: 'Contents' });
   await expect.poll(() => names(page, 'panel')).toEqual(['Tea set']);
-  await expect(page).toHaveURL(/panel\.in=contents|in=contents/);
+  await expect(page).toHaveURL(/[?&]panel\.in=contents/);
 });
 
 test('a hidden bool column is a section in the panel and filters the rows', async ({ page }) => {

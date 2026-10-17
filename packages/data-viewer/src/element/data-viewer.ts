@@ -15,7 +15,7 @@ import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/styl
 import type { ViewsWords } from '@lesfleursdelanuitdev/filter/views';
 import type { SentenceWords } from '@lesfleursdelanuitdev/filter/sentence';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
-import { applyQuery } from '../core/list.ts';
+import { applyQuery, sortChoices } from '../core/list.ts';
 import { countMatching, drawnColumns, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
 import { DraftCount } from '../core/draft-count.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
@@ -76,6 +76,16 @@ export type Words = PaginationWords & SearchWords & FilterWords & Partial<Search
   moreFor: (title: string) => string;
   more: string;
   configFailed: (file: string) => string;
+  sortBy: string;
+  sortNone: string;
+  sortTextAsc: string;
+  sortTextDesc: string;
+  sortNumberAsc: string;
+  sortNumberDesc: string;
+  sortDateAsc: string;
+  sortDateDesc: string;
+  sortBoolAsc: string;
+  sortBoolDesc: string;
 };
 
 export const defaultWords: Words = {
@@ -94,6 +104,16 @@ export const defaultWords: Words = {
   moreFor: (title) => `More for ${title}`,
   more: 'More',
   configFailed: (file) => `Couldn't load this list's setup from ${file}.`,
+  sortBy: 'Sort by',
+  sortNone: 'Default order',
+  sortTextAsc: '{label}, A to Z',
+  sortTextDesc: '{label}, Z to A',
+  sortNumberAsc: '{label}, low to high',
+  sortNumberDesc: '{label}, high to low',
+  sortDateAsc: '{label}, oldest first',
+  sortDateDesc: '{label}, newest first',
+  sortBoolAsc: '{label}, no first',
+  sortBoolDesc: '{label}, yes first',
 };
 
 // The query as the viewer keeps it: size is the visitor's pick (unchecked), undefined when none.
@@ -1400,6 +1420,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // elsewhere: the style is drawn beside the list (side) or in the headers, not in the bar.
   private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, elsewhere = false): TemplateResult {
     const one = styled && this._fStyle!.replacesSearch;
+    // Cards have no headers to sort by: a picker instead (table layout sorts in its headers).
+    const sorts = this._shown === 'cards' ? sortChoices(this.columns ?? [], w) : [];
+    const now = this._q.sort && `${this._q.dir}:${this._q.sort}`;
     return html`<div class="dv-bar">
       <div class=${one ? 'dv-search dv-search-filter' : 'dv-search'}>${one ? this._filter(w, sections, styled) : this._searchBox(w)}</div>
       ${sections.length && !elsewhere && !one ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
@@ -1414,6 +1437,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
                 }}>${v.label}${v.count !== undefined ? html` <span class="dv-count">${this._num(v.count)}</span>` : nothing}</a>`;
             })}
           </nav>`
+        : nothing}
+      ${sorts.length
+        ? html`<label class="dv-sort"><span class="dv-sr">${w.sortBy}</span><select @change=${(e: Event) => {
+            const [dir, ...key] = (e.target as HTMLSelectElement).value.split(':');
+            this._change({ sort: key.join(':'), dir: dir === 'desc' ? 'desc' : 'asc', page: 1 });
+          }}>${sorts.map(([v, l]) => html`<option value=${v} .selected=${v === now}>${l}</option>`)}</select></label>`
         : nothing}
       ${this.layoutSwitch !== 'none'
         ? html`<div class="dv-layout" role="group">

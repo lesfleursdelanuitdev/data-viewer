@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyQuery, sortValue } from '../src/core/list.ts';
+import { applyQuery, sortChoices, sortValue } from '../src/core/list.ts';
 import type { Column, Query, View } from '../src/core/types.ts';
 
 type Row = Record<string, unknown>;
@@ -136,4 +136,33 @@ test('filters narrow the rows and the total; the page is the caller\'s to reset'
   assert.equal(out.page, 2);
   assert.deepEqual(names(out.rows), ['Plant 16', 'Plant 19', 'Plant 22', 'Plant 25', 'Plant 28']);
   assert.equal(applyQuery(rows, cols, q({ filters: { kind: ['herb'] }, page: 5 }), { pageSize: 5 }).page, 2); // clamped
+});
+
+test('sortChoices: "default order", then two per sortable column (hidden too), worded by type', () => {
+  const words = {
+    sortNone: 'Default order',
+    sortTextAsc: '{label}, A to Z', sortTextDesc: '{label}, Z to A',
+    sortNumberAsc: '{label}, low to high', sortNumberDesc: '{label}, high to low',
+    sortDateAsc: '{label}, oldest first', sortDateDesc: '{label}, newest first',
+    sortBoolAsc: '{label}, no first', sortBoolDesc: '{label}, yes first',
+  };
+  const cols: Column<Row>[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'kind', label: 'Kind', type: 'badge' },
+    { key: 'price', label: 'Price', type: 'money', sortable: true },
+    { key: 'n', label: 'N', type: 'number', sortable: true, hidden: true },
+    { key: 'added', label: 'Added', type: 'date', sortable: true },
+    { key: 'test', label: 'Test', type: 'bool', sortable: true },
+    { key: 'tags', label: 'Tags', type: 'tags', sortable: true },
+  ];
+  assert.deepEqual(sortChoices(cols, words), [
+    ['', 'Default order'],
+    ['asc:name', 'Name, A to Z'], ['desc:name', 'Name, Z to A'],
+    ['asc:price', 'Price, low to high'], ['desc:price', 'Price, high to low'],
+    ['asc:n', 'N, low to high'], ['desc:n', 'N, high to low'],
+    ['asc:added', 'Added, oldest first'], ['desc:added', 'Added, newest first'],
+    ['asc:test', 'Test, no first'], ['desc:test', 'Test, yes first'],
+    ['asc:tags', 'Tags, A to Z'], ['desc:tags', 'Tags, Z to A'],
+  ]);
+  assert.deepEqual(sortChoices([{ key: 'a', label: 'A' }], words), []);
 });
