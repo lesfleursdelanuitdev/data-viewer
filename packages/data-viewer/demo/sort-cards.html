@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, sorting cards</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <script type="module" src="/data-viewer.standalone.js"></script>
+  <script type="module" src="/data-viewer-json.js"></script>
+</head>
+<body>
+  <h1>data-viewer, sorting cards</h1>
+  <!-- Cards have no headers: the bar's "Sort by" picker sorts them. "test" is hidden but sortable. -->
+  <h2>Products (in the browser)</h2>
+  <lfdln-data-viewer id="list" label="Products" url-state="s" layout="cards">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind"></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="added" label="Added" type="date" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="test" label="Test" type="bool" hidden sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Recipes (from a server)</h2>
+  <lfdln-data-viewer id="srv" label="Recipes" adapter="json" src="/api/recipes" layout="cards">
+    <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="application/json" id="products">
+    [
+      {"name": "Rose box", "kind": "Box", "price": 12, "added": "2026-03-01", "test": false},
+      {"name": "Tea set", "kind": "Set", "price": 30, "added": "2025-11-20", "test": false},
+      {"name": "Sample", "kind": "Box", "price": 1, "added": "2026-06-15", "test": true}
+    ]
+  </script>
+  <script type="module">
+    window.events = [];
+    document.addEventListener('dv-query', (e) => window.events.push({ on: e.target.id, q: e.detail }));
+    document.getElementById('list').rows = JSON.parse(document.getElementById('products').textContent);
+  </script>
+</body>
+</html>

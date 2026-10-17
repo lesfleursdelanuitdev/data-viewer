@@ -59,3 +59,16 @@ export function applyQuery<T>(
   const start = (page - 1) * opts.pageSize;
   return { rows: out.slice(start, start + opts.pageSize), total, page };
 }
+
+const KIND: Record<string, string> = { number: 'Number', money: 'Number', date: 'Date', bool: 'Bool' };
+
+/**
+ * The cards' sort picker: [value, label] pairs, "asc:key" / "desc:key" ('' for the default
+ * order, first), two per sortable column in column order, worded by type from the words.
+ * None when no column is sortable.
+ */
+export function sortChoices<T>(cols: Column<T>[], w: Record<string, unknown>): [string, string][] {
+  const out: [string, string][] = cols.filter((c) => c.sortable).flatMap((c) => ['Asc', 'Desc'].map((d): [string, string] =>
+    [`${d.toLowerCase()}:${c.key}`, String(w[`sort${KIND[c.type!] ?? 'Text'}${d}`]).replace('{label}', () => c.label)]));
+  return out.length ? [['', String(w.sortNone)], ...out] : out;
+}

@@ -15,8 +15,8 @@ import type { SearchFilterWords } from '@lesfleursdelanuitdev/search-filter/styl
 import type { ViewsWords } from '@lesfleursdelanuitdev/filter/views';
 import type { SentenceWords } from '@lesfleursdelanuitdev/filter/sentence';
 import type { AdapterSupports, CardParts, Column, Content, FilterOption, MenuItem, Query, SavedView, View } from '../core/types.ts';
-import { applyQuery } from '../core/list.ts';
-import { countMatching, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
+import { applyQuery, sortChoices } from '../core/list.ts';
+import { countMatching, drawnColumns, filterKind, filterSections, narrow, searchColumns } from '../core/filters.ts';
 import { DraftCount } from '../core/draft-count.ts';
 import { formatCell, formatNumber } from '../core/format.ts';
 import { fieldText, fieldValue } from '../core/card-template.ts';
@@ -76,6 +76,16 @@ export type Words = PaginationWords & SearchWords & FilterWords & Partial<Search
   moreFor: (title: string) => string;
   more: string;
   configFailed: (file: string) => string;
+  sortBy: string;
+  sortNone: string;
+  sortTextAsc: string;
+  sortTextDesc: string;
+  sortNumberAsc: string;
+  sortNumberDesc: string;
+  sortDateAsc: string;
+  sortDateDesc: string;
+  sortBoolAsc: string;
+  sortBoolDesc: string;
 };
 
 export const defaultWords: Words = {
@@ -94,6 +104,16 @@ export const defaultWords: Words = {
   moreFor: (title) => `More for ${title}`,
   more: 'More',
   configFailed: (file) => `Couldn't load this list's setup from ${file}.`,
+  sortBy: 'Sort by',
+  sortNone: 'Default order',
+  sortTextAsc: '{label}, A to Z',
+  sortTextDesc: '{label}, Z to A',
+  sortNumberAsc: '{label}, low to high',
+  sortNumberDesc: '{label}, high to low',
+  sortDateAsc: '{label}, oldest first',
+  sortDateDesc: '{label}, newest first',
+  sortBoolAsc: '{label}, no first',
+  sortBoolDesc: '{label}, yes first',
 };
 
 // The query as the viewer keeps it: size is the visitor's pick (unchecked), undefined when none.
@@ -1400,6 +1420,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // elsewhere: the style is drawn beside the list (side) or in the headers, not in the bar.
   private _bar(w: Words, sections: FilterSection[], styled?: { view: FilterStyleView; on: FilterStyleHandlers }, elsewhere = false): TemplateResult {
     const one = styled && this._fStyle!.replacesSearch;
+    // Cards have no headers to sort by: a picker instead (table layout sorts in its headers).
+    const sorts = this._shown === 'cards' ? sortChoices(this.columns ?? [], w) : [];
+    const now = this._q.sort && `${this._q.dir}:${this._q.sort}`;
+    // A sort by a column with no choice (from the address, say): shown, not offered.
+    const n = sorts.length;
+    if (n && now && !sorts.some(([v]) => v === now)) sorts.push([now, this.columns.find((c) => c.key === this._q.sort)?.label ?? this._q.sort]);
     return html`<div class="dv-bar">
       <div class=${one ? 'dv-search dv-search-filter' : 'dv-search'}>${one ? this._filter(w, sections, styled) : this._searchBox(w)}</div>
       ${sections.length && !elsewhere && !one ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
@@ -1414,6 +1440,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
                 }}>${v.label}${v.count !== undefined ? html` <span class="dv-count">${this._num(v.count)}</span>` : nothing}</a>`;
             })}
           </nav>`
+        : nothing}
+      ${sorts.length
+        ? html`<label class="dv-sort"><span class="dv-sr">${w.sortBy}</span><select @change=${(e: Event) => {
+            const [dir, ...key] = (e.target as HTMLSelectElement).value.split(':');
+            this._change({ sort: key.join(':'), dir: (dir || 'asc') as 'asc', page: 1 });
+          }}>${sorts.map(([v, l], i) => html`<option value=${v} .selected=${v === now} ?hidden=${i >= n}>${l}</option>`)}</select></label>`
         : nothing}
       ${this.layoutSwitch !== 'none'
         ? html`<div class="dv-layout" role="group">
@@ -1482,7 +1514,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   private _table(rows: T[], w: Words, sections: FilterSection[] = [], styled?: { view: FilterStyleView; on: FilterStyleHandlers }): TemplateResult {
-    const cols = this.columns;
+    const cols = drawnColumns(this.columns);
     const sel = this._selNow;
     // A style's header hook, drawn after the sort button in each column that has a section.
     const style = this._fStyle;
@@ -1534,7 +1566,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _parts(row: T): CardParts {
     if (this.cardOf) return this.cardOf(row);
     if (this._fromAttributes) return this._attrParts(row);
-    const [first, ...rest] = this.columns;
+    const [first, ...rest] = drawnColumns(this.columns);
     return {
       title: first ? formatCell(first, row, this.lang || undefined) : '',
       // A link column is plain text here: nothing in a card's body can be pressed.
@@ -1558,7 +1590,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _attrParts(row: T): CardParts {
     const raw = (key: string | undefined) => (key ? (row as Record<string, unknown>)[key] : undefined);
     const text = (key: string | undefined) => (key?.trim() ? this._textOf(key.trim(), row) : '');
-    const titleKey = this.cardTitle?.trim() || this.columns[0]?.key;
+    const titleKey = this.cardTitle?.trim() || drawnColumns(this.columns)[0]?.key;
     const p: CardParts = { title: titleKey ? this._textOf(titleKey, row) : '' };
     // A picture only from a web or relative address; anything else shows no picture.
     const src = safeUrl(raw(this.cardPicture?.trim()));

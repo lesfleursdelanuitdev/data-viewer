@@ -35,7 +35,7 @@ pagination, card, search and filter packages come with it (exact versions, 0.1.0
 | File | For | Registers the tags |
 |---|---|---|
 | `@lesfleursdelanuitdev/data-viewer` (`dist/data-viewer.js`) | apps with a bundler; Lit is left out | No: you call `define()` |
-| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 42 KB gzipped) | Yes, on load: all eight tags |
+| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 45 KB gzipped) | Yes, on load: all eight tags |
 
 ### In an app
 
@@ -471,6 +471,7 @@ column is formatted the way that column is.
 | `sortable` | Present: the header is a sorting button. |
 | `searchable` | Present: search looks at this column. |
 | `filterable` | Present: the filter has a part for this column. |
+| `hidden` | Present: the column is not drawn, but search, the filter and sorting still use it. |
 | `options` | A choice's options, `options="Sun,Part shade,Shade"`, in that order. |
 | `ranges` | A range's quick ranges, `ranges="1900s:1900..1999,Recent:2020.."` (label, colon, `from..to`; either end may be empty). |
 | `hint` | For a yes/no column: a line under its switch in the `panel` and `rail` [filter styles](#filter-styles), such as `hint="Hide plants that are sold out"`. |
@@ -494,6 +495,7 @@ type Column<T> = {
   format?: { currency?: string; locale?: string; date?: Intl.DateTimeFormatOptions };
   searchable?: boolean;         // search looks at it (none marked: every column)
   filterable?: boolean;         // the filter has a part for it
+  hidden?: boolean;             // not drawn; still searched, filtered and sorted
   options?: (string | FilterOption)[];                      // a choice's options, in order
   ranges?: { label: string; from?: string; to?: string }[]; // a range's quick ranges
   hint?: string;                // a yes/no filter's helper line (panel and rail styles)
@@ -502,6 +504,10 @@ type Column<T> = {
   plural?: Record<string, string>; // the sentence style: { Fern: 'ferns' }
 };
 ```
+
+A `hidden` column is not drawn: no table column, and the default card skips it. It still counts
+for search (and "Search in"), the filter, sorting and the address, so a list can search a long
+text or filter on a yes/no it does not show.
 
 ### Column types
 
@@ -1112,6 +1118,11 @@ list.layoutIcons = { table: '▤', cards: myCardsSvg }; // a Node is copied for 
 
 ## Cards
 
+Cards have no headers to sort by, so in cards layout the bar shows a **Sort by** picker when any
+column is `sortable` (hidden ones too): "Default order", then two choices per sortable column, worded
+by its type ("Name, A to Z", "Price, low to high", "Added, newest first", "In stock, yes first").
+It sorts exactly as a header does (same address, same `dv-query`). The table has no picker.
+
 `cardOf(row)` returns the card's parts:
 
 ```ts
@@ -1535,6 +1546,11 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 | `pageNumber(page)` | `Page ${page}` (each number's name) |
 | `rowsPerPage` | `Rows per page` (the page-size picker's label) |
 | `configFailed(file)` | `Couldn't load this list's setup from ${file}.` |
+| `sortBy`, `sortNone` | `Sort by`, `Default order` (the cards' sort picker) |
+| `sortTextAsc`, `sortTextDesc` | `{label}, A to Z`, `{label}, Z to A` (text, badge, link, tags, image) |
+| `sortNumberAsc`, `sortNumberDesc` | `{label}, low to high`, `{label}, high to low` (number, money) |
+| `sortDateAsc`, `sortDateDesc` | `{label}, oldest first`, `{label}, newest first` |
+| `sortBoolAsc`, `sortBoolDesc` | `{label}, no first`, `{label}, yes first` |
 | `searchIn`, `allFields`, `clear` | `Search in`, `All fields`, `Clear` (the search box) |
 | `filter`, `heading` | `Filter`, `Filter` (the filter button, the filter's title) |
 | `apply`, `clearAll`, `none`, `nothingMatches` | `Apply filter`, `Clear all`, `No filters yet`, `Nothing matches` |

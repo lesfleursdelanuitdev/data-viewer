@@ -15,6 +15,7 @@ is added here, or fixed first when it blocks that work.
 - Undo toast can overlap the selection bar.
 - Focus at the 720 px breakpoint with the panel open.
 - Rail: option search for long sections.
+- `columns` style: a `hidden` filterable column has no header, so in table view it can only be set from the address, a saved view or code (cards fall back to the panel).
 
 - A real `reload()` on the viewer element. The shop admin reloads (Try again, after a batch) by
   bumping `src`, the only public lever, and the mode is "unknown" while it runs, so "Select all N
@@ -27,7 +28,7 @@ is added here, or fixed first when it blocks that work.
 
 ## Size
 
-- Viewer standalone has 566 B gz left under its 46080 B limit; find savings before the next feature.
+- Viewer standalone limit raised to 47104 B gz (46 KB) on 2026-10-17 for the cards sort picker; about 1 KB left. Find savings before the next feature.
 
 ## Code
 

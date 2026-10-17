@@ -379,6 +379,7 @@ export default {
       'Search covers columns marked `searchable` (all columns if none are); `search-in` adds a picker for one column.',
       'Each `filterable` column adds a filter part: a value list for text and badges, From and To for numbers, money and dates, Any/Yes/No for booleans. Changes wait for Apply filter.',
       '`layout-switch="icons"` draws the table-or-cards switch as two icons. `remember-as` keeps the choice in the browser.',
+      'Cards have no headers, so in cards view the bar shows a Sort by picker for the `sortable` columns. Switch to cards and try it.',
       'With `card-actions="row"` buttons stay on one line and overflow goes under More. Try Row, then narrow the window.',
       'The list never deletes anything itself. Your `dv-action` listener does.',
     ],

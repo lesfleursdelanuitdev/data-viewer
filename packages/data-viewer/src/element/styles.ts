@@ -51,7 +51,7 @@ export const css: string = `
 :where(.dv-bar, .dv-table, .dv-error) :where(button, a, input, select):where(:not(.lfdln-menu-item, .lfdln-menu-button, .lfdln-search-root *, .lfdln-filter-root *)):where(:focus-visible) {
   outline: 2px solid var(--dv-accent); outline-offset: 2px;
 }
-:where(.dv-bar, .dv-error) :where(button:not(.lfdln-search-root *, .lfdln-filter-root *)) {
+:where(.dv-bar, .dv-error) :where(button:not(.lfdln-search-root *, .lfdln-filter-root *), .dv-sort select) {
   font: inherit; color: inherit; background: var(--dv-surface); border: 1px solid var(--dv-border);
   border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
 }

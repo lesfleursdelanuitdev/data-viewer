@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { demo, library, standalone } from '../../vite.shared.ts';
 
-const LIMIT = 45 * 1024; // the standalone viewer (menu, pager, card, search and filter inside) must stay under 45 KB gzipped
+const LIMIT = 46 * 1024; // the standalone viewer (menu, pager, card, search and filter inside) must stay under 46 KB gzipped
 const ADAPTER_LIMIT = 3 * 1024; // and each standalone adapter script stays tiny
 const STYLE_LIMIT = 8 * 1024; // a filter style add-on (it draws with the viewer's Lit) stays under 8 KB
 const STYLE_FALLBACK_LIMIT = 12 * 1024; // one that carries the panel too (rail, columns, search) under 12 KB
