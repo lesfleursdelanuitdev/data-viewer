@@ -16,6 +16,10 @@ is added here, or fixed first when it blocks that work.
 - Focus at the 720 px breakpoint with the panel open.
 - Rail: option search for long sections.
 
+- A real `reload()` on the viewer element. The shop admin reloads (Try again, after a batch) by
+  bumping `src`, the only public lever, and the mode is "unknown" while it runs, so "Select all N
+  matching" may briefly lack its number. (From the shop admin, 2026-10-17.)
+
 ## Accessibility
 
 - Forced-colors (high contrast) focus rings and borders across all filter styles.
