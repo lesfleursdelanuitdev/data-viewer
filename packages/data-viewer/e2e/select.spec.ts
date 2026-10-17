@@ -233,13 +233,14 @@ for (const [where, viewport] of [['wide', { width: 1280, height: 900 }], ['phone
       expect(menu.y + menu.height).toBeLessThanOrEqual((await card.locator('.lfdln-card-title').boundingBox())!.y + 1);
     });
 
-    for (const id of ['tplhead', 'mounthead', 'htmlhead']) {
+    for (const id of ['tplhead', 'mounthead', 'htmlhead', 'mountlate']) {
       test(`custom cards that place pieces.select (#${id}) get it in their own header`, async ({ page }) => {
         await open(page);
         const card = page.locator(`#${id} li.dv-card-custom`).first();
         await card.scrollIntoViewIfNeeded();
         await expect(card.locator('.head > dv-select .dv-select-box')).toHaveCount(1);
-        await expect(page.locator(`#${id} .dv-select-slot`)).toHaveCount(0);
+        // #mountlate moved it after the viewer drew: no fallback box is left in the corner
+        await expect(page.locator(`#${id} li > .dv-select-slot`)).toHaveCount(0);
         await headRow(card, `.${id}-name`);
         // A card with overflow: hidden doesn't cut it.
         await card.evaluate((li) => li.classList.add('clip'));

@@ -8,7 +8,7 @@ import { columns, items, type Item } from './select-rows.ts';
 const events: { type: string; detail: unknown }[] = [];
 (window as unknown as { events: typeof events }).events = events;
 const list = (id: string) => document.querySelector(`#${id}`) as LfdlnDataViewer<Item>;
-for (const id of ['table', 'cards', 'cardof', 'tpl', 'mount', 'compact', 'nokey', 'views', 'sentence', 'heads', 'tplhead', 'mounthead', 'htmlhead']) {
+for (const id of ['table', 'cards', 'cardof', 'tpl', 'mount', 'compact', 'nokey', 'views', 'sentence', 'heads', 'tplhead', 'mounthead', 'htmlhead', 'mountlate']) {
   const el = list(id);
   el.columns = columns;
   el.rows = id === 'compact' ? items.slice(0, 5) : id === 'nokey' ? [items[0]!, { name: 'No id', kind: 'Herb', price: 5 }, items[1]!] : items;
@@ -54,7 +54,7 @@ list('mount').cardMount = (el, r) => {
 // box and the ⋯ in a header row of their own (pieces.select, pieces.menu, <dv-select>, <dv-menu>).
 const rowMenu = (r: Item): MenuItem[] => [{ id: 'aside', label: `Put ${r.name} aside` }, { id: 'drop', label: 'Remove', danger: true }];
 list('heads').cardOf = (r) => ({ title: r.name, badge: r.kind, facts: [`€${r.price}`], menu: rowMenu(r) });
-for (const id of ['tplhead', 'mounthead', 'htmlhead']) list(id).cardOf = (r) => ({ title: r.name, menu: rowMenu(r) });
+for (const id of ['tplhead', 'mounthead', 'htmlhead', 'mountlate']) list(id).cardOf = (r) => ({ title: r.name, menu: rowMenu(r) });
 list('tplhead').cardTemplate = (r, pieces) => html`<div class="head">${pieces.select}${pieces.menu}</div>
   <button type="button" data-open class="tplhead-name">${r.name}</button>
   <p class="tplhead-kind">${r.kind}</p>`;
@@ -64,5 +64,12 @@ list('mounthead').cardMount = (el, r, pieces) => {
   const open = Object.assign(document.createElement('button'), { type: 'button', className: 'mounthead-name', textContent: r.name });
   open.setAttribute('data-open', '');
   el.replaceChildren(head, open);
+};
+list('mountlate').cardMount = (el, r, pieces) => {
+  const head = Object.assign(document.createElement('div'), { className: 'head' });
+  const open = Object.assign(document.createElement('button'), { type: 'button', className: 'mountlate-name', textContent: r.name });
+  open.setAttribute('data-open', '');
+  el.replaceChildren(head, open);
+  setTimeout(() => head.append(pieces.select, pieces.menu), 50);
 };
 define();

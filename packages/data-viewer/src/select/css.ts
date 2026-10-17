@@ -55,10 +55,13 @@ export const selectCss: string = `
   /* In a card's head the 44 px target reaches into the card's padding (and past the row's top
      and bottom by the same amount); the box itself stays exactly where it is on a wide screen:
      at the padding's left edge, as far in as the ⋯ at the right. */
-  :where(.lfdln-card-start, dv-select:not(.dv-select-slot)) > :where(.dv-select-hit) {
+  :where(.lfdln-card-start, dv-select) > :where(.dv-select-hit) {
     margin-block: calc((1.05rem - 44px) / 2); margin-inline-start: calc((1.05rem - 44px) / 2);
   }
+  /* The fallback slot (only while it is the card's own child: a card that moved it into its header
+     gets the rule above) keeps its target whole and the box 0.5rem in. */
   :where(.dv-card-custom) > :where(.dv-select-slot) { top: calc(0.5rem + (1.05rem - 44px) / 2); left: calc(0.5rem + (1.05rem - 44px) / 2); }
+  :where(.dv-card-custom) > :where(.dv-select-slot) > :where(.dv-select-hit) { margin: 0; }
   /* Fixed to the bottom of the screen, 60 px tall, above the list; the list gets room under its
      end so nothing stays hidden. It holds ✕, the count (at most 2 lines), one action and ⋯; it
      scrolls sideways itself only when even those don't fit (long words). */
