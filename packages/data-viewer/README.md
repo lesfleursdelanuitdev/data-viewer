@@ -35,7 +35,7 @@ pagination, card, search and filter packages come with it (exact versions, 0.1.0
 | File | For | Registers the tags |
 |---|---|---|
 | `@lesfleursdelanuitdev/data-viewer` (`dist/data-viewer.js`) | apps with a bundler; Lit is left out | No: you call `define()` |
-| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 42 KB gzipped) | Yes, on load: all eight tags |
+| `dist/data-viewer.standalone.js` | plain pages; Lit, the menu, the pager, the card, the search box and the filter are inside (about 45 KB gzipped) | Yes, on load: all eight tags |
 
 ### In an app
 

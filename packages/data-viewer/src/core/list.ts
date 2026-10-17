@@ -68,7 +68,7 @@ const KIND: Record<string, string> = { number: 'Number', money: 'Number', date: 
  * None when no column is sortable.
  */
 export function sortChoices<T>(cols: Column<T>[], w: Record<string, unknown>): [string, string][] {
-  const out: [string, string][] = cols.filter((c) => c.sortable).flatMap((c) => ['asc', 'desc'].map((d): [string, string] =>
-    [`${d}:${c.key}`, String(w[`sort${KIND[c.type!] ?? 'Text'}${d === 'asc' ? 'Asc' : 'Desc'}`]).replace('{label}', c.label)]));
+  const out: [string, string][] = cols.filter((c) => c.sortable).flatMap((c) => ['Asc', 'Desc'].map((d): [string, string] =>
+    [`${d.toLowerCase()}:${c.key}`, String(w[`sort${KIND[c.type!] ?? 'Text'}${d}`]).replace('{label}', () => c.label)]));
   return out.length ? [['', String(w.sortNone)], ...out] : out;
 }

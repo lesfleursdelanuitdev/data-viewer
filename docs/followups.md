@@ -24,7 +24,7 @@ is added here, or fixed first when it blocks that work.
 
 ## Size
 
-- Viewer standalone has 566 B gz left under its 46080 B limit; find savings before the next feature.
+- Viewer standalone limit raised to 47104 B gz (46 KB) on 2026-10-17 for the cards sort picker; about 1 KB left. Find savings before the next feature.
 
 ## Code
 

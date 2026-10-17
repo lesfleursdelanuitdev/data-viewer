@@ -54,6 +54,16 @@ test('the address sets the picker on load (a hidden column too)', async ({ page 
   await expect.poll(() => titles(page)).toEqual(['Sample', 'Rose box', 'Tea set']);
 });
 
+test('a sort by a column with no choice shows that column, not "Default order"', async ({ page }) => {
+  await open(page, '?s.sort=kind&s.dir=desc');
+  await expect.poll(() => titles(page)).toEqual(['Tea set', 'Rose box', 'Sample']);
+  await expect(picker(page)).toHaveValue('desc:kind');
+  await expect(picker(page).locator('option:checked')).toHaveText('Kind');
+  await picker(page).selectOption({ label: 'Name, A to Z' });
+  await expect.poll(() => titles(page)).toEqual(['Rose box', 'Sample', 'Tea set']);
+  await expect(picker(page).locator('option')).toHaveCount(9);
+});
+
 test('the table has no picker; a header sort shows in the picker after switching to cards', async ({ page }) => {
   await open(page);
   await page.locator('#list').getByRole('button', { name: 'Show a table' }).click();

@@ -1423,6 +1423,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     // Cards have no headers to sort by: a picker instead (table layout sorts in its headers).
     const sorts = this._shown === 'cards' ? sortChoices(this.columns ?? [], w) : [];
     const now = this._q.sort && `${this._q.dir}:${this._q.sort}`;
+    // A sort by a column with no choice (from the address, say): shown, not offered.
+    const n = sorts.length;
+    if (n && now && !sorts.some(([v]) => v === now)) sorts.push([now, this.columns.find((c) => c.key === this._q.sort)?.label ?? this._q.sort]);
     return html`<div class="dv-bar">
       <div class=${one ? 'dv-search dv-search-filter' : 'dv-search'}>${one ? this._filter(w, sections, styled) : this._searchBox(w)}</div>
       ${sections.length && !elsewhere && !one ? html`<div class="dv-filter">${this._filter(w, sections, styled)}</div>` : nothing}
@@ -1441,8 +1444,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       ${sorts.length
         ? html`<label class="dv-sort"><span class="dv-sr">${w.sortBy}</span><select @change=${(e: Event) => {
             const [dir, ...key] = (e.target as HTMLSelectElement).value.split(':');
-            this._change({ sort: key.join(':'), dir: dir === 'desc' ? 'desc' : 'asc', page: 1 });
-          }}>${sorts.map(([v, l]) => html`<option value=${v} .selected=${v === now}>${l}</option>`)}</select></label>`
+            this._change({ sort: key.join(':'), dir: (dir || 'asc') as 'asc', page: 1 });
+          }}>${sorts.map(([v, l], i) => html`<option value=${v} .selected=${v === now} ?hidden=${i >= n}>${l}</option>`)}</select></label>`
         : nothing}
       ${this.layoutSwitch !== 'none'
         ? html`<div class="dv-layout" role="group">

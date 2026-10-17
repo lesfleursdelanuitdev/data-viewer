@@ -165,4 +165,5 @@ test('sortChoices: "default order", then two per sortable column (hidden too), w
     ['asc:tags', 'Tags, A to Z'], ['desc:tags', 'Tags, Z to A'],
   ]);
   assert.deepEqual(sortChoices([{ key: 'a', label: 'A' }], words), []);
+  assert.equal(sortChoices([{ key: 'a', label: 'Cost $& more', sortable: true }], words)[1]![1], 'Cost $& more, A to Z');
 });
