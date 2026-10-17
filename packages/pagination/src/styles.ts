@@ -24,6 +24,8 @@ export const paginationCss: string = `
   font: inherit; color: inherit; background: var(--pagination-surface); border: 1px solid var(--pagination-border);
   border-radius: var(--pagination-radius); padding: 0.35rem 0.75rem; cursor: pointer;
 }
+/* One height with the list's other controls when it sets --lfdln-control-height. */
+:where(.lfdln-pagination-nav) :where(button, .lfdln-pagination-current) { height: var(--lfdln-control-height, auto); }
 :where(.lfdln-pagination-nav) :where(button:disabled) { opacity: 0.5; cursor: default; }
 :where(.lfdln-pagination-nav) :where(button, select, .lfdln-pagination-current):where(:focus-visible) {
   outline: 2px solid var(--pagination-accent); outline-offset: 2px;
@@ -42,7 +44,7 @@ export const paginationCss: string = `
   min-width: 2.25rem; padding: 0.35rem 0.5rem; text-align: center; font-variant-numeric: tabular-nums;
 }
 :where(.lfdln-pagination-current) {
-  display: inline-block; border: 1px solid var(--pagination-accent); border-radius: var(--pagination-radius);
+  display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--pagination-accent); border-radius: var(--pagination-radius);
   color: var(--pagination-text); background: var(--pagination-bg); font-weight: 600; line-height: inherit;
 }
 :where(.lfdln-pagination-gap) { color: var(--pagination-muted); padding: 0 0.15rem; }

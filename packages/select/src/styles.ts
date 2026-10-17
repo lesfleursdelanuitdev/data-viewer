@@ -1,7 +1,8 @@
 // The dropdown's built-in look. Every rule sits inside :where() so any page rule wins, and the
 // style element goes first in <head>. Colours follow the page's color-scheme through
 // light-dark(), like the other packages'. Spacing is even (the house style): the gap before the
-// text equals the gap after the chevron, both the border plus --select-pad-x.
+// text equals the gap after the chevron, both the border plus --select-pad-x. A list sets
+// --lfdln-control-height so every control in its bars is one height (unset: as tall as the text).
 export const selectCss: string = `
 :where(:root) {
   --select-bg: light-dark(#ffffff, #17171a);
@@ -23,7 +24,7 @@ export const selectCss: string = `
 :where(select.lfdln-select) {
   appearance: none; -webkit-appearance: none; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; margin: 0;
   font: inherit; color: inherit; background-color: var(--select-bg); border: 1px solid var(--select-border);
-  border-radius: var(--select-radius); cursor: pointer; text-overflow: ellipsis;
+  border-radius: var(--select-radius); cursor: pointer; text-overflow: ellipsis; height: var(--lfdln-control-height, auto);
   padding: var(--select-pad-y) calc(var(--select-pad-x) + var(--select-chevron-size) + var(--select-gap)) var(--select-pad-y) var(--select-pad-x);
 }
 :where(lfdln-select, .lfdln-select:not(select)) > :where(select:focus-visible), :where(select.lfdln-select:focus-visible) {

@@ -1684,7 +1684,8 @@ Set the variables on `:root` or on the element:
 | `--dv-danger` | `#b42318` | `#ff8a80` | Danger items, the error box |
 | `--dv-radius` | `8px` | `8px` | Corners |
 | `--dv-font` | `system-ui, -apple-system, "Segoe UI", sans-serif` | same | The font |
-| `--dv-search-width` | unset | unset | The search box's width in the bar (unset: `22rem`, or `30rem` with the "Search in" picker). It never grows into the line's free space, so it keeps one width in the table and in cards (where "Sort by" joins the bar); the controls after it keep to the bar's right end. On phones it fills its line, shared only with the Filter button. |
+| `--dv-search-width` | unset | unset | The search box's width in the bar (unset: `22rem`, or `30rem` with the "Search in" picker). It never grows into the line's free space, so it keeps one width in the table and in cards (where "Sort by" joins the bar); the controls after it keep to the bar's right end. On phones (639 px or narrower) the bar is two rows: the search box, Filter and the layout switch, then "Search in" and "Sort by", half the row each, with the applied filters and the views under them; below 390 px Filter shows only its icon (its word stays its name). |
+| `--dv-control-height` | `2.375rem` (38 px); `44px` at 640 px or narrower | same | The one height of every control in the bar, the selection bar and the pager: the search box, Filter, the dropdowns, the layout switch, the buttons, the page buttons (borders included). The list passes it on as `--lfdln-control-height`, which the search box, the dropdown, the panel filter's button and the pager read (unset outside a list: each keeps its own height). |
 
 Inside a list, the menus', the pager's and the cards' own variables (`--menu-*`,
 `--pagination-*`, `--card-*`) are set from these, so `--dv-*` themes all of it. Set

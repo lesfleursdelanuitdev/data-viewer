@@ -27,7 +27,8 @@ export const selectCss: string = `
 /* The bar's own buttons (not the ⋯ menu's items, which keep the menu's look). */
 :where(.dv-select-bar) :where(button:not([role=menuitem])) {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; font: inherit; color: inherit;
-  background: var(--dv-bg); border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
+  background: var(--dv-bg); border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 0 0.75rem; cursor: pointer;
+  height: var(--dv-control-height);
 }
 :where(.dv-select-bar) :where(button:not([role=menuitem]):focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
 :where(.dv-select-clear) { min-width: 2.25rem; }

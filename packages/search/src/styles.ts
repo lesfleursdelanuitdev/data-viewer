@@ -27,6 +27,8 @@ export const searchCss: string = `
 :where(.lfdln-search-icon) { left: 0.6rem; pointer-events: none; }
 :where(.lfdln-search-root) :where(input, button) { font: inherit; color: inherit; border: 1px solid var(--search-border); border-radius: var(--search-radius); background: var(--search-bg); padding: 0.4rem 0.5rem; }
 :where(.lfdln-search-input) { width: 100%; min-width: 0; padding-inline: 2rem 2.2rem; appearance: none; }
+/* One height with the controls around it when the page (a list) sets --lfdln-control-height. */
+:where(.lfdln-search-root) :where(.lfdln-search-input, .lfdln-search-submit) { height: var(--lfdln-control-height, auto); }
 :where(.lfdln-search-input)::-webkit-search-cancel-button { display: none; }
 :where(.lfdln-search-input)::placeholder { color: var(--search-muted); opacity: 1; }
 :where(.lfdln-search-root) :where(.lfdln-search-clear) { right: 0.25rem; width: 1.75rem; height: 1.75rem; padding: 0; font-size: 1.15em; line-height: 1; color: var(--search-muted); background: none; border: 0; border-radius: 999px; cursor: pointer; }
@@ -41,6 +43,8 @@ export const searchCss: string = `
   :where(.lfdln-search-root) :where(input, select, .lfdln-search-submit) { font-size: 16px; min-height: 44px; min-width: 44px; }
   :where(.lfdln-search-root) :where(.lfdln-search-clear) { width: 44px; height: 44px; right: 0; }
   :where(.lfdln-search-root) :where(.lfdln-search-input) { padding-right: 44px; }
+  /* Empty, there is no clear button: the placeholder may use that room. */
+  :where(.lfdln-search-root) :where(.lfdln-search-input:placeholder-shown) { padding-right: 0.5rem; }
 }
 `;
 

@@ -22,7 +22,7 @@ import { histogramBars, panelLeft, showLabel, useSeg } from './panel-logic.ts';
 export const panelCss = `
 :where(.lfdln-filter-panel-root) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 :where(.lfdln-filter-trigger) {
-  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; font-size: 14px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 8px; height: var(--lfdln-control-height, 34px); padding: 0 12px; font-size: 14px; font-weight: 500;
   color: var(--filter-text); background: var(--filter-bg); border: 1px solid var(--filter-border); border-radius: var(--filter-radius);
 }
 :where(.lfdln-filter-trigger:hover) { background: color-mix(in srgb, var(--filter-text) 7%, var(--filter-bg)); }
@@ -55,8 +55,20 @@ export const panelCss = `
 }
 :where(.lfdln-filter-show) { min-width: 132px; }
 :where(.dv-root[data-filter-open]) > :where(:not(.dv-bar)) { opacity: 0.35; transition: opacity 0.15s; }
+/* In a list's bar on phones, the button and the applied filters are the bar's own items: the
+   button in its first row, the filters under its rows (the data viewer's styles). Narrow phones:
+   the button shows its icon (and how many are on); its word stays its name. */
 @media (max-width: 639px) {
-  :where(.lfdln-filter-trigger) { height: 44px; }
+  :where(.dv-bar) :where(.dv-filter:has(> .lfdln-filter-panel-root), .lfdln-filter-panel-root) { display: contents; }
+  :where(.dv-bar) :where(.lfdln-filter-trigger, .lfdln-filter-tag) { margin-block: 0.25rem; }
+  :where(.dv-bar) :where(.lfdln-filter-tag) { order: 4; }
+}
+@media (max-width: 389px) {
+  :where(.dv-bar) :where(.lfdln-filter-trigger) { min-width: 44px; justify-content: center; }
+  :where(.dv-bar) :where(.lfdln-filter-trigger > span:not([class])) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+@media (max-width: 639px) {
+  :where(.lfdln-filter-trigger) { height: var(--lfdln-control-height, 44px); }
   :where(.lfdln-filter-panel-foot) :where(.lfdln-filter-btn) { flex: 1; }
   :where(.lfdln-filter-panel-range) :where(input) { height: 44px; font-size: 16px; }
 }
