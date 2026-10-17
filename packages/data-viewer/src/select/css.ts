@@ -52,9 +52,13 @@ export const selectCss: string = `
 @media (max-width: 640px) {
   :where(.dv-table) :where(.dv-select-cell) { width: 44px; min-width: 44px; padding: 0; text-align: center; }
   :where(.dv-select-hit) { min-width: 44px; min-height: 44px; }
-  /* The 44 px target reaches into the card's padding; the box itself stays where it was. */
-  :where(.lfdln-card-start) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
-  :where(.dv-card-custom) > :where(.dv-select-slot) { top: 0; left: 0; }
+  /* In a card's head the 44 px target reaches into the card's padding (and past the row's top
+     and bottom by the same amount); the box itself stays exactly where it is on a wide screen:
+     at the padding's left edge, as far in as the ⋯ at the right. */
+  :where(.lfdln-card-start, dv-select:not(.dv-select-slot)) > :where(.dv-select-hit) {
+    margin-block: calc((1.05rem - 44px) / 2); margin-inline-start: calc((1.05rem - 44px) / 2);
+  }
+  :where(.dv-card-custom) > :where(.dv-select-slot) { top: calc(0.5rem + (1.05rem - 44px) / 2); left: calc(0.5rem + (1.05rem - 44px) / 2); }
   /* Fixed to the bottom of the screen, 60 px tall, above the list; the list gets room under its
      end so nothing stays hidden. It holds ✕, the count (at most 2 lines), one action and ⋯; it
      scrolls sideways itself only when even those don't fit (long words). */

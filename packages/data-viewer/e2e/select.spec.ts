@@ -45,6 +45,8 @@ async function headRow(card: Locator, title: string) {
   expect(menu.x + menu.width / 2).toBeGreaterThan(c.x + (c.width * 2) / 3);
   expect(t.y).toBeGreaterThanOrEqual(Math.min(hit.y + hit.height, menu.y + menu.height) - 1);
   expect(await boxInside(card)).toBe(true);
+  // Even: the box as far from the card's left edge as the ⋯ from its right edge (±1 px).
+  expect(Math.abs((hit.x - c.x) - (c.x + c.width - (menu.x + menu.width)))).toBeLessThanOrEqual(1);
 }
 const row = (page: Page, name: string) =>
   page.locator('#table tbody tr').filter({ has: page.getByRole('checkbox', { name: `Select ${name}`, exact: true }) });
