@@ -170,6 +170,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     searchKeys: { attribute: false },
     busy: { type: Boolean, reflect: true },
     loadingLabel: { type: String, attribute: 'loading-label' },
+    loadingDelay: { type: Number, attribute: 'loading-delay' },
     urlState: { type: String, attribute: 'url-state' },
     cardTitle: { type: String, attribute: 'card-title' },
     cardPicture: { type: String, attribute: 'card-picture' },
@@ -257,6 +258,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare busy: boolean;
   /** The loading state's words (default `words.loading`, "Loading…"), said to screen readers. */
   declare loadingLabel: string | undefined;
+  // How long the loading state stays quiet (its space kept, nothing shown) before it shows, in ms:
+  // a load quicker than this never flashes a skeleton. 0 shows it at once.
+  declare loadingDelay: number;
   declare urlState: string | undefined;
   // HTML-only cards: each names the row key for one card part (card-facts is a comma list).
   declare cardTitle: string | undefined;
@@ -272,6 +276,11 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _loadingEl: Element | undefined; // a child with slot="loading"
   private _ready = false; // drawn whole once: later loads only set busy
   private _drewList = false; // the last drawing was the list, not the loading state
+  private _arriving = false; // the first full drawing is easing in (data-arrived, until its animation ends)
+  // On the page before the script ran (upgraded): data-viewer-loading.css has been waiting since the
+  // page opened, so the loading state's wait counts from then, not from now (no blink).
+  private readonly _upgraded = this.isConnected;
+  private _quietMs?: number; // the loading state's wait, fixed when first drawn (a change would move its start)
   private _tpl: HTMLTemplateElement | undefined;
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
@@ -436,6 +445,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.openEvent = false;
     this.words = {};
     this.busy = false;
+    this.loadingDelay = 200;
     this._q = { ...blank };
     this._searchText = this._typed = '';
     this._failed = false;
@@ -1036,6 +1046,13 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     }
   }
 
+  // The first full drawing has eased in: its mark comes off (and stays off: later loads don't ease in).
+  private _onArrived = (e: AnimationEvent): void => {
+    if (e.animationName !== 'lfdln-dv-arrive' || e.target !== e.currentTarget) return;
+    this._arriving = false;
+    (e.currentTarget as HTMLElement).removeAttribute('data-arrived');
+  };
+
   private _onLoad = (): void => {
     if (!this._ready) this.requestUpdate();
   };
@@ -1062,7 +1079,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const cards = this._shown === 'cards';
     const n = Math.max(1, Math.min(this._size || 10, cards ? 6 : 8));
     const lines = Array.from({ length: n }, (_, i) => i);
-    return html`<div class="dv-root dv-loading" aria-busy="true"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
+    const wait = Number.isFinite(this.loadingDelay) ? Math.max(0, this.loadingDelay) : 200;
+    const delay = (this._quietMs ??= this._upgraded ? Math.max(0, Math.round(wait - performance.now())) : wait);
+    return html`<div class="dv-root dv-loading" aria-busy="true" style="--dv-loading-delay: ${delay}ms"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
       ? this._loadingEl
       : html`${this.compact ? nothing : html`<div class="dv-sk-bar" aria-hidden="true"><span class="dv-sk dv-sk-search"></span><span
           class="dv-sk dv-sk-button"></span><span class="dv-sk dv-sk-button"></span></div>`}${cards
@@ -1404,6 +1423,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._drewList = false;
       return this._skeleton(w);
     }
+    if (!this._ready) this._arriving = true;
     this._drewList = true;
     let rows: T[];
     let total: number;
@@ -1478,7 +1498,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
       ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}`;
-    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}
+    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-arrived=${this._arriving ? '' : nothing}
+      @animationend=${this._onArrived} data-filter-open=${dim ? '' : nothing}
       data-filter-side=${side ? '' : nothing} data-selecting=${selBar ? '' : nothing}>${side
         ? html`<div class="dv-side">${this._filter(w, sections, styled)}</div><div class="dv-main">${main}</div>`
         : main}${this._confirm(w)}</div>`;
