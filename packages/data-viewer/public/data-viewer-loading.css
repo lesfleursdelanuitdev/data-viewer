@@ -1,8 +1,8 @@
 /* lfdln-data-viewer's loading state before its script has run (link it in <head>, before the
    script, so the space is kept and nothing jumps):
      <link rel="stylesheet" href="data-viewer-loading.css">
-   Until the element is defined it shows a quiet skeleton (a search box and rows) in the page's
-   text colour, or your own child with slot="loading". Once defined, the viewer draws its own
+   Until the element is defined it keeps the space empty for 200 ms, then shows a quiet skeleton
+   (a search box and rows) in the page's text colour, or your own child with slot="loading". Once defined, the viewer draws its own
    loading state until the first page is drawn, then sets `ready` and fires dv-ready.
    --dv-loading-height sets the space kept (default 16rem). Plain CSS, no :where() needed: it
    only matches the element before it is defined. */
@@ -14,12 +14,16 @@ lfdln-data-viewer:not(:defined) {
   background:
     linear-gradient(var(--dv-sk) 0 0) 0 0 / min(22rem, 100%) 2.25rem no-repeat,
     repeating-linear-gradient(to bottom, var(--dv-sk) 0 1rem, transparent 1rem 2.5rem) 0 3.25rem / 100% calc(100% - 3.25rem) no-repeat;
-  animation: lfdln-dv-pulse 1.4s ease-in-out infinite;
+  /* quiet for its first 200 ms, so a quick load never flashes it */
+  visibility: hidden;
+  animation: lfdln-dv-show 0s 200ms forwards, lfdln-dv-pulse 1.4s ease-in-out infinite;
 }
 lfdln-data-viewer:not(:defined) > * { display: none; }
 lfdln-data-viewer:not(:defined) > [slot="loading"] { display: block; }
-lfdln-data-viewer:not(:defined):has(> [slot="loading"]) { min-height: 0; background: none; animation: none; }
+lfdln-data-viewer:not(:defined):has(> [slot="loading"]) { min-height: 0; background: none; animation: lfdln-dv-show 0s 200ms forwards; }
 @keyframes lfdln-dv-pulse { 50% { opacity: 0.45; } }
+@keyframes lfdln-dv-show { to { visibility: visible; } }
+lfdln-data-viewer[loading-delay="0"]:not(:defined) { animation-delay: 0s; }
 @media (prefers-reduced-motion: reduce) {
-  lfdln-data-viewer:not(:defined) { animation: none; }
+  lfdln-data-viewer:not(:defined) { animation: lfdln-dv-show 0s 200ms forwards; }
 }

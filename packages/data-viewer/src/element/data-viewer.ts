@@ -170,6 +170,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     searchKeys: { attribute: false },
     busy: { type: Boolean, reflect: true },
     loadingLabel: { type: String, attribute: 'loading-label' },
+    loadingDelay: { type: Number, attribute: 'loading-delay' },
     urlState: { type: String, attribute: 'url-state' },
     cardTitle: { type: String, attribute: 'card-title' },
     cardPicture: { type: String, attribute: 'card-picture' },
@@ -257,6 +258,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare busy: boolean;
   /** The loading state's words (default `words.loading`, "Loading…"), said to screen readers. */
   declare loadingLabel: string | undefined;
+  // How long the loading state stays quiet (its space kept, nothing shown) before it shows, in ms:
+  // a load quicker than this never flashes a skeleton. 0 shows it at once.
+  declare loadingDelay: number;
   declare urlState: string | undefined;
   // HTML-only cards: each names the row key for one card part (card-facts is a comma list).
   declare cardTitle: string | undefined;
@@ -272,6 +276,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _loadingEl: Element | undefined; // a child with slot="loading"
   private _ready = false; // drawn whole once: later loads only set busy
   private _drewList = false; // the last drawing was the list, not the loading state
+  // data-viewer-loading.css's skeleton already showing as the element is upgraded: the loading
+  // state shows at once, so it doesn't blink off and on (--dv-sk: that file applies).
+  private readonly _cssShown = this.isConnected && ((c) => !!c.getPropertyValue('--dv-sk') && c.visibility == 'visible')(getComputedStyle(this));
+  private _showAt?: number; // when the loading state may show (performance.now()), fixed when first drawn
   private _tpl: HTMLTemplateElement | undefined;
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
@@ -436,6 +444,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     this.openEvent = false;
     this.words = {};
     this.busy = false;
+    this.loadingDelay = 200;
     this._q = { ...blank };
     this._searchText = this._typed = '';
     this._failed = false;
@@ -1062,7 +1071,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const cards = this._shown === 'cards';
     const n = Math.max(1, Math.min(this._size || 10, cards ? 6 : 8));
     const lines = Array.from({ length: n }, (_, i) => i);
-    return html`<div class="dv-root dv-loading" aria-busy="true"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
+    // Quiet until _showAt (a timer and data-wait, not a CSS animation, so no page style can keep it hidden)
+    const wait = (this._showAt ??= performance.now() + (this._cssShown ? 0 : Math.max(0, +this.loadingDelay || 0))) - performance.now();
+    if (wait > 0) setTimeout(() => this.requestUpdate(), wait);
+    return html`<div class="dv-root dv-loading" aria-busy="true" ?data-wait=${wait > 0}><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
       ? this._loadingEl
       : html`${this.compact ? nothing : html`<div class="dv-sk-bar" aria-hidden="true"><span class="dv-sk dv-sk-search"></span><span
           class="dv-sk dv-sk-button"></span><span class="dv-sk dv-sk-button"></span></div>`}${cards

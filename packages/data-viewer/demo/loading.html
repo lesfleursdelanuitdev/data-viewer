@@ -12,32 +12,41 @@
     h2 { font-size: 1.1rem; }
   </style>
   <script>
-    // Every list's drawings, as states: what its root showed after each change (the loading state,
-    // the bar, the list, the pager). window.readies: each dv-ready, by id.
+    // Every list's drawings, as states: what its root showed after each change (the loading state
+    // kept quiet, the loading state shown, the bar, the list, the pager). Looked at on every change
+    // and every frame, since the loading state shows itself after its wait without a change.
+    // window.readies: each dv-ready, by id.
     window.states = {};
     window.readies = [];
+    // window.arrivals[id]: the root's animation name and duration when the first full drawing appears
+    window.arrivals = {};
     document.addEventListener('dv-ready', (e) => window.readies.push(e.target.id));
     window.watch = (id) => {
       const el = document.getElementById(id);
       const seen = (window.states[id] = []);
       const note = () => {
+        const sk = el.querySelector('.dv-loading > :not(.dv-sr)');
         const s = [
-          el.querySelector('.dv-loading') ? 'loading' : '',
+          sk ? (getComputedStyle(sk).visibility === 'visible' ? 'loading' : 'quiet') : '',
           el.querySelector('.dv-bar') ? 'bar' : '',
           el.querySelector('.dv-table tbody tr, .dv-cards li:not(.dv-sk-card), .dv-empty') ? 'list' : '',
           el.querySelector('.lfdln-pagination-nav') ? 'pager' : '',
         ].filter(Boolean).join('+');
         if (s && seen[seen.length - 1] !== s) seen.push(s);
+        const root = el.querySelector(':scope > .dv-root:not(.dv-loading)');
+        if (root && !window.arrivals[id]) { const cs = getComputedStyle(root); window.arrivals[id] = [cs.animationName, cs.animationDuration]; }
       };
       new MutationObserver(note).observe(el, { childList: true, subtree: true });
-      note();
+      const frame = () => { note(); if (!el.hasAttribute('ready')) requestAnimationFrame(frame); };
+      frame();
     };
   </script>
 </head>
 <body>
   <h1>data-viewer, loading</h1>
   <p>The script is added on ?late (after 400 ms), so the CSS-only state shows first. Each list
-    shows its loading state until its first page is drawn, then the whole list at once.</p>
+    keeps its space quiet for 200 ms (loading-delay), then shows its loading state until its first
+    page is drawn, then the whole list at once, easing in.</p>
   <h2>#srv: from a server, a table</h2>
   <lfdln-data-viewer id="srv" label="Recipes" adapter="json" src="/api/recipes" page-size="10" layout="table" phone-layout="table" pager="numbers" page-sizes="10,20">
     <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
@@ -52,12 +61,20 @@
     <lfdln-dv-column key="name" label="Name"></lfdln-dv-column>
     <p slot="loading" class="own-loading">Fetching the recipes…</p>
   </lfdln-data-viewer>
+  <h2>#now: its loading state at once (loading-delay="0")</h2>
+  <lfdln-data-viewer id="now" label="Recipes (now)" adapter="json" src="/api/recipes" page-size="5" loading-delay="0">
+    <lfdln-dv-column key="name" label="Name"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>#broken: a load that fails</h2>
+  <lfdln-data-viewer id="broken" label="Recipes (broken)" adapter="json" src="/api/broken" page-size="5">
+    <lfdln-dv-column key="name" label="Name"></lfdln-dv-column>
+  </lfdln-data-viewer>
   <h2>#rows: rows given by the page, later (window.giveRows())</h2>
   <lfdln-data-viewer id="rows" label="Plants" layout="table" phone-layout="table">
     <lfdln-dv-column key="name" label="Name" searchable></lfdln-dv-column>
   </lfdln-data-viewer>
   <script type="module">
-    for (const id of ['srv', 'cards', 'own', 'rows']) window.watch(id);
+    for (const id of ['srv', 'cards', 'own', 'now', 'broken', 'rows']) window.watch(id);
     window.giveRows = () => { document.getElementById('rows').rows = [{ id: 1, name: 'Rose' }, { id: 2, name: 'Fern' }]; };
     // Script elements, not import(): the dev server serves dist/ as plain files.
     const load = () => {

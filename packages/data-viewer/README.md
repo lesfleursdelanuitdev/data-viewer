@@ -440,6 +440,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
 | `loadingLabel` | `loading-label` | string | `words.loading` ("Loading…") | What the loading state says to screen readers. See [Loading](#loading). |
+| `loadingDelay` | `loading-delay` | number | `200` | How long (ms) the loading state keeps its space empty before it shows, so a quick load never flashes a skeleton. `0` shows it at once. See [Loading](#loading). |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
 | `config` | `config` | string | unset | A module whose default export sets the list up. See [Setup in its own file](#setup-in-its-own-file). |
 | `adapter` | `adapter` | string | unset | The name of a registered adapter, such as `json` or `pammy`. |
@@ -1116,7 +1117,8 @@ loads (a new page, a search, a filter) keep the list on screen and set `busy`, a
 - **Before the script runs.** Link `data-viewer-loading.css` in the page's `<head>`, before the
   script. Until the element is defined it keeps the space (`--dv-loading-height`, 16rem by
   default) and shows a quiet skeleton in the text's colour; its children stay hidden. It is
-  plain CSS for `lfdln-data-viewer:not(:defined)`, so it works before any JavaScript.
+  plain CSS for `lfdln-data-viewer:not(:defined)`, so it works before any JavaScript. It keeps
+  the space empty for its first 200 ms, so a page that loads quickly never shows it.
   With npm: `import '@lesfleursdelanuitdev/data-viewer/loading.css'` (or copy the file).
 - **After the script runs.** The list draws a skeleton of its bar and of rows or cards, in the
   layout that will show, with `aria-busy="true"` and "Loading…" in a status region (its words are
@@ -1124,6 +1126,16 @@ loads (a new page, a search, a filter) keep the list on screen and set `busy`, a
   first answer (or, without one, the first `rows` you set), and until the page has loaded, a
   `filter-style` file or the select add-on still on its way. A failed first load shows its error
   box at once.
+- **Quiet first.** For `loading-delay` ms (200 by default) the loading state keeps its space but
+  shows nothing (the screen reader's "Loading…" is there from the start), so a list that arrives
+  quickly never flashes a skeleton. If `data-viewer-loading.css`'s skeleton is already showing when
+  the script runs, the list's own loading state shows at once, so it doesn't blink off and on.
+  The wait is a timer, not a CSS animation: your own `slot="loading"` child may animate, and a
+  stylesheet that turns all animations off doesn't keep the loading state hidden.
+  `loading-delay="0"` shows the loading state at once.
+- **Easing in.** The first full drawing fades in over 150 ms. Later loads (a new page, a search)
+  don't: they set `aria-busy`. With `prefers-reduced-motion: reduce` there is no fade.
+- **A strict Content-Security-Policy** is fine: nothing is written as a `style=""` attribute.
 - **Your own loading state.** A child with `slot="loading"` is shown instead of the skeleton
   (before the script, too), and removed once the list is ready:
 

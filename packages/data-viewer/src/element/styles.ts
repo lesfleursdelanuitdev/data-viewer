@@ -155,11 +155,17 @@ export const css: string = `
 :where(.dv-error) { color: var(--dv-danger); margin-bottom: 0.75rem; }
 
 /* The loading state (before the first full drawing): a skeleton of the bar and of rows or cards.
-   Even inside, like everything else (the house style). It pulses unless motion is reduced. */
+   Even inside, like everything else (the house style). It pulses unless motion is reduced. It
+   stays hidden for loading-delay (the space kept, the screen reader's line there), so a quick load
+   never flashes it; the list's root then eases in once, as it is made (later loads show busy). */
 :where(.dv-sk) { display: block; border-radius: var(--dv-radius); background: color-mix(in srgb, var(--dv-text) 9%, transparent); }
 :where(.dv-loading) :where(.dv-sk) { animation: lfdln-dv-pulse 1.4s ease-in-out infinite; }
 @keyframes lfdln-dv-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { :where(.dv-loading) :where(.dv-sk) { animation: none; } }
+:where(.dv-loading[data-wait]) > :where(:not(.dv-sr)) { visibility: hidden; }
+:where(.dv-root:not(.dv-loading)) { animation: lfdln-dv-arrive 150ms ease-out; }
+@keyframes lfdln-dv-arrive { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { :where(.dv-root) { animation: none; } }
 :where(.dv-sk-bar) { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
 :where(.dv-sk-search) { flex: 0 1 var(--dv-search-width, 22rem); height: 2.25rem; }
 :where(.dv-sk-button) { flex: none; width: 5.5rem; height: 2.25rem; }
