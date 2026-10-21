@@ -1131,9 +1131,10 @@ loads (a new page, a search, a filter) keep the list on screen and set `busy`, a
   quickly never flashes a skeleton. On a list that was on the page before the script ran, the
   wait counts from when the page opened, so the CSS skeleton doesn't blink off and on.
   `loading-delay="0"` shows the loading state at once.
-- **Easing in.** The first full drawing fades in over 150 ms (`data-arrived` on `.dv-root` while
-  it does). Later loads (a new page, a search) don't: they set `aria-busy`. With
-  `prefers-reduced-motion: reduce` there is no fade.
+- **Easing in.** The first full drawing fades in over 150 ms. Later loads (a new page, a search)
+  don't: they set `aria-busy`. With `prefers-reduced-motion: reduce` there is no fade.
+- **A strict Content-Security-Policy** is fine: the wait is set through the CSSOM, never a
+  `style=""` attribute.
 - **Your own loading state.** A child with `slot="loading"` is shown instead of the skeleton
   (before the script, too), and removed once the list is ready:
 

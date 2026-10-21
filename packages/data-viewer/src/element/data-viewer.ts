@@ -276,7 +276,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _loadingEl: Element | undefined; // a child with slot="loading"
   private _ready = false; // drawn whole once: later loads only set busy
   private _drewList = false; // the last drawing was the list, not the loading state
-  private _arriving = false; // the first full drawing is easing in (data-arrived, until its animation ends)
   // On the page before the script ran (upgraded): data-viewer-loading.css has been waiting since the
   // page opened, so the loading state's wait counts from then, not from now (no blink).
   private readonly _upgraded = this.isConnected;
@@ -1035,6 +1034,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   protected override updated(): void {
+    // the loading state's wait, through the CSSOM (a style="" would be refused by a strict CSP)
+    if (!this._ready) this.querySelector<HTMLElement>(':scope>.dv-loading')?.style.setProperty('--dv-loading-delay', this._quietMs + 'ms');
     this._custom.after();
     this._watchWidth();
     // The first full drawing (bar, list and pager at once, after the loading state): `ready`, and
@@ -1045,13 +1046,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this.dispatchEvent(new CustomEvent('dv-ready', { bubbles: true, composed: true }));
     }
   }
-
-  // The first full drawing has eased in: its mark comes off (and stays off: later loads don't ease in).
-  private _onArrived = (e: AnimationEvent): void => {
-    if (e.animationName !== 'lfdln-dv-arrive' || e.target !== e.currentTarget) return;
-    this._arriving = false;
-    (e.currentTarget as HTMLElement).removeAttribute('data-arrived');
-  };
 
   private _onLoad = (): void => {
     if (!this._ready) this.requestUpdate();
@@ -1079,9 +1073,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const cards = this._shown === 'cards';
     const n = Math.max(1, Math.min(this._size || 10, cards ? 6 : 8));
     const lines = Array.from({ length: n }, (_, i) => i);
-    const wait = Number.isFinite(this.loadingDelay) ? Math.max(0, this.loadingDelay) : 200;
-    const delay = (this._quietMs ??= this._upgraded ? Math.max(0, Math.round(wait - performance.now())) : wait);
-    return html`<div class="dv-root dv-loading" aria-busy="true" style="--dv-loading-delay: ${delay}ms"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
+    this._quietMs ??= Math.max(0, (+this.loadingDelay || 0) - (this._upgraded ? performance.now() : 0));
+    return html`<div class="dv-root dv-loading" aria-busy="true"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
       ? this._loadingEl
       : html`${this.compact ? nothing : html`<div class="dv-sk-bar" aria-hidden="true"><span class="dv-sk dv-sk-search"></span><span
           class="dv-sk dv-sk-button"></span><span class="dv-sk dv-sk-button"></span></div>`}${cards
@@ -1423,7 +1416,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
       this._drewList = false;
       return this._skeleton(w);
     }
-    if (!this._ready) this._arriving = true;
     this._drewList = true;
     let rows: T[];
     let total: number;
@@ -1498,8 +1490,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
             ? this._cards(rows)
             : this._table(rows, w, sections, styled)}
       ${this.compact || first || failedEmpty ? nothing : this._pages(w, page, total, rows.length)}`;
-    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-arrived=${this._arriving ? '' : nothing}
-      @animationend=${this._onArrived} data-filter-open=${dim ? '' : nothing}
+    return html`<div class="dv-root" aria-busy=${this.busy ? 'true' : 'false'} data-filter-open=${dim ? '' : nothing}
       data-filter-side=${side ? '' : nothing} data-selecting=${selBar ? '' : nothing}>${side
         ? html`<div class="dv-side">${this._filter(w, sections, styled)}</div><div class="dv-main">${main}</div>`
         : main}${this._confirm(w)}</div>`;

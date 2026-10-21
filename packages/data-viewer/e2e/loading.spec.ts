@@ -185,11 +185,13 @@ test('the first full drawing eases in over 150 ms; later loads don\'t', async ({
   // the arrival seen on the root as it is drawn, before the animation ends
   const anim = await page.evaluate(() => (window as unknown as { arrivals: Record<string, [string, string]> }).arrivals.srv);
   expect(anim).toEqual(['lfdln-dv-arrive', '0.15s']);
-  // done: the mark taken off, and a new page doesn't ease in
-  await expect(root).not.toHaveAttribute('data-arrived', /.*/);
+  // done; a new page keeps the same root, which doesn't ease in again
+  await expect.poll(() => root.evaluate((e) => e.getAnimations().length)).toBe(0);
+  await root.evaluate((e) => { (window as unknown as { firstRoot: Element }).firstRoot = e; });
   await page.locator('#srv .lfdln-pagination-nav').getByRole('button', { name: 'Next' }).click();
   await expect(page.locator('#srv .dv-table tbody tr').first()).toBeVisible();
-  expect(await root.evaluate((e) => getComputedStyle(e).animationName)).toBe('none');
+  expect(await root.evaluate((e) => e === (window as unknown as { firstRoot: Element }).firstRoot)).toBe(true);
+  expect(await root.evaluate((e) => e.getAnimations().length)).toBe(0);
 });
 
 test('reduced motion: the list arrives without easing in', async ({ page }) => {
@@ -210,4 +212,24 @@ test('the script arriving late: the CSS skeleton already showing stays shown, no
   expect((await states(page, 'srv'))[0]).toBe('loading');
   hold.release();
   await expect(page.locator('#srv')).toHaveAttribute('ready', '');
+});
+
+test('under a Content-Security-Policy without inline style attributes, nothing is blocked', async ({ page }) => {
+  // the shop admin's policy allows no style="" in markup (CSSOM writes are fine)
+  await page.route('**/loading.html', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, headers: { ...res.headers(), 'content-security-policy': "style-src-attr 'none'" } });
+  });
+  await page.addInitScript(() => {
+    (window as unknown as { blocked: string[] }).blocked = [];
+    document.addEventListener('securitypolicyviolation', (e) => (window as unknown as { blocked: string[] }).blocked.push(e.effectiveDirective));
+  });
+  const hold = await holdApi(page);
+  await page.goto('/loading.html');
+  await expect(page.locator('#srv .dv-loading')).toHaveCount(1);
+  expect(await shown(page, 'srv')).toBe('hidden');
+  await expect.poll(() => shown(page, 'srv')).toBe('visible');
+  hold.release();
+  await expect(page.locator('#srv')).toHaveAttribute('ready', '');
+  expect(await page.evaluate(() => (window as unknown as { blocked: string[] }).blocked)).toEqual([]);
 });
