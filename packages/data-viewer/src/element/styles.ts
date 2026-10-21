@@ -162,8 +162,7 @@ export const css: string = `
 :where(.dv-loading) :where(.dv-sk) { animation: lfdln-dv-pulse 1.4s ease-in-out infinite; }
 @keyframes lfdln-dv-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { :where(.dv-loading) :where(.dv-sk) { animation: none; } }
-:where(.dv-loading) > :where(:not(.dv-sr)) { visibility: hidden; animation: lfdln-dv-show 0s var(--dv-loading-delay, 200ms) forwards; }
-@keyframes lfdln-dv-show { to { visibility: visible; } }
+:where(.dv-loading[data-wait]) > :where(:not(.dv-sr)) { visibility: hidden; }
 :where(.dv-root:not(.dv-loading)) { animation: lfdln-dv-arrive 150ms ease-out; }
 @keyframes lfdln-dv-arrive { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { :where(.dv-root) { animation: none; } }

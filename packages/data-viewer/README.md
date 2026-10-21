@@ -1128,13 +1128,14 @@ loads (a new page, a search, a filter) keep the list on screen and set `busy`, a
   box at once.
 - **Quiet first.** For `loading-delay` ms (200 by default) the loading state keeps its space but
   shows nothing (the screen reader's "Loading…" is there from the start), so a list that arrives
-  quickly never flashes a skeleton. On a list that was on the page before the script ran, the
-  wait counts from when the page opened, so the CSS skeleton doesn't blink off and on.
+  quickly never flashes a skeleton. If `data-viewer-loading.css`'s skeleton is already showing when
+  the script runs, the list's own loading state shows at once, so it doesn't blink off and on.
+  The wait is a timer, not a CSS animation: your own `slot="loading"` child may animate, and a
+  stylesheet that turns all animations off doesn't keep the loading state hidden.
   `loading-delay="0"` shows the loading state at once.
 - **Easing in.** The first full drawing fades in over 150 ms. Later loads (a new page, a search)
   don't: they set `aria-busy`. With `prefers-reduced-motion: reduce` there is no fade.
-- **A strict Content-Security-Policy** is fine: the wait is set through the CSSOM, never a
-  `style=""` attribute.
+- **A strict Content-Security-Policy** is fine: nothing is written as a `style=""` attribute.
 - **Your own loading state.** A child with `slot="loading"` is shown instead of the skeleton
   (before the script, too), and removed once the list is ready:
 

@@ -276,10 +276,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   private _loadingEl: Element | undefined; // a child with slot="loading"
   private _ready = false; // drawn whole once: later loads only set busy
   private _drewList = false; // the last drawing was the list, not the loading state
-  // On the page before the script ran (upgraded): data-viewer-loading.css has been waiting since the
-  // page opened, so the loading state's wait counts from then, not from now (no blink).
-  private readonly _upgraded = this.isConnected;
-  private _quietMs?: number; // the loading state's wait, fixed when first drawn (a change would move its start)
+  // data-viewer-loading.css's skeleton already showing as the element is upgraded: the loading
+  // state shows at once, so it doesn't blink off and on (--dv-sk: that file applies).
+  private readonly _cssShown = this.isConnected && ((c) => !!c.getPropertyValue('--dv-sk') && c.visibility == 'visible')(getComputedStyle(this));
+  private _showAt?: number; // when the loading state may show (performance.now()), fixed when first drawn
   private _tpl: HTMLTemplateElement | undefined;
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
@@ -1034,8 +1034,6 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   }
 
   protected override updated(): void {
-    // the loading state's wait, through the CSSOM (a style="" would be refused by a strict CSP)
-    if (!this._ready) this.querySelector<HTMLElement>(':scope>.dv-loading')?.style.setProperty('--dv-loading-delay', this._quietMs + 'ms');
     this._custom.after();
     this._watchWidth();
     // The first full drawing (bar, list and pager at once, after the loading state): `ready`, and
@@ -1073,8 +1071,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const cards = this._shown === 'cards';
     const n = Math.max(1, Math.min(this._size || 10, cards ? 6 : 8));
     const lines = Array.from({ length: n }, (_, i) => i);
-    this._quietMs ??= Math.max(0, (+this.loadingDelay || 0) - (this._upgraded ? performance.now() : 0));
-    return html`<div class="dv-root dv-loading" aria-busy="true"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
+    // Quiet until _showAt (a timer and data-wait, not a CSS animation, so no page style can keep it hidden)
+    const wait = (this._showAt ??= performance.now() + (this._cssShown ? 0 : Math.max(0, +this.loadingDelay || 0))) - performance.now();
+    if (wait > 0) setTimeout(() => this.requestUpdate(), wait);
+    return html`<div class="dv-root dv-loading" aria-busy="true" ?data-wait=${wait > 0}><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
       ? this._loadingEl
       : html`${this.compact ? nothing : html`<div class="dv-sk-bar" aria-hidden="true"><span class="dv-sk dv-sk-search"></span><span
           class="dv-sk dv-sk-button"></span><span class="dv-sk dv-sk-button"></span></div>`}${cards

@@ -233,3 +233,19 @@ test('under a Content-Security-Policy without inline style attributes, nothing i
   await expect(page.locator('#srv')).toHaveAttribute('ready', '');
   expect(await page.evaluate(() => (window as unknown as { blocked: string[] }).blocked)).toEqual([]);
 });
+
+test('the wait ends whatever the page\'s CSS animates: its own loading child with an animation, and a reset of all animations', async ({ page }) => {
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const s = document.createElement('style');
+      s.textContent = '.own-loading { animation: own-spin 1s linear infinite; } @keyframes own-spin { to { rotate: 360deg; } } #srv * { animation: none !important; }';
+      document.head.append(s);
+    });
+  });
+  const hold = await holdApi(page);
+  await page.goto('/loading.html');
+  await expect(page.locator('#own .dv-loading .own-loading')).toHaveCount(1);
+  await expect.poll(() => page.locator('#own .own-loading').evaluate((e) => getComputedStyle(e).visibility)).toBe('visible');
+  await expect.poll(() => shown(page, 'srv')).toBe('visible');
+  hold.release();
+});

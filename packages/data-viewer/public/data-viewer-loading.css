@@ -23,6 +23,7 @@ lfdln-data-viewer:not(:defined) > [slot="loading"] { display: block; }
 lfdln-data-viewer:not(:defined):has(> [slot="loading"]) { min-height: 0; background: none; animation: lfdln-dv-show 0s 200ms forwards; }
 @keyframes lfdln-dv-pulse { 50% { opacity: 0.45; } }
 @keyframes lfdln-dv-show { to { visibility: visible; } }
+lfdln-data-viewer[loading-delay="0"]:not(:defined) { animation-delay: 0s; }
 @media (prefers-reduced-motion: reduce) {
   lfdln-data-viewer:not(:defined) { animation: lfdln-dv-show 0s 200ms forwards; }
 }
