@@ -200,12 +200,12 @@ test.describe('with a probe add-on', () => {
     expect(warnings.filter((w) => w === NO_KEY)).toEqual([]);
   });
 
-  test('the built-in card draws headStart first and className on the card', async ({ page }) => {
+  test('the built-in card draws headStart at the top left of its head and className on the card', async ({ page }) => {
     await openProbe(page);
     const card = page.locator('#probecards li.lfdln-card').first();
-    const box = card.locator('.lfdln-card-head > .probe-box');
+    const box = card.locator('.lfdln-card-head > .lfdln-card-start > .probe-box');
     await expect(box).toHaveCount(1);
-    expect(await card.locator('.lfdln-card-head').evaluate((h) => h.firstElementChild?.className)).toBe('probe-box');
+    expect(await card.locator('.lfdln-card-head').evaluate((h) => h.firstElementChild?.className)).toBe('lfdln-card-start');
     await expect(card).toHaveAttribute('class', 'lfdln-card');
     // The probe's box has no CSS of its own, so the title's ::after covers it: click it directly.
     await box.evaluate((b: HTMLInputElement) => b.click());

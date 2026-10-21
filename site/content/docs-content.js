@@ -199,7 +199,7 @@ const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 export const GROUPS = [
   { name: 'Get started', items: ['overview', 'install'] },
   { name: 'The list', items: ['basics', 'config', 'custom', 'filterStyles', 'selection', 'server', 'scheme'] },
-  { name: 'Parts', items: ['menu', 'pagination', 'card', 'search', 'filter'] },
+  { name: 'Parts', items: ['menu', 'pagination', 'card', 'select', 'search', 'filter'] },
   { name: 'Reference', items: ['styling'] },
 ];
 
@@ -489,7 +489,7 @@ export function Plants() {
       '`{{key}}` gives a column’s key in that column’s format: `{{price}}` is `€6.50`. `data-if="key"` leaves an element out when the field is empty.',
       '`data-open` (or else the first heading) opens the card, and the whole card is its hit area. `data-action="id"` fires `dv-action`.',
       'Fields always go in as text. An address with a field is checked, and a field in `on…` or `style` drops the attribute.',
-      'The ⋯ menu’s items still come from `cardOf`; `<dv-menu>` and `<dv-actions>` say where they go.',
+      'The ⋯ menu’s items still come from `cardOf`; `<dv-menu>` and `<dv-actions>` say where they go. In a `selectable` list, `<dv-select>` (or `pieces.select`) says where the check box goes.',
     ],
     mount: (host) => {
       host.innerHTML = `<style>
@@ -716,6 +716,7 @@ define();
       'Without `data-viewer-select.js` a `selectable` list draws as before, with one console warning. If the file loads later, the boxes appear.',
       'Ticks are kept by `row-key` (default `id`) through paging and sorting. A new search, filter or view clears them.',
       'Up to 3 actions show as buttons, the rest in a ⋯ menu. On phones: the first one and a ⋯.',
+      'On a card the box and the card’s ⋯ share the top row, the box at the left and the ⋯ at the right, with the title under them. Your own cards get the box as `pieces.select` (`<dv-select>` in a `<template>`): put it in your card’s header. A card that doesn’t place it gets it at its top left.',
       'After an action the selection clears. Call `preventDefault()` on `dv-batch` to keep it, for example when the visitor says no to your own `confirm()`.',
       'Phones now show cards even with `layout="table"`. Add `phone-layout="table"` to keep a table on phones.',
       'This demo deletes without asking, so you can try it quickly; reload the page to get the rows back. The HTML tab shows how to ask first.',
@@ -734,7 +735,8 @@ define();
         { key: 'light', label: 'Light', sortable: true },
         { key: 'price', label: 'Price', type: 'money', format: { currency: 'EUR' }, sortable: true },
       ];
-      list.cardOf = (p) => ({ title: p.name, badge: p.kind, facts: [p.light], value: euros.format(p.price) });
+      // A ⋯ menu on each card: the box sits at its top left, the ⋯ at its top right, the name below.
+      list.cardOf = (p) => ({ title: p.name, badge: p.kind, facts: [p.light], value: euros.format(p.price), menu: [{ id: 'care', label: 'Care notes' }] });
       list.batchActions = [
         { id: 'export', label: 'Export' },
         { id: 'delete', label: 'Delete', danger: true },
@@ -979,6 +981,48 @@ document.documentElement.style.colorScheme = 'dark';` },
             <lfdln-menu-item value="remove" danger confirm="Remove the fern?">Remove</lfdln-menu-item>
           </lfdln-card-footer>
         </lfdln-card></div>`;
+    },
+  },
+
+  select: {
+    nav: 'Dropdown', mono: 'lfdln-select', kicker: 'Parts', title: 'Dropdown',
+    intro: '`<lfdln-select>` puts a real `<select>` in a frame with its own chevron and even spacing: the gap before the text equals the gap after the chevron. The opened list, the keyboard, forms and the phone picker stay the browser’s. The list uses it for Search in, Sort by and Rows per page.',
+    tabs: [
+      { label: 'HTML', code: `<script type="module" src="/js/select.standalone.js"></script>
+
+<label for="light">Light</label>
+<lfdln-select>
+  <select id="light" name="light">
+    <option>Full sun</option>
+    <option>Part shade</option>
+    <option>Shade</option>
+  </select>
+</lfdln-select>
+
+<!-- Or keep your own select and opt in with one class -->
+<select class="lfdln-select" aria-label="Rows per page">
+  <option>20</option><option>50</option>
+</select>` },
+      { label: 'CSS', code: `/* Even spacing comes from the tokens: the chevron sits --select-pad-x from the right edge */
+lfdln-select { --select-pad-x: 0.75rem; --select-chevron-size: 0.8rem; }` },
+    ],
+    notes: [
+      'A bare select has the browser’s arrow about 3 px from its right edge and its text 10 px in. Here both gaps are the border plus `--select-pad-x`.',
+      '`change` and `input` fire on your `<select>` as always, and forms send its value.',
+      'In Lit, `renderSelect(html`<select …>`)` draws the same frame around your own select.',
+      'Package `@lesfleursdelanuitdev/select`.',
+    ],
+    mount: (host, ctx) => {
+      host.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+          <label for="sel-light">Light</label>
+          <lfdln-select><select id="sel-light" name="light"><option>Full sun</option><option>Part shade</option><option>Shade</option></select></lfdln-select>
+          <select class="lfdln-select" aria-label="Rows per page"><option>20</option><option>50</option></select>
+        </div><p data-said style="margin:16px 0 0;font-size:13px;opacity:.7">Pick one.</p>`;
+      const said = host.querySelector('[data-said]');
+      for (const s of host.querySelectorAll('select')) {
+        s.addEventListener('change', () => { said.textContent = `change: ${s.value}`; ctx.log?.('change', { value: s.value }); });
+      }
+      import('/js/select.standalone.js');
     },
   },
 

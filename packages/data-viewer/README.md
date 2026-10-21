@@ -439,6 +439,7 @@ your page does listen for `dv-open`, add `open-event` to the element to get the 
 | `selectedAll` | none (read only) | boolean | `false` | True after "Select all N matching". |
 | `facets` | none | `Record<key, FilterOption[]>` | unset | Server mode: each filterable column's options with counts. Set it with `rows` and `total`. |
 | `busy` | `busy` (reflected) | boolean | `false` | Waiting for rows. Set by the viewer; you can set it too. |
+| `loadingLabel` | `loading-label` | string | `words.loading` ("Loading…") | What the loading state says to screen readers. See [Loading](#loading). |
 | `urlState` | `url-state` | string | unset | Keeps the state in the address under this prefix. See [Address](#address). |
 | `config` | `config` | string | unset | A module whose default export sets the list up. See [Setup in its own file](#setup-in-its-own-file). |
 | `adapter` | `adapter` | string | unset | The name of a registered adapter, such as `json` or `pammy`. |
@@ -958,10 +959,19 @@ the add-on; only the drawing needs it.
   only part of the page is ticked, and it is disabled when no row on the page can be ticked. Each
   row's box is named "Select {name}", where the name is the row's title (its first column, as
   in the row ⋯ menu). A ticked row gets the class `dv-selected` and `aria-selected="true"`.
-- **Cards.** A box first in each card's head. Tapping the box ticks it; tapping anywhere else still
-  opens the card. Your own cards (`cardTemplate`, `cardMount`, a `<template>`) get the box too, in
-  a `dv-select-slot` the viewer puts first in the card. A ticked card gets `dv-selected` (an
-  accent outline).
+- **Cards.** The box and the card's ⋯ menu share the card's top row: the box at the top left, the
+  ⋯ at the top right, both on one centre line, and the title under them, so a long title never
+  moves either. Without a ⋯ the row holds only the box, and with selection off only the ⋯.
+  Tapping the box ticks it; tapping anywhere else still opens the card. A ticked card gets
+  `dv-selected` (an accent outline).
+- **Your own cards** (`cardTemplate`, `cardMount`, a `<template>`) get the box as a piece, like
+  the ⋯ menu: `pieces.select` (`<dv-select>` in a template). Put it in your card's header, at the
+  left of `pieces.menu`, and the two line up as in the built-in card. A card that doesn't place it
+  still gets the box: the viewer puts it in a fallback slot, `<dv-select class="dv-select-slot">`
+  first in the card, absolutely positioned at the card's top left inside its padding (0.5rem in,
+  the 44 px target at the corner on phones) and above the open layer, so a card with
+  `overflow: hidden` and round corners never cuts it. The fallback may cover the top left of your
+  card's own content, so placing the piece is better.
 - **The selection bar.** While anything is ticked it replaces the bar above the list (search,
   filter, views and the layout switch), and the `views` tabs or the `sentence` above it are hidden
   too, so with `sentence` (or `search`) nothing shows the applied filters until the selection is
@@ -1095,6 +1105,41 @@ When the visitor picks a size, the first row they were looking at stays on scree
 the host answers it with rows of that size, as for any query. With `url-state` the size goes in
 the address (see [Address](#address)); with `remember-as` it is kept in `localStorage` under
 `<remember-as>.size`, next to the layout choice. The address wins over what is stored.
+
+## Loading
+
+Until its first page can be drawn whole, the list shows a loading state and nothing else, so it
+never pops in in stages (the bar, then the rows, then the pager). Then the bar, the list and the
+pager appear at once, the element gets the `ready` attribute and `dv-ready` fires, once. Later
+loads (a new page, a search, a filter) keep the list on screen and set `busy`, as before.
+
+- **Before the script runs.** Link `data-viewer-loading.css` in the page's `<head>`, before the
+  script. Until the element is defined it keeps the space (`--dv-loading-height`, 16rem by
+  default) and shows a quiet skeleton in the text's colour; its children stay hidden. It is
+  plain CSS for `lfdln-data-viewer:not(:defined)`, so it works before any JavaScript.
+  With npm: `import '@lesfleursdelanuitdev/data-viewer/loading.css'` (or copy the file).
+- **After the script runs.** The list draws a skeleton of its bar and of rows or cards, in the
+  layout that will show, with `aria-busy="true"` and "Loading…" in a status region (its words are
+  `loading-label`, or `words.loading`). It waits for the columns, a setup file, the adapter's
+  first answer (or, without one, the first `rows` you set), and until the page has loaded, a
+  `filter-style` file or the select add-on still on its way. A failed first load shows its error
+  box at once.
+- **Your own loading state.** A child with `slot="loading"` is shown instead of the skeleton
+  (before the script, too), and removed once the list is ready:
+
+```html
+<lfdln-data-viewer adapter="json" src="/api/orders" loading-label="Loading your orders">
+  <lfdln-dv-column key="number" label="Order"></lfdln-dv-column>
+  <p slot="loading">Loading your orders…</p>
+</lfdln-data-viewer>
+```
+
+- The skeleton pulses gently; with `prefers-reduced-motion: reduce` it stays still. Its parts
+  have the classes `dv-loading`, `dv-sk`, `dv-sk-bar`, `dv-sk-row` and `dv-sk-card`.
+
+```js
+list.addEventListener('dv-ready', () => console.log('drawn'));
+```
 
 ## The layout switch
 
@@ -1238,6 +1283,7 @@ only for a new row object or a new template.
 | `data-action="id"` | A click fires `dv-action` with `{ id, item: { id, label }, row }`, where `label` is the element's text. Like a menu item, but with no confirm. |
 | `<dv-menu>` | The row's ⋯ menu, from `cardOf(row).menu`, with confirm for `confirm` items. Nothing when the row has no items. |
 | `<dv-actions>` | The row's menu items as buttons, laid out by `card-actions` (`wrap`, the default here, or `row`) and `card-actions-max`, the rest in a More menu. |
+| `<dv-select>` | In a `selectable` list, the row's check box (the first `<dv-select>` gets it). Put it beside `<dv-menu>` in your card's header; without one, the box goes in the fallback slot at the card's top left. |
 
 Menu items still come only from `cardOf(row).menu`, so a list with `<dv-menu>` or `<dv-actions>`
 sets `cardOf` from a script or a [setup file](#setup-in-its-own-file). After filling, `data-if` is
@@ -1275,6 +1321,9 @@ keep it if focus matters). `pieces`:
 
 - `pieces.menu`: the row's ⋯ menu (what `<dv-menu>` shows), or nothing.
 - `pieces.actions`: the row's menu items as buttons (what `<dv-actions>` shows), or nothing.
+- `pieces.select`: the row's check box in a `<dv-select>` (what `<dv-select>` shows), or nothing
+  when the list isn't `selectable`. Put it in your header beside `pieces.menu`; left out, the box
+  goes in the fallback slot at the card's top left (see [Selecting rows](#selecting-rows)).
 - `pieces.text(key)`: the field as `{{key}}` would give it, formatted like its column.
 
 The function runs on every drawing of the list; Lit only changes what changed.
@@ -1307,8 +1356,26 @@ list.cardMount = (el, row, pieces) => {
 };
 ```
 
-Here `pieces.menu` and `pieces.actions` are elements (`<dv-menu>` and `<dv-actions>`) that the
-viewer keeps up to date; put them where you want them in your card. `pieces.text(key)` is as above.
+Here `pieces.menu`, `pieces.actions` and `pieces.select` are elements (`<dv-menu>`, `<dv-actions>`
+and `<dv-select>`) that the viewer keeps up to date; put them where you want them in your card.
+`pieces.select` stays empty when the list isn't `selectable`. Until your card places it (React
+does so in an effect), the box shows in the fallback slot at the card's top left.
+`pieces.text(key)` is as above.
+
+A header row with the box at the left and the ⋯ at the right:
+
+```jsx
+function PlantCard({ plant, pieces }) {
+  const head = useRef(null);
+  useEffect(() => { head.current.append(pieces.select, pieces.menu); }, [pieces]);
+  return (
+    <>
+      <div ref={head} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} />
+      <button type="button" data-open>{plant.name}</button>
+    </>
+  );
+}
+```
 
 The viewer calls `cardMount` after it draws, for each card that is new on the screen, and the
 cleanup for each card that left: another page, a search, a filter, a sort, new `rows`, the switch
@@ -1418,6 +1485,7 @@ host's listeners too: check `e.target === el` when lists nest. In TypeScript,
 | `dv-layout` | `{ layout }` | The visitor pressed the table-or-cards switch (not when the list crosses 640 px). |
 | `views-change` | `{ views }` | With `filter-style="views"`: a view was saved, renamed, deleted or put back by Undo. `views` is every saved view, `SavedView[]`. See [Saved views](#saved-views). |
 | `dv-select` | `{ keys, all, except }` | The selection changed: a box, the select-all line, ✕, Esc, a clearing search, filter or view, an action, or `clearSelection()`. Not when `selected` is set from code. `keys` is what `selected` gives: under "all matching" in browser mode, every matching row's key but `except`. See [Selecting rows](#selecting-rows). |
+| `dv-ready` | none | The list was drawn whole for the first time, after its loading state. Fired once per list; the `ready` attribute is set at the same time. See [Loading](#loading). |
 | `dv-batch` | `{ action, keys, rows, all, except, query }` | A selection bar action was pressed. Cancelable: `preventDefault()` keeps the selection; otherwise it clears. |
 
 ## Address
@@ -1534,6 +1602,7 @@ list.words = { search: 'Chercher', showing: (from, to, total) => `${from}–${to
 | `actions` | `What you can do` (the menu column's hidden header) |
 | `empty` | `Nothing to show.` |
 | `loadFailed` | `Couldn't load this list.` |
+| `loading` | `Loading…` (the loading state, for screen readers) |
 | `tryAgain` | `Try again` |
 | `cancel` | `Cancel` (the confirm dialog) |
 | `ok` | `OK` (the confirm dialog, when the item has no label) |
@@ -1615,6 +1684,8 @@ Set the variables on `:root` or on the element:
 | `--dv-danger` | `#b42318` | `#ff8a80` | Danger items, the error box |
 | `--dv-radius` | `8px` | `8px` | Corners |
 | `--dv-font` | `system-ui, -apple-system, "Segoe UI", sans-serif` | same | The font |
+| `--dv-search-width` | unset | unset | The search box's width in the bar (unset: `22rem`, or `30rem` with the "Search in" picker). It never grows into the line's free space, so it keeps one width in the table and in cards (where "Sort by" joins the bar); the controls after it keep to the bar's right end. On phones (639 px or narrower) the bar is two rows: the search box, Filter and the layout switch, then "Search in" and "Sort by", half the row each, with the applied filters and the views under them; below 390 px Filter shows only its icon (its word stays its name). |
+| `--dv-control-height` | `2.375rem` (38 px); `44px` at 640 px or narrower | same | The one height of every control in the bar, the selection bar and the pager: the search box, Filter, the dropdowns, the layout switch, the buttons, the page buttons (borders included). The list passes it on as `--lfdln-control-height`, which the search box, the dropdown, the panel filter's button and the pager read (unset outside a list: each keeps its own height). |
 
 Inside a list, the menus', the pager's and the cards' own variables (`--menu-*`,
 `--pagination-*`, `--card-*`) are set from these, so `--dv-*` themes all of it. Set
@@ -1638,6 +1709,8 @@ These are the styling interface.
 | `lfdln-filter-chips`, `lfdln-filter-chip` | The applied filters, under the bar |
 | `dv-views` | The views (`<nav>` of links; the current one has `aria-current="true"`) |
 | `dv-count` | A view's count |
+| `dv-sort` | The cards' "Sort by" (a `<label>` around the [select package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/select#readme)'s `lfdln-select` dropdown) |
+| `dv-loading` | The loading state's root (it also has `dv-root`); its skeleton parts are `dv-sk` (`dv-sk-bar`, `dv-sk-search`, `dv-sk-button`, `dv-sk-row`, `dv-sk-card`, `dv-sk-line`). See [Loading](#loading). |
 | `dv-layout` | The table-or-cards switch (buttons with `aria-pressed`) |
 | `dv-layout-icon` | A switch button's icon (`layout-switch="icons"` or `"both"`) |
 | `dv-layout-text` | A switch button's words (hidden text with `layout-switch="icons"`) |
@@ -1658,7 +1731,7 @@ These are the styling interface.
 | `dv-select-all` | The "Select all N matching" line under the selection bar |
 | `dv-select-box` | A check box (`<input type="checkbox">`), inside its tap target `dv-select-hit` |
 | `dv-select-cell` | The table's box column (header and cells) |
-| `dv-select-slot` | Where the box goes in your own card |
+| `dv-select-slot` | The fallback slot (a `<dv-select>`) for the box in your own card when the card doesn't place `pieces.select`. It counts only while it is the card's own child: a card that moves it into its header later (React, in an effect) gets the header look at once, and the viewer drops the class on its next drawing. |
 | `lfdln-card`, `lfdln-card-head`, `lfdln-card-link`, `lfdln-card-title`, `lfdln-card-badge`, `lfdln-card-body`, `lfdln-card-picture`, `lfdln-card-fact`, `lfdln-card-foot`, `lfdln-card-meta`, `lfdln-card-value`, `lfdln-card-action`, `lfdln-card-actions`, `lfdln-card-actions-row`, `lfdln-card-actions-more`, `lfdln-card-more`, `lfdln-card-danger` | A card's parts: see the [card package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/card#class-names) (they were `dv-card-*` before the split) |
 | `lfdln-menu-wrap`, `lfdln-menu-button`, `lfdln-menu-list`, `lfdln-menu-item`, `lfdln-menu-label`, `lfdln-menu-icon`, `lfdln-menu-desc`, `lfdln-menu-why`, `lfdln-menu-heading`, `lfdln-menu-group`, `lfdln-menu-danger`, `lfdln-menu-confirm` | The ⋯ menus and the confirm dialog: see the [menu package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/menu#class-names) (they were `dv-menu-*` and `dv-confirm`) |
 | `lfdln-pagination-nav`, `lfdln-pagination-status`, `lfdln-pagination-page`, `lfdln-pagination-info`, `lfdln-pagination-size`, `lfdln-pagination-pager`, `lfdln-pagination-numbers`, `lfdln-pagination-current`, `lfdln-pagination-gap`, `lfdln-pagination-now` | The pages bar: see the [pagination package](https://github.com/lesfleursdelanuitdev/data-viewer/tree/main/packages/pagination#class-names) (they were `dv-pages`, `dv-numbers`, …) |

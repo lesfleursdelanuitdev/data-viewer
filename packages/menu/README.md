@@ -147,6 +147,12 @@ rule of yours wins (except `.lfdln-menu-confirm::backdrop`, which can't be insid
 They follow the page's `color-scheme` through `light-dark()`: a page that says nothing gets the
 light ones. Inside a data viewer they are set from its `--dv-*` variables.
 
+The spacing is even on both sides and shared with the other pop-ups (the filter panel, the
+confirm dialog): `--lfdln-pop-inset` (the list's own padding, all round, `0.25rem`),
+`--lfdln-pop-item-x` and `--lfdln-pop-item-y` (each item's and heading's, `0.65rem` and
+`0.45rem`), `--lfdln-pop-pad-x` and `--lfdln-pop-pad-y` (the confirm dialog's, `16px` and
+`12px`). Set them once on `:root` to change every pop-up.
+
 ### Class names
 
 | Class | Part |

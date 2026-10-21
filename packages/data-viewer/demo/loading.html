@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, loading</title>
+  <!-- Before the script: keeps the space and shows a skeleton until the element is defined. -->
+  <link rel="stylesheet" href="/data-viewer-loading.css">
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <script>
+    // Every list's drawings, as states: what its root showed after each change (the loading state,
+    // the bar, the list, the pager). window.readies: each dv-ready, by id.
+    window.states = {};
+    window.readies = [];
+    document.addEventListener('dv-ready', (e) => window.readies.push(e.target.id));
+    window.watch = (id) => {
+      const el = document.getElementById(id);
+      const seen = (window.states[id] = []);
+      const note = () => {
+        const s = [
+          el.querySelector('.dv-loading') ? 'loading' : '',
+          el.querySelector('.dv-bar') ? 'bar' : '',
+          el.querySelector('.dv-table tbody tr, .dv-cards li:not(.dv-sk-card), .dv-empty') ? 'list' : '',
+          el.querySelector('.lfdln-pagination-nav') ? 'pager' : '',
+        ].filter(Boolean).join('+');
+        if (s && seen[seen.length - 1] !== s) seen.push(s);
+      };
+      new MutationObserver(note).observe(el, { childList: true, subtree: true });
+      note();
+    };
+  </script>
+</head>
+<body>
+  <h1>data-viewer, loading</h1>
+  <p>The script is added on ?late (after 400 ms), so the CSS-only state shows first. Each list
+    shows its loading state until its first page is drawn, then the whole list at once.</p>
+  <h2>#srv: from a server, a table</h2>
+  <lfdln-data-viewer id="srv" label="Recipes" adapter="json" src="/api/recipes" page-size="10" layout="table" phone-layout="table" pager="numbers" page-sizes="10,20">
+    <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="cuisine" label="Cuisine"></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>#cards: from a server, cards</h2>
+  <lfdln-data-viewer id="cards" label="Recipes (cards)" adapter="json" src="/api/recipes" page-size="6" layout="cards">
+    <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>#own: its own loading state (slot="loading") and loading-label</h2>
+  <lfdln-data-viewer id="own" label="Recipes (own)" adapter="json" src="/api/recipes" page-size="5" loading-label="Fetching the recipes">
+    <lfdln-dv-column key="name" label="Name"></lfdln-dv-column>
+    <p slot="loading" class="own-loading">Fetching the recipes…</p>
+  </lfdln-data-viewer>
+  <h2>#rows: rows given by the page, later (window.giveRows())</h2>
+  <lfdln-data-viewer id="rows" label="Plants" layout="table" phone-layout="table">
+    <lfdln-dv-column key="name" label="Name" searchable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="module">
+    for (const id of ['srv', 'cards', 'own', 'rows']) window.watch(id);
+    window.giveRows = () => { document.getElementById('rows').rows = [{ id: 1, name: 'Rose' }, { id: 2, name: 'Fern' }]; };
+    // Script elements, not import(): the dev server serves dist/ as plain files.
+    const load = () => {
+      for (const src of ['/data-viewer.standalone.js', '/data-viewer-json.js']) {
+        document.head.append(Object.assign(document.createElement('script'), { type: 'module', src }));
+      }
+    };
+    if (new URLSearchParams(location.search).has('late')) setTimeout(load, 400);
+    else load();
+  </script>
+</body>
+</html>

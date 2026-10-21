@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>data-viewer, the bar on phones</title>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--dv-bg); color: var(--dv-text); }
+    h2 { font-size: 1.1rem; }
+  </style>
+  <script type="module" src="/data-viewer.standalone.js"></script>
+  <script type="module" src="/data-viewer-filter-panel.js"></script>
+  <script type="module" src="/data-viewer-select.js"></script>
+</head>
+<body>
+  <h1>data-viewer, the bar on phones</h1>
+  <!-- A full bar as the shop's lists have it: search in, the panel filter, ticks, the icon switch,
+       numbered pages. #cards starts in cards (Sort by in the bar), #table in a table on phones too;
+       the table has more columns than a phone shows; the names include an unbreakable one and ones of several words. -->
+  <h2>Cards</h2>
+  <lfdln-data-viewer id="cards" label="Products" url-state="c" layout="cards" search-in filter-style="panel" selectable open-event row-key="name"
+    layout-switch="icons" pager="numbers" page-sizes="5,10" page-size="5">
+    <lfdln-dv-column key="name" label="Product" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="status" label="Status" type="badge" filterable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind" type="badge" filterable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="added" label="Updated" type="date" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <h2>Table</h2>
+  <lfdln-data-viewer id="table" label="Products" url-state="t" layout="table" phone-layout="table" search-in filter-style="panel" open-event
+    selectable row-key="name" layout-switch="icons" pager="numbers" page-sizes="5,10" page-size="5">
+    <lfdln-dv-column key="name" label="Product" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="status" label="Status" type="badge" filterable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind" type="badge" filterable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="added" label="Updated" type="date" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="buyer" label="Buyer" searchable></lfdln-dv-column>
+    <lfdln-dv-column key="notes" label="Notes" searchable></lfdln-dv-column>
+  </lfdln-data-viewer>
+  <script type="application/json" id="products">
+    [
+      {"name": "=HYPERLINK(\"x\")", "status": "On sale", "kind": "Photograph", "price": 45, "added": "2026-10-10", "buyer": "buyer120@example.com", "notes": "Two prints, one framed, sent to the gallery on Monday"},
+      {"name": "Blue Hour", "status": "Needs a file", "kind": "Preset pack", "price": 8.2, "added": "2026-09-05", "buyer": "someone.with.a.long.name@example.com", "notes": "Waiting for the file"},
+      {"name": "Café Noir", "status": "Switched off", "kind": "Other", "price": 40.8, "added": "2026-10-06"},
+      {"name": "Chalk Cliffs at Dawn", "status": "Needs a file", "kind": "Preset pack", "price": 12, "added": "2026-08-01"},
+      {"name": "Cobalt Steps", "status": "Switched off", "kind": "Other", "price": 30, "added": "2026-07-20"},
+      {"name": "Copper Roofs", "status": "On sale", "kind": "Photograph", "price": 25, "added": "2026-06-15"}
+    ]
+  </script>
+  <script type="module">
+    const rows = JSON.parse(document.getElementById('products').textContent);
+    for (const id of ['cards', 'table']) {
+      const el = document.getElementById(id);
+      el.batchActions = [{ id: 'off', label: 'Switch off' }, { id: 'delete', label: 'Delete', danger: true }];
+      // the table's rows have a small picture beside the name (a plain square, some empty)
+      if (id === 'table') el.cardOf = (r) => ({ title: r.name, picture: r.price > 20 ? Object.assign(document.createElement('span'), { style: 'display:block;width:100%;height:100%;background:#c9a' }) : document.createElement('span') });
+      el.rows = rows;
+    }
+  </script>
+</body>
+</html>

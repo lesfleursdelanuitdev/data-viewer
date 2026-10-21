@@ -40,8 +40,8 @@ export type CardHooks = {
   moreLabel: string; // the name of the ⋯ (wrap) or More (row) menu with the rest
   moreText?: string; // row: More's visible words (default "More")
   moreIcon?: Content; // row: an icon before them
-  headMenu?: Content; // something of the page's own in the header, such as an <lfdln-menu>
-  headStart?: Content; // drawn first in the header (the data viewer's check box)
+  headMenu?: Content; // something of the page's own at the header's top right, such as an <lfdln-menu>
+  headStart?: Content; // the header's top left (the data viewer's check box), level with the ⋯ at the right
   className?: string; // more classes on the card element (the data viewer's dv-selected)
   as?: 'li' | 'div'; // the card's own element (a list of cards uses li)
 };
@@ -120,16 +120,21 @@ export function renderCard(p: CardParts, h: CardHooks): TemplateResult {
       ? html`<a class="lfdln-card-action" href=${actionHref}>${action.label}</a>`
       : html`<button type="button" class="lfdln-card-action" @click=${() => h.onAction(action.id)}>${action.label}</button>`
     : nothing;
+  // The head is a grid: a top row with the start (the data viewer's box) at the left and the menus
+  // at the right, then the title (and its badge). The DOM order stays start, title, badge, menus,
+  // so Tab still reaches the title before the ⋯; a long title can't move either end.
+  const given = (c: Content | typeof nothing | undefined): c is Content => c !== undefined && c !== null && c !== '' && c !== nothing;
+  const menu = mode === 'menu' ? renderMenu(p.menu, h.menuId, h.menuLabel, h.onPick) : nothing;
+  const end = given(h.headMenu) || menu !== nothing;
   const inner = html`
-    <div class="lfdln-card-head">${h.headStart ?? nothing}
+    <div class="lfdln-card-head">${given(h.headStart) ? html`<span class="lfdln-card-start">${h.headStart}</span>` : nothing}
       ${href
         ? html`<a class="lfdln-card-link" data-lfdln-menu-guard href=${href} title=${p.title}>${title}</a>`
         : h.onOpen
           ? html`<button type="button" class="lfdln-card-link" data-lfdln-menu-guard title=${p.title} @click=${h.onOpen}>${title}</button>`
           : html`<span class="lfdln-card-name" title=${p.title}>${title}</span>`}
       ${p.badge !== undefined && p.badge !== '' ? html`<span class="lfdln-card-badge">${p.badge}</span>` : nothing}
-      ${h.headMenu ?? nothing}
-      ${mode === 'menu' ? renderMenu(p.menu, h.menuId, h.menuLabel, h.onPick) : nothing}
+      ${end ? html`<span class="lfdln-card-end">${given(h.headMenu) ? h.headMenu : nothing}${menu}</span>` : nothing}
     </div>
     ${p.picture !== undefined || p.facts?.length || p.body !== undefined
       ? html`<div class="lfdln-card-body">

@@ -14,8 +14,8 @@ const src = (rel: string) => fileURLToPath(new URL(`./packages/${rel}`, import.m
  * patterns, so the bare name never swallows a subpath.
  */
 export const siblings: { find: RegExp; replacement: string }[] = [
-  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|search-filter|search|filter)\/([\w-]+)$/, replacement: src('$1/src/$2.ts') },
-  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|search-filter|search|filter)$/, replacement: src('$1/src/index.ts') },
+  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|select|search-filter|search|filter)\/([\w-]+)$/, replacement: src('$1/src/$2.ts') },
+  { find: /^@lesfleursdelanuitdev\/(menu|pagination|card|select|search-filter|search|filter)$/, replacement: src('$1/src/index.ts') },
 ];
 
 /** Fails the build when a script grows past its gzipped limit. */

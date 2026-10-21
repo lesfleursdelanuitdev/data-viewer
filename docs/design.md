@@ -208,8 +208,27 @@ type Column<T> = {
 
 `cardOf(row)` returns the card's parts. The rules are today's, from the shop-admin-ui plan:
 
-- **header:** title (two lines at most, the whole of it on hover), badge, and the ⋯ menu at the
-  upper right;
+- **header:** a top row with the select box at the left (in a `selectable` list) and the ⋯ menu
+  at the right, on one centre line; then the title (two lines at most, the whole of it on hover)
+  and its badge. Without a box the row holds only the ⋯; without either there is no row. A long
+  title never moves the box or the ⋯ (decided by momolig 2026-10-17, with this mockup):
+
+  ```
+  ┌──────────────────────────┐
+  │ ☐                     ⋯  │
+  │ Rose jam                 │
+  │ [On sale]                │
+  │ ┌──────picture─────────┐ │
+  │ 3 jars · 250 g           │
+  │ updated 2 days ago  €6.50│
+  └──────────────────────────┘
+  ```
+
+  Custom cards get the box as a piece, `pieces.select` (`<dv-select>` in a template), the way they
+  get `pieces.menu`, and put it in their own header. A custom card that doesn't place it gets it in
+  the viewer's fallback slot (`.dv-select-slot`), absolutely positioned at the card's top left
+  inside its padding and above the open layer, so `overflow: hidden` and round corners never clip
+  it;
 - **body:** picture (one shape for all cards), two facts at most, nothing to press;
 - **footer:** the time on the left, the money on the right, at most one button;
 - the whole card opens the thing (`href` or the `dv-open` event). The menu and the footer's button
@@ -362,6 +381,28 @@ confirmation before `dv-action` fires.
   A newer query cancels the one still running (`AbortController`).
 
 ## Look and accessibility
+
+- **Even spacing (house style, momolig 2026-10-17).** Padding and margins are even unless momolig
+  says otherwise: left equals right, top equals bottom. That includes the visible gaps, not only
+  the CSS values: the space after a chevron or a trailing icon equals the space before the text,
+  and a control at a card's or a bar's edge sits as far from that edge on both sides. Check it in
+  the browser (the e2e tests measure it), not only in the stylesheet.
+- **Dropdowns (momolig 2026-10-17): a styled native select.** Every `<select>` in the packages
+  (Search in, Sort by, Rows per page) is the `select` package's `<lfdln-select>` / `renderSelect`:
+  a real `<select>` with `appearance: none`, an SVG chevron in `currentColor` and even spacing
+  (`--select-pad-x` before the text and after the chevron, `--select-chevron-size`,
+  `--select-gap`). The open list, events, forms, keyboard, screen readers and the phone picker
+  stay native. A page keeping its own plain select opts in with `class="lfdln-select"`.
+- **Pop-ups (momolig 2026-10-17)** share one set of spacing tokens, each with its default as the
+  fallback: `--lfdln-pop-inset` (a menu list's own padding, 0.25rem), `--lfdln-pop-item-x` /
+  `-y` (its items and headings, 0.65rem / 0.45rem), `--lfdln-pop-pad-x` / `-y` (a panel's, a
+  sheet's or a dialog's, 16px / 12px). The ⋯ and More menus, the confirm dialog, the Filter
+  panel and its phone sheet use them; e2e checks left = right and top = bottom (±1 px).
+- **Loading (momolig 2026-10-17).** No stepwise build-up: before its script, the
+  `data-viewer-loading.css` skeleton keeps the space; after it, the viewer's own skeleton (bar and
+  rows or cards, in the coming layout) until the first page is drawn whole; then `ready` and
+  `dv-ready` (once). Later loads only set `busy`. Customisable with `slot="loading"` and
+  `loading-label`; still under `prefers-reduced-motion`.
 
 - Class names `dv-root`, `dv-bar`, `dv-table`, `dv-card`, `dv-card-head`, … are documented, because
   they are the styling interface. Built-in rules sit inside `:where()`, so any page rule wins.

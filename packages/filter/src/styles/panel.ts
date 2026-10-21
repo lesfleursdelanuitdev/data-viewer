@@ -22,16 +22,20 @@ import { histogramBars, panelLeft, showLabel, useSeg } from './panel-logic.ts';
 export const panelCss = `
 :where(.lfdln-filter-panel-root) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 :where(.lfdln-filter-trigger) {
-  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; font-size: 14px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 8px; height: var(--lfdln-control-height, 34px); padding: 0 12px; font-size: 14px; font-weight: 500;
   color: var(--filter-text); background: var(--filter-bg); border: 1px solid var(--filter-border); border-radius: var(--filter-radius);
 }
 :where(.lfdln-filter-trigger:hover) { background: color-mix(in srgb, var(--filter-text) 7%, var(--filter-bg)); }
 :where(.lfdln-filter-trigger) :where(svg) { stroke-width: 16; }
 :where(div.lfdln-filter-panel) { display: flex; flex-direction: column; width: 400px; max-height: min(85vh, 44rem); }
-:where(.lfdln-filter-panel-head) { display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 14px 16px 10px; }
+/* Even inside (the shared pop-up tokens): the same space at the top, under the title, above the
+   foot's line, under it and at the bottom; the same at the left and the right. */
+:where(.lfdln-filter-panel-head) {
+  display: flex; align-items: center; gap: 8px; min-height: 26px; padding: var(--lfdln-pop-pad-y, 12px) var(--lfdln-pop-pad-x, 16px) 0;
+}
 :where(.lfdln-filter-panel-title) { flex: 1; margin: 0; font-size: 15px; font-weight: 500; }
 :where(.lfdln-filter-panel-head) :where(.lfdln-filter-btn) { height: 26px; font-size: 12.5px; }
-:where(.lfdln-filter-panel-body) { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; padding: 6px 16px 18px; overflow-y: auto; overscroll-behavior: contain; }
+:where(.lfdln-filter-panel-body) { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; padding: var(--lfdln-pop-pad-y, 12px) var(--lfdln-pop-pad-x, 16px); overflow-y: auto; overscroll-behavior: contain; }
 :where(.lfdln-filter-panel-section) { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 :where(.lfdln-filter-panel-label) { font-size: 12px; color: var(--filter-muted); }
 :where(.lfdln-filter-panel-chips) { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -45,11 +49,26 @@ export const panelCss = `
   width: 100%; min-width: 0; height: 32px; padding: 0 8px; font: inherit; font-size: 13px; color: var(--filter-text);
   background: var(--filter-bg); border: 1px solid var(--filter-border); border-radius: var(--filter-radius);
 }
-:where(.lfdln-filter-panel-foot) { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; box-shadow: inset 0 1px 0 var(--filter-border); }
+:where(.lfdln-filter-panel-foot) {
+  display: flex; justify-content: flex-end; gap: 8px; padding: var(--lfdln-pop-pad-y, 12px) var(--lfdln-pop-pad-x, 16px);
+  box-shadow: inset 0 1px 0 var(--filter-border);
+}
 :where(.lfdln-filter-show) { min-width: 132px; }
 :where(.dv-root[data-filter-open]) > :where(:not(.dv-bar)) { opacity: 0.35; transition: opacity 0.15s; }
+/* In a list's bar on phones, the button and the applied filters are the bar's own items: the
+   button in its first row, the filters under its rows (the data viewer's styles). Narrow phones:
+   the button shows its icon (and how many are on); its word stays its name. */
 @media (max-width: 639px) {
-  :where(.lfdln-filter-trigger) { height: 44px; }
+  :where(.dv-bar) :where(.dv-filter:has(> .lfdln-filter-panel-root), .lfdln-filter-panel-root) { display: contents; }
+  :where(.dv-bar) :where(.lfdln-filter-trigger, .lfdln-filter-tag) { margin-block: 0.25rem; }
+  :where(.dv-bar) :where(.lfdln-filter-tag) { order: 4; }
+}
+@media (max-width: 389px) {
+  :where(.dv-bar) :where(.lfdln-filter-trigger) { min-width: 44px; justify-content: center; }
+  :where(.dv-bar) :where(.lfdln-filter-trigger > span:not([class])) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+}
+@media (max-width: 639px) {
+  :where(.lfdln-filter-trigger) { height: var(--lfdln-control-height, 44px); }
   :where(.lfdln-filter-panel-foot) :where(.lfdln-filter-btn) { flex: 1; }
   :where(.lfdln-filter-panel-range) :where(input) { height: 44px; font-size: 16px; }
 }

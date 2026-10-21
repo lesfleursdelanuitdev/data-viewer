@@ -6,6 +6,7 @@ import {
 } from '@lesfleursdelanuitdev/pagination';
 import { renderCard, renderCardActions, type CardActions, type CardHooks } from '@lesfleursdelanuitdev/card';
 import { defaultSearchWords, renderSearch, type SearchWords } from '@lesfleursdelanuitdev/search';
+import { renderSelect } from '@lesfleursdelanuitdev/select';
 import {
   defaultFilterWords, isSet, normalise, removeChip, renderFilter, renderFilterChips,
   type FilterHandlers, type FilterSection, type FilterStyleHandlers, type FilterStyleView,
@@ -69,6 +70,7 @@ export type Words = PaginationWords & SearchWords & FilterWords & Partial<Search
   showCards: string;
   actions: string;
   loadFailed: string;
+  loading: string;
   tryAgain: string;
   cancel: string;
   ok: string;
@@ -97,6 +99,7 @@ export const defaultWords: Words = {
   showCards: 'Show cards',
   actions: 'What you can do',
   loadFailed: "Couldn't load this list.",
+  loading: 'Loading…',
   tryAgain: 'Try again',
   cancel: 'Cancel',
   ok: 'OK',
@@ -166,6 +169,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     state: { attribute: false },
     searchKeys: { attribute: false },
     busy: { type: Boolean, reflect: true },
+    loadingLabel: { type: String, attribute: 'loading-label' },
     urlState: { type: String, attribute: 'url-state' },
     cardTitle: { type: String, attribute: 'card-title' },
     cardPicture: { type: String, attribute: 'card-picture' },
@@ -251,6 +255,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare state: Partial<Query> | undefined;
   declare searchKeys: string[] | undefined;
   declare busy: boolean;
+  /** The loading state's words (default `words.loading`, "Loading…"), said to screen readers. */
+  declare loadingLabel: string | undefined;
   declare urlState: string | undefined;
   // HTML-only cards: each names the row key for one card part (card-facts is a comma list).
   declare cardTitle: string | undefined;
@@ -263,6 +269,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   declare cardTemplateId: string | undefined;
   // The <template card> child (read with the columns) and the template in use.
   private _tplChild: HTMLTemplateElement | undefined;
+  private _loadingEl: Element | undefined; // a child with slot="loading"
+  private _ready = false; // drawn whole once: later loads only set busy
+  private _drewList = false; // the last drawing was the list, not the loading state
   private _tpl: HTMLTemplateElement | undefined;
   /** A registered adapter's name (json, pammy, …) and the address it loads from. */
   declare adapter: string | undefined;
@@ -377,6 +386,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   // answered inside its dv-query listener (same update as the busy flag).
   private _answered = false;
   private _rows: T[] = [];
+  private _given = false; // rows were set (by the page, a setup file or an adapter)
   private _total: number | undefined;
 
   // Loading through an adapter. Each load gets a number; only the latest one's answer is used,
@@ -402,6 +412,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     const old = this._rows;
     this._rows = v;
     this._answered = true;
+    this._given = true;
     this.requestUpdate('rows', old);
   }
   get total(): number | undefined {
@@ -459,6 +470,9 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
     });
     this._media = matchMedia(PHONE);
     this._media.addEventListener('change', this._onMedia);
+    // The loading state waits for a filter style or the select add-on loading later, but only
+    // until the page has loaded (then the viewer warns about them and draws without).
+    if (!this._ready && document.readyState !== 'complete') addEventListener('load', this._onLoad, { once: true });
     this._onMedia();
     this.layout = this._remembered('wide') ?? this.layout ?? 'table';
     this.phoneLayout = this._remembered('phone') ?? this.phoneLayout;
@@ -476,6 +490,7 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    removeEventListener('load', this._onLoad);
     window.removeEventListener('popstate', this._onPop);
     this._fMedia?.removeEventListener('change', this._onFMedia);
     this._media?.removeEventListener('change', this._onMedia);
@@ -511,6 +526,8 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
         this._fromMarkup = true;
       }
     }
+    // A loading state of the page's own: a child with slot="loading", shown until the list is ready.
+    this._loadingEl = [...this.children].find((c) => c.getAttribute('slot') === 'loading') ?? undefined;
     // A card template written as a child: <template card>.
     this._tplChild = [...this.children].find((c): c is HTMLTemplateElement => c instanceof HTMLTemplateElement && c.hasAttribute('card'));
     this.adapter ??= this.getAttribute('adapter') ?? undefined;
@@ -1010,6 +1027,50 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
   protected override updated(): void {
     this._custom.after();
     this._watchWidth();
+    // The first full drawing (bar, list and pager at once, after the loading state): `ready`, and
+    // dv-ready once.
+    if (this._drewList && !this._ready) {
+      this._ready = true;
+      this.setAttribute('ready', '');
+      this.dispatchEvent(new CustomEvent('dv-ready', { bubbles: true, composed: true }));
+    }
+  }
+
+  private _onLoad = (): void => {
+    if (!this._ready) this.requestUpdate();
+  };
+
+  // Until the first page can be drawn whole, the list shows its loading state: no columns yet, a
+  // setup file loading, an adapter's first answer (or, without one, rows the page hasn't given),
+  // and, until the page has loaded, a filter style or the select add-on still to come. A failed
+  // load is drawn at once (its error box).
+  private _waiting(): boolean {
+    if (this._failed) return false;
+    if (this._configuring || !this.columns?.length) return true;
+    if (this._adapted ? this._mode === 'unknown' : !this._given) return true;
+    if (document.readyState !== 'complete') {
+      const fs = (this.filterStyle ?? '').trim().toLowerCase();
+      if (fs && fs !== 'dialog' && !filterStyle(fs)) return true;
+      if (this.selectable && !selectAddon()) return true;
+    }
+    return false;
+  }
+
+  // The loading state: the page's own (slot="loading"), else a skeleton of the bar and of rows or
+  // cards in the layout that will show, with "Loading…" for screen readers.
+  private _skeleton(w: Words): TemplateResult {
+    const cards = this._shown === 'cards';
+    const n = Math.max(1, Math.min(this._size || 10, cards ? 6 : 8));
+    const lines = Array.from({ length: n }, (_, i) => i);
+    return html`<div class="dv-root dv-loading" aria-busy="true"><span class="dv-sr" role="status">${this.loadingLabel || w.loading}</span>${this._loadingEl
+      ? this._loadingEl
+      : html`${this.compact ? nothing : html`<div class="dv-sk-bar" aria-hidden="true"><span class="dv-sk dv-sk-search"></span><span
+          class="dv-sk dv-sk-button"></span><span class="dv-sk dv-sk-button"></span></div>`}${cards
+        ? html`<ul class="dv-cards dv-sk-cards" aria-hidden="true">${lines.map(() => html`<li class="dv-sk-card"><span
+            class="dv-sk dv-sk-title"></span><span class="dv-sk dv-sk-picture"></span><span class="dv-sk dv-sk-line"></span><span
+            class="dv-sk dv-sk-line dv-sk-short"></span></li>`)}</ul>`
+        : html`<div class="dv-table-wrap dv-sk-table" aria-hidden="true">${lines.map((i) => html`<div class="dv-sk-row"><span
+            class=${i % 3 === 2 ? 'dv-sk dv-sk-line dv-sk-short' : 'dv-sk dv-sk-line'}></span></div>`)}</div>`}`}</div>`;
   }
 
   // A ResizeObserver on .dv-root while the style asked for has a fallback (rail: the panel under
@@ -1338,6 +1399,12 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
 
   protected override render(): TemplateResult {
     const w = this.text;
+    // Before the first full drawing: the loading state only, so nothing pops in in stages.
+    if (!this._ready && this._waiting()) {
+      this._drewList = false;
+      return this._skeleton(w);
+    }
+    this._drewList = true;
     let rows: T[];
     let total: number;
     let page: number;
@@ -1442,10 +1509,10 @@ export class LfdlnDataViewer<T = Record<string, unknown>> extends LitElement {
           </nav>`
         : nothing}
       ${sorts.length
-        ? html`<label class="dv-sort"><span class="dv-sr">${w.sortBy}</span><select @change=${(e: Event) => {
+        ? html`<label class="dv-sort"><span class="dv-sr">${w.sortBy}</span>${renderSelect(html`<select @change=${(e: Event) => {
             const [dir, ...key] = (e.target as HTMLSelectElement).value.split(':');
             this._change({ sort: key.join(':'), dir: (dir || 'asc') as 'asc', page: 1 });
-          }}>${sorts.map(([v, l], i) => html`<option value=${v} .selected=${v === now} ?hidden=${i >= n}>${l}</option>`)}</select></label>`
+          }}>${sorts.map(([v, l], i) => html`<option value=${v} .selected=${v === now} ?hidden=${i >= n}>${l}</option>`)}</select>`)}</label>`
         : nothing}
       ${this.layoutSwitch !== 'none'
         ? html`<div class="dv-layout" role="group">
@@ -1676,6 +1743,8 @@ export type DataViewerEventMap<T = Record<string, unknown>> = {
   'views-change': CustomEvent<{ views: SavedView[] }>;
   /** The selection changed: by the visitor, a query change or clearSelection() (not by setting selected). */
   'dv-select': CustomEvent<{ keys: string[]; all: boolean; except: string[] }>;
+  /** The list was drawn whole for the first time (after its loading state); fired once. */
+  'dv-ready': CustomEvent<undefined>;
   /** A selection bar action; cancelable (preventDefault() keeps the selection). */
   'dv-batch': CustomEvent<{ action: string; keys: string[]; rows: T[]; all: boolean; except: string[]; query: Query }>;
 };

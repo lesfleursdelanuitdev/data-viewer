@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@lesfleursdelanuitdev/select": ["../select/src/index.ts"]
+    }
+  },
   "include": ["src", "test", "e2e", "demo", "vite.config.ts", "playwright.config.ts"]
 }

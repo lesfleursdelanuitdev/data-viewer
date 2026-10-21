@@ -51,5 +51,8 @@
   },
   "peerDependencies": {
     "lit": "^3.3.3"
+  },
+  "dependencies": {
+    "@lesfleursdelanuitdev/select": "0.1.0"
   }
 }

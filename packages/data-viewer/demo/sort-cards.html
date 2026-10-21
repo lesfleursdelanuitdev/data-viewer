@@ -11,6 +11,8 @@
   </style>
   <script type="module" src="/data-viewer.standalone.js"></script>
   <script type="module" src="/data-viewer-json.js"></script>
+  <script type="module" src="/data-viewer-filter-panel.js"></script>
+  <script type="module" src="/data-viewer-select.js"></script>
 </head>
 <body>
   <h1>data-viewer, sorting cards</h1>
@@ -28,6 +30,14 @@
     <lfdln-dv-column key="name" label="Name" sortable></lfdln-dv-column>
     <lfdln-dv-column key="minutes" label="Minutes" type="number" sortable></lfdln-dv-column>
   </lfdln-data-viewer>
+  <h2>A full bar (search in, panel filter, ticks, views, the switch)</h2>
+  <!-- The search box keeps one width in both layouts, though cards add "Sort by" to the bar. -->
+  <lfdln-data-viewer id="full" label="Products" url-state="f" layout="table" phone-layout="table" page-size="2" page-sizes="2,10" search-in filter-style="panel" selectable>
+    <lfdln-dv-column key="name" label="Name" sortable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="kind" label="Kind" filterable searchable></lfdln-dv-column>
+    <lfdln-dv-column key="price" label="Price" type="money" currency="EUR" sortable></lfdln-dv-column>
+    <lfdln-dv-column key="added" label="Added" type="date" sortable></lfdln-dv-column>
+  </lfdln-data-viewer>
   <script type="application/json" id="products">
     [
       {"name": "Rose box", "kind": "Box", "price": 12, "added": "2026-03-01", "test": false},
@@ -39,6 +49,8 @@
     window.events = [];
     document.addEventListener('dv-query', (e) => window.events.push({ on: e.target.id, q: e.detail }));
     document.getElementById('list').rows = JSON.parse(document.getElementById('products').textContent);
+    document.getElementById('full').rows = JSON.parse(document.getElementById('products').textContent);
+    document.getElementById('full').views = [{ key: 'box', label: 'Boxes', filter: (r) => r.kind === 'Box' }, { key: 'set', label: 'Sets', filter: (r) => r.kind === 'Set' }];
   </script>
 </body>
 </html>

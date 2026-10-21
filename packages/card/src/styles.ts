@@ -25,13 +25,23 @@ export const cardCss: string = `
 :where(.lfdln-card) :where(*, *::before, *::after) { box-sizing: border-box; }
 :where(.lfdln-card:hover) { border-color: var(--card-muted); }
 :where(.lfdln-card:has(.lfdln-card-link:focus-visible)) { outline: 2px solid var(--card-accent); outline-offset: 2px; }
-:where(.lfdln-card-head) { display: flex; gap: 0.5rem; align-items: flex-start; }
+/* The head: a top row (start at the left, the menus at the right, on one centre line), then the
+   title, with its badge beside it. Without a start or menus there is no top row. */
+:where(.lfdln-card-head) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.5rem; align-items: center; }
+:where(.lfdln-card-start) { grid-area: 1 / 1; justify-self: start; display: flex; align-items: center; margin-bottom: 0.25rem; }
+:where(.lfdln-card-end) {
+  grid-area: 1 / 2; justify-self: end; display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.25rem;
+}
+:where(.lfdln-card-head) > :where(.lfdln-card-badge) { grid-row: 2; grid-column: 2; align-self: start; justify-self: end; }
 /* The title's ::after covers the card, so a click anywhere opens it. */
 :where(.lfdln-card-link) {
   all: unset; flex: 1 1 auto; min-width: 0; cursor: pointer; color: var(--card-text); text-decoration: none;
 }
 :where(.lfdln-card-name) { flex: 1 1 auto; min-width: 0; } /* a title that opens nothing */
 :where(.lfdln-card-link)::after { content: ""; position: absolute; inset: 0; border-radius: var(--card-radius); }
+/* After the link's all: unset, which would undo its place in the head's grid. */
+:where(.lfdln-card-head) > :where(.lfdln-card-link, .lfdln-card-name) { grid-row: 2; grid-column: 1 / -1; align-self: start; }
+:where(.lfdln-card-head:has(> .lfdln-card-badge)) > :where(.lfdln-card-link, .lfdln-card-name) { grid-column: 1; }
 :where(.lfdln-card-link:focus-visible) { outline: none; }
 :where(.lfdln-card-title) {
   font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2;
@@ -56,7 +66,11 @@ export const cardCss: string = `
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85em; color: var(--card-muted); margin-top: auto;
 }
 /* One line; what doesn't fit wraps to a second row instead of squeezing the meta. */
-:where(.lfdln-card-meta) { margin-right: auto; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where(.lfdln-card-meta) {
+  margin-right: auto; min-width: min(100%, max-content); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* The meta and the value keep their whole text (a price never breaks inside a number): when they
+   and the button don't fit on one line, the button goes to a line of its own under them. */
 :where(.lfdln-card-value) { color: var(--card-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 :where(.lfdln-card-action) { white-space: nowrap; }
 :where(button.lfdln-card-action, .lfdln-card-actions > button) {

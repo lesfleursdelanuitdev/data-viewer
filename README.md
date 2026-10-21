@@ -8,6 +8,7 @@ Six web components, each its own npm package, in one repository (npm workspaces)
 | [`@lesfleursdelanuitdev/menu`](packages/menu#readme) | `<lfdln-menu>` | A ⋯ button and its menu, with keyboard, headings and a built-in confirm |
 | [`@lesfleursdelanuitdev/pagination`](packages/pagination#readme) | `<lfdln-pagination>` | Pages for any list: a live status, numbered pages, rows per page |
 | [`@lesfleursdelanuitdev/card`](packages/card#readme) | `<lfdln-card>` | One card: a clickable layer, a header menu, footer actions that wrap or fit one row |
+| [`@lesfleursdelanuitdev/select`](packages/select#readme) | `<lfdln-select>` | A styled native dropdown: a real `<select>`, its own chevron, even spacing |
 | [`@lesfleursdelanuitdev/search`](packages/search#readme) | `<lfdln-search>` | A search box: search as you type or with a button, an optional "Search in" picker |
 | [`@lesfleursdelanuitdev/filter`](packages/filter#readme) | `<lfdln-filter>`, `<lfdln-filter-chips>` | A filter: a funnel button, a two-column popover or a phone sheet, draft then Apply, chips |
 
@@ -20,7 +21,7 @@ components with no shadow root, so page CSS reaches in.
 npm install        # links the workspaces
 npm run typecheck  # every package
 npm test           # the unit tests (node:test)
-npm run build      # menu, pagination, card, search, filter, then data-viewer: ES modules, standalone scripts, types, size checks
+npm run build      # menu, select, pagination, card, search, filter, then data-viewer: ES modules, standalone scripts, types, size checks
 npm run e2e        # the browser tests (Playwright, Chromium)
 ```
 

@@ -12,7 +12,10 @@ export const selectCss: string = `
 :where(.dv-select-box:disabled) { cursor: default; }
 :where(.dv-select-hit:has(.dv-select-box:disabled)) { cursor: default; opacity: 0.5; }
 :where(.dv-select-box:focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
-:where(.dv-select-slot) { display: flex; }
+/* The box in a custom card: where the card put its <dv-select>, else in the viewer's fallback slot,
+   first in the card, which sits at the card's top left inside its padding, above the open layer. */
+:where(dv-select) { display: inline-flex; align-items: center; }
+:where(.dv-card-custom) > :where(.dv-select-slot) { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; }
 :where(.dv-table) :where(tr.dv-selected) :where(th, td) { background: color-mix(in srgb, var(--dv-accent) 12%, transparent); }
 /* An outline, not the border: the card's own style comes later and sets its border. */
 :where(.lfdln-card.dv-selected, .dv-card-custom.dv-selected) { outline: 2px solid var(--dv-accent); outline-offset: -1px; }
@@ -24,7 +27,8 @@ export const selectCss: string = `
 /* The bar's own buttons (not the ⋯ menu's items, which keep the menu's look). */
 :where(.dv-select-bar) :where(button:not([role=menuitem])) {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; font: inherit; color: inherit;
-  background: var(--dv-bg); border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
+  background: var(--dv-bg); border: 1px solid var(--dv-border); border-radius: var(--dv-radius); padding: 0 0.75rem; cursor: pointer;
+  height: var(--dv-control-height);
 }
 :where(.dv-select-bar) :where(button:not([role=menuitem]):focus-visible) { outline: 2px solid var(--dv-accent); outline-offset: 2px; }
 :where(.dv-select-clear) { min-width: 2.25rem; }
@@ -49,7 +53,16 @@ export const selectCss: string = `
 @media (max-width: 640px) {
   :where(.dv-table) :where(.dv-select-cell) { width: 44px; min-width: 44px; padding: 0; text-align: center; }
   :where(.dv-select-hit) { min-width: 44px; min-height: 44px; }
-  :where(.lfdln-card-head) > :where(.dv-select-hit) { margin: -0.7rem 0 -0.7rem -0.7rem; }
+  /* In a card's head the 44 px target reaches into the card's padding (and past the row's top
+     and bottom by the same amount); the box itself stays exactly where it is on a wide screen:
+     at the padding's left edge, as far in as the ⋯ at the right. */
+  :where(.lfdln-card-start, dv-select) > :where(.dv-select-hit) {
+    margin-block: calc((1.05rem - 44px) / 2); margin-inline-start: calc((1.05rem - 44px) / 2);
+  }
+  /* The fallback slot (only while it is the card's own child: a card that moved it into its header
+     gets the rule above) keeps its target whole and the box 0.5rem in. */
+  :where(.dv-card-custom) > :where(.dv-select-slot) { top: calc(0.5rem + (1.05rem - 44px) / 2); left: calc(0.5rem + (1.05rem - 44px) / 2); }
+  :where(.dv-card-custom) > :where(.dv-select-slot) > :where(.dv-select-hit) { margin: 0; }
   /* Fixed to the bottom of the screen, 60 px tall, above the list; the list gets room under its
      end so nothing stays hidden. It holds ✕, the count (at most 2 lines), one action and ⋯; it
      scrolls sideways itself only when even those don't fit (long words). */

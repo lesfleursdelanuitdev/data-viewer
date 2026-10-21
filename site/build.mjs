@@ -320,6 +320,10 @@ await mkdir(join(out, 'fonts'), { recursive: true });
 
 // The packages' scripts, the site's own scripts and the content module.
 for (const f of PKG_FILES) await copyFile(join(pkgDist, f), join(out, 'js', f));
+// The dropdown's own script, for its page (the viewer bundles the package but defines no tag).
+const selectJs = join(root, 'packages', 'select', 'dist', 'select.standalone.js');
+if (!existsSync(selectJs)) fail(`missing ${selectJs}: run \`npm run build\` first`);
+await copyFile(selectJs, join(out, 'js', 'select.standalone.js'));
 for (const f of ['docs.js', 'landing.js', 'tabs.js']) {
   if (existsSync(join(src, f))) await copyFile(join(src, f), join(out, 'js', f));
 }

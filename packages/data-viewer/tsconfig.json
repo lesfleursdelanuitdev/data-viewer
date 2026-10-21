@@ -5,6 +5,7 @@
       "@lesfleursdelanuitdev/menu": ["../menu/src/index.ts"],
       "@lesfleursdelanuitdev/pagination": ["../pagination/src/index.ts"],
       "@lesfleursdelanuitdev/card": ["../card/src/index.ts"],
+      "@lesfleursdelanuitdev/select": ["../select/src/index.ts"],
       "@lesfleursdelanuitdev/search": ["../search/src/index.ts"],
       "@lesfleursdelanuitdev/filter": ["../filter/src/index.ts"],
       "@lesfleursdelanuitdev/filter/*": ["../filter/src/*.ts"],

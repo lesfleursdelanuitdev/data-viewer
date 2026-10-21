@@ -26,15 +26,19 @@ export const menuCss: string = `
 :where(.lfdln-menu-trigger-icon) { display: inline-flex; }
 :where(.lfdln-menu-trigger-icon) > :where(svg) { display: block; width: 1em; height: 1em; }
 :where(.lfdln-menu-trigger-text) { font-size: 0.9em; }
+/* The pop-ups' spacing is one shared set of tokens (the filter panel uses them too), even on
+   both sides (the house style): --lfdln-pop-inset (a list's own padding, all round),
+   --lfdln-pop-item-x / -y (each item's), --lfdln-pop-pad-x / -y (a panel's or a dialog's).
+   Each rule has the default as its fallback, so a page sets them once on :root. */
 /* The list is a popover in the top layer; the menu code sets top and right under its button. */
 :where(.lfdln-menu-list) {
-  position: fixed; inset: auto; margin: 0; padding: 0.25rem; min-width: 12rem; max-width: calc(100vw - 16px);
+  position: fixed; inset: auto; margin: 0; padding: var(--lfdln-pop-inset, 0.25rem); min-width: 12rem; max-width: calc(100vw - 16px);
   font-family: var(--menu-font); color: var(--menu-text); background: var(--menu-bg); text-align: left;
   border: 1px solid var(--menu-muted); border-radius: var(--menu-radius);
 }
 :where(.lfdln-menu-item) {
   all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%;
-  padding: 0.45rem 0.65rem; border-radius: calc(var(--menu-radius) / 2); cursor: pointer; color: var(--menu-text);
+  padding: var(--lfdln-pop-item-y, 0.45rem) var(--lfdln-pop-item-x, 0.65rem); border-radius: calc(var(--menu-radius) / 2); cursor: pointer; color: var(--menu-text);
 }
 :where(.lfdln-menu-item[hidden]) { display: none; }
 /* One fixed slot, so labels line up whether or not an item has an icon. */
@@ -43,20 +47,20 @@ export const menuCss: string = `
 :where(.lfdln-menu-text) { display: flex; flex-direction: column; min-width: 0; }
 :where(.lfdln-menu-desc) { font-size: 0.85em; color: var(--menu-muted); }
 :where(.lfdln-menu-heading) {
-  padding: 0.5rem 0.65rem 0.2rem; font-size: 0.8em; font-weight: 600; color: var(--menu-muted);
+  padding: var(--lfdln-pop-item-y, 0.45rem) var(--lfdln-pop-item-x, 0.65rem); font-size: 0.8em; font-weight: 600; color: var(--menu-muted);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
 :where(.lfdln-menu-item:hover, .lfdln-menu-item:focus) { background: var(--menu-surface); }
 :where(.lfdln-menu-item:focus-visible) { outline: 2px solid var(--menu-accent); outline-offset: -2px; }
 :where(.lfdln-menu-item[aria-disabled="true"]) { color: var(--menu-muted); cursor: default; }
 :where(.lfdln-menu-why) { font-size: 0.85em; color: var(--menu-muted); }
-:where(.lfdln-menu-list) :where([role="separator"]) { border-top: 1px solid var(--menu-border); margin: 0.25rem 0; }
+:where(.lfdln-menu-list) :where([role="separator"]) { border-top: 1px solid var(--menu-border); margin: var(--lfdln-pop-inset, 0.25rem) 0; }
 :where(.lfdln-menu-list) :where([role="separator"][hidden]) { display: none; }
 :where(.lfdln-menu-danger) { color: var(--menu-danger); }
 
 :where(.lfdln-menu-confirm) {
   font-family: var(--menu-font); color: var(--menu-text); background: var(--menu-bg); max-width: min(28rem, calc(100vw - 32px));
-  border: 1px solid var(--menu-border); border-radius: var(--menu-radius); padding: 1rem 1.25rem;
+  border: 1px solid var(--menu-border); border-radius: var(--menu-radius); padding: var(--lfdln-pop-pad-y, 12px) var(--lfdln-pop-pad-x, 16px);
 }
 :where(.lfdln-menu-confirm)::backdrop { background: color-mix(in srgb, var(--menu-bg) 70%, transparent); }
 :where(.lfdln-menu-confirm) :where(p) { margin: 0 0 1rem; }

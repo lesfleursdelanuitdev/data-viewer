@@ -12,6 +12,7 @@
   <script type="module" src="/menu/menu.standalone.js"></script>
   <script type="module" src="/pagination/pagination.standalone.js"></script>
   <script type="module" src="/card/card.standalone.js"></script>
+  <script type="module" src="/select/select.standalone.js"></script>
   <script type="module">
     const v = document.querySelector('#v');
     v.columns = [{ key: 'name', label: 'Name' }];
@@ -34,6 +35,7 @@
     <lfdln-card-header>A card</lfdln-card-header>
     <lfdln-card-footer><lfdln-menu-item value="x">X</lfdln-menu-item></lfdln-card-footer>
   </lfdln-card>
+  <lfdln-select id="s"><select aria-label="A page dropdown"><option>One</option><option>Two</option></select></lfdln-select>
   <lfdln-data-viewer id="v" label="Rows" layout="cards" pager="numbers" page-size="5"></lfdln-data-viewer>
 </body>
 </html>

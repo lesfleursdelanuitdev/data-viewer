@@ -2,6 +2,7 @@ import { addPaginationStyles } from '@lesfleursdelanuitdev/pagination';
 import { addCardStyles } from '@lesfleursdelanuitdev/card';
 import { addSearchStyles } from '@lesfleursdelanuitdev/search';
 import { addFilterStyles } from '@lesfleursdelanuitdev/filter';
+import { addSelectStyles } from '@lesfleursdelanuitdev/select';
 
 // The built-in look. Every rule sits inside :where() so any page rule wins, and the style
 // element goes first in <head> so page CSS loaded later wins ties too. The menus, the pager, the
@@ -10,6 +11,13 @@ import { addFilterStyles } from '@lesfleursdelanuitdev/filter';
 // theming the list themes them too.
 // Colours follow the page's color-scheme through light-dark(): a page with none (or `light`)
 // gets the light ones even on a dark OS; a page with `color-scheme: light dark` follows the OS.
+// Phones (the filter's sheet width, 639 px): the bar is two rows, tops in line, one gap
+// everywhere. Row 1: the search box, Filter, the switch; row 2: "Search in" and "Sort by", half
+// the row each; then the applied filters (the panel filter's own rules) and the views. The search
+// box's wrappers step aside (display: contents) so its parts are the bar's own items; the empty
+// ::after and ::before end rows 1 and 2. The gap between rows is the items' margins, as a row-gap
+// would count the empty rows too. Selectors outside :where() outweigh the search package's own
+// phone rules (its style comes later in <head>).
 export const css: string = `
 :where(:root) {
   --dv-bg: light-dark(#ffffff, #17171a);
@@ -21,7 +29,10 @@ export const css: string = `
   --dv-danger: light-dark(#b42318, #ff8a80);
   --dv-radius: 8px;
   --dv-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* One height for the controls of the bars and the pager */
+  --dv-control-height: 2.375rem;
 }
+@media (max-width: 640px) { :where(:root) { --dv-control-height: 44px; } }
 /* Inside a list, the menus, the pager and the cards take the list's colours and shape. */
 :where(.dv-root) {
   --menu-bg: var(--dv-bg); --menu-surface: var(--dv-surface); --menu-text: var(--dv-text);
@@ -39,6 +50,9 @@ export const css: string = `
   --filter-bg: var(--dv-bg); --filter-surface: var(--dv-surface); --filter-text: var(--dv-text);
   --filter-muted: var(--dv-muted); --filter-border: var(--dv-border); --filter-accent: var(--dv-accent);
   --filter-on-accent: var(--dv-bg); --filter-radius: var(--dv-radius); --filter-font: var(--dv-font);
+  --select-bg: var(--dv-bg); --select-text: var(--dv-text); --select-border: var(--dv-border);
+  --select-accent: var(--dv-accent); --select-radius: var(--dv-radius);
+  --lfdln-control-height: var(--dv-control-height);
 }
 :where(.dv-root) {
   display: block; font-family: var(--dv-font); color: var(--dv-text); background: var(--dv-bg);
@@ -51,9 +65,9 @@ export const css: string = `
 :where(.dv-bar, .dv-table, .dv-error) :where(button, a, input, select):where(:not(.lfdln-menu-item, .lfdln-menu-button, .lfdln-search-root *, .lfdln-filter-root *)):where(:focus-visible) {
   outline: 2px solid var(--dv-accent); outline-offset: 2px;
 }
-:where(.dv-bar, .dv-error) :where(button:not(.lfdln-search-root *, .lfdln-filter-root *), .dv-sort select) {
+:where(.dv-bar, .dv-error) :where(button:not(.lfdln-search-root *, .lfdln-filter-root *)) {
   font: inherit; color: inherit; background: var(--dv-surface); border: 1px solid var(--dv-border);
-  border-radius: var(--dv-radius); padding: 0.35rem 0.75rem; cursor: pointer;
+  border-radius: var(--dv-radius); padding: 0 0.75rem; cursor: pointer; height: var(--dv-control-height);
 }
 :where(.dv-bar, .dv-error) :where(button:disabled) { opacity: 0.5; cursor: default; }
 :where(.dv-table) :where(a:not(.lfdln-menu-item)) { color: var(--dv-accent); }
@@ -63,9 +77,18 @@ export const css: string = `
 }
 
 :where(.dv-bar) { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
-:where(.dv-search) { flex: 1 1 14rem; min-width: 0; }
+/* The search keeps one width whatever else the bar holds (the cards' Sort by, the views, the
+   switch): a set width that never grows into the line's free space, wider when it holds the
+   "Search in" picker so the picker stays beside the box. It shrinks when the screen is narrower.
+   Phones: it fills its own line, or shares it only with the Filter button. */
+:where(.dv-search) { flex: 0 1 var(--dv-search-width, 22rem); min-width: 0; max-width: 100%; }
+:where(.dv-search:has(.lfdln-search-in)) { flex-basis: var(--dv-search-width, 30rem); }
+/* The line's free space goes after the search, so the controls keep to the bar's right end. */
+:where(.dv-bar) > :where(.dv-search + *) { margin-left: auto; }
 :where(.dv-filter) { display: flex; min-width: 0; max-width: 100%; }
 :where(.dv-root) > :where(.lfdln-filter-chips) { margin: -0.25rem 0 0.75rem; }
+/* Cards' Sort by: the select package's dropdown, as tall as the bar's buttons and in their colours. */
+:where(.dv-sort) { display: inline-flex; --select-bg: var(--dv-surface); --select-pad-y: 0.35rem; --select-pad-x: 0.75rem; }
 :where(.dv-views) { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 :where(.dv-views) :where(a) {
   display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: 999px;
@@ -86,6 +109,8 @@ export const css: string = `
 :where(.dv-table) :where(th, td) { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--dv-border); vertical-align: middle; }
 :where(.dv-table) :where(thead th) { font-size: 0.85em; color: var(--dv-muted); font-weight: 600; background: var(--dv-surface); white-space: nowrap; }
 :where(.dv-table) :where(tbody th) { font-weight: 600; }
+:where(.dv-table) :where(tbody th) { min-width: min(10rem, 40vw); }
+:where(.dv-table) :where(tbody th:has(.dv-row-picture)) { min-width: min(13rem, 55vw); }
 :where(.dv-table) :where(tbody tr:last-child) :where(th, td) { border-bottom: 0; }
 :where(.dv-table) :where(.dv-right) { text-align: right; font-variant-numeric: tabular-nums; }
 :where(.dv-table) :where(thead button) { all: unset; cursor: pointer; display: inline-flex; gap: 0.25rem; align-items: center; }
@@ -129,9 +154,47 @@ export const css: string = `
 :where(.dv-empty, .dv-error) { padding: 1.5rem; text-align: center; color: var(--dv-muted); border: 1px dashed var(--dv-border); border-radius: var(--dv-radius); }
 :where(.dv-error) { color: var(--dv-danger); margin-bottom: 0.75rem; }
 
+/* The loading state (before the first full drawing): a skeleton of the bar and of rows or cards.
+   Even inside, like everything else (the house style). It pulses unless motion is reduced. */
+:where(.dv-sk) { display: block; border-radius: var(--dv-radius); background: color-mix(in srgb, var(--dv-text) 9%, transparent); }
+:where(.dv-loading) :where(.dv-sk) { animation: lfdln-dv-pulse 1.4s ease-in-out infinite; }
+@keyframes lfdln-dv-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { :where(.dv-loading) :where(.dv-sk) { animation: none; } }
+:where(.dv-sk-bar) { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+:where(.dv-sk-search) { flex: 0 1 var(--dv-search-width, 22rem); height: 2.25rem; }
+:where(.dv-sk-button) { flex: none; width: 5.5rem; height: 2.25rem; }
+:where(.dv-sk-search + .dv-sk-button) { margin-left: auto; }
+:where(.dv-sk-row) { padding: 0.75rem; border-bottom: 1px solid var(--dv-border); }
+:where(.dv-sk-row:last-child) { border-bottom: 0; }
+:where(.dv-sk-line) { height: 1rem; }
+:where(.dv-sk-short) { width: 60%; }
+:where(.dv-sk-card) {
+  display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--dv-border); border-radius: var(--dv-radius);
+}
+:where(.dv-sk-title) { height: 1.25rem; width: 70%; }
+:where(.dv-sk-picture) { aspect-ratio: 4 / 3; }
+
 @media (max-width: 640px) {
+  :where(.dv-sk-search) { flex: 1 1 100%; height: 44px; }
+  :where(.dv-sk-button) { display: none; }
   :where(.dv-bar, .dv-error, .dv-table) :where(button, input, select, .dv-views a):where(:not(.lfdln-search-root *, .lfdln-filter-root *)) { min-height: 44px; }
   :where(.dv-layout) :where(button) { min-width: 44px; }
+  :where(.dv-table) :where(td:not(.dv-row-menu)) { min-width: 7rem; }
+  :where(.dv-table) :where(.dv-right) { white-space: nowrap; }
+  :where(.dv-search, .dv-search:has(.lfdln-search-in)) { flex: 1 1 100%; }
+  :where(.dv-search:has(+ .dv-filter)) { flex: 1 1 14rem; }
+}
+/* Phones: two rows (see the note above). */
+@media (max-width: 639px) {
+  :where(.dv-bar) { row-gap: 0; align-items: flex-start; margin: -0.25rem 0 0.5rem; }
+  :where(.dv-bar)::after, :where(.dv-bar)::before { content: ""; flex-basis: 100%; order: 1; }
+  :where(.dv-bar)::before { order: 3; }
+  :where(.dv-bar) :where(.dv-bar > *, .lfdln-search-root > *) { margin-block: 0.25rem; }
+  :where(.dv-bar) :is(.dv-search:not(.dv-search-filter), .lfdln-search-root) { display: contents; }
+  :where(.dv-bar) .lfdln-search-field { flex: 1 1 0; }
+  :where(.dv-bar) :is(.lfdln-search-in-wrap, .dv-sort) { order: 2; flex: 1 1 0; min-width: 0; max-width: none; }
+  :where(.dv-sort) > :where(*) { flex: 1 1 auto; }
+  :where(.dv-views) { order: 4; }
 }
 `;
 
@@ -143,6 +206,7 @@ export function addStyles(doc: Document = document): void {
   addPaginationStyles(doc);
   addSearchStyles(doc);
   addFilterStyles(doc);
+  addSelectStyles(doc);
   if (doc.getElementById('lfdln-dv-style')) return;
   const el = doc.createElement('style');
   el.id = 'lfdln-dv-style';

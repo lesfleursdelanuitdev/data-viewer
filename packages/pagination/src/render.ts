@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { live } from 'lit/directives/live.js';
+import { renderSelect } from '@lesfleursdelanuitdev/select';
 import { pageNumbers, pageRange } from './paging.ts';
 
 export type Pager = 'simple' | 'numbers';
@@ -111,10 +112,11 @@ function renderPicker(v: PaginationView, on: PaginationHandlers): TemplateResult
   const sizes = v.sizes ?? [];
   if (sizes.length < 2) return nothing;
   const num = v.format ?? String;
-  return html`<label class="lfdln-pagination-size"><span>${v.words.rowsPerPage}</span><select
+  // A real <select> in the dropdown package's wrapper (its chevron, even spacing).
+  return html`<label class="lfdln-pagination-size"><span>${v.words.rowsPerPage}</span>${renderSelect(html`<select
     @change=${(e: Event) => on.onSize(Number((e.target as HTMLSelectElement).value))}>
     ${sizes.map((n) => html`<option value=${n} .selected=${live(n === v.size)}>${num(n)}</option>`)}
-  </select></label>`;
+  </select>`)}</label>`;
 }
 
 /**

@@ -29,6 +29,7 @@ is added here, or fixed first when it blocks that work.
 ## Size
 
 - Viewer standalone limit raised to 47104 B gz (46 KB) on 2026-10-17 for the cards sort picker; about 1 KB left. Find savings before the next feature.
+- Raised again to 50176 B gz (49 KB, +3072 B) on 2026-10-17 (card-head): the select package's dropdown (+~1.1 KB: its chevron, styles and the wrapper, now in Search in, Sort by and Rows per page) and the loading state (+~1 KB: skeleton, ready, dv-ready). Measured 48918 B. Find savings before the next feature.
 
 ## Code
 

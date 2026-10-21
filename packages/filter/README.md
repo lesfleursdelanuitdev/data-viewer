@@ -318,6 +318,11 @@ filter styles: `--filter-accent-soft` is an "on" chip's or pill's background, an
 They aren't set anywhere by default, so the `color-mix()` above is worked out where they are
 used: set either one on any element to replace it there.
 
+The panel's spacing (and its phone sheet's) is even and shared with the other pop-ups (the menus):
+`--lfdln-pop-pad-x` and `--lfdln-pop-pad-y` (`16px` and `12px`) are the space at its left and right,
+at its top and bottom, under the title and around the foot's line; the sheet's handle sits
+`--lfdln-pop-pad-y` from the top and from the title.
+
 ### Class names
 
 | Class | Part |

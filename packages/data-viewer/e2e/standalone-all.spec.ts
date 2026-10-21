@@ -18,9 +18,9 @@ for (const query of ['', '-viewer-first']) {
     expect(errors).toEqual([]);
     expect(await page.evaluate(() => (window as unknown as { problems: string[] }).problems)).toEqual([]);
     const defined = await page.evaluate(() =>
-      ['lfdln-menu', 'lfdln-pagination', 'lfdln-card', 'lfdln-data-viewer', 'lfdln-dv-column'].map((t) => Boolean(customElements.get(t))));
-    expect(defined).toEqual([true, true, true, true, true]);
-    for (const id of ['lfdln-menu-style', 'lfdln-pagination-style', 'lfdln-card-style', 'lfdln-dv-style']) {
+      ['lfdln-menu', 'lfdln-pagination', 'lfdln-card', 'lfdln-select', 'lfdln-data-viewer', 'lfdln-dv-column'].map((t) => Boolean(customElements.get(t))));
+    expect(defined).toEqual([true, true, true, true, true, true]);
+    for (const id of ['lfdln-menu-style', 'lfdln-pagination-style', 'lfdln-card-style', 'lfdln-select-style', 'lfdln-dv-style']) {
       await expect(page.locator(`#${id}`)).toHaveCount(1);
     }
     // Every id on the page is unique (menus from different scripts included).
